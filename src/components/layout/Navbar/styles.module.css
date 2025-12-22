@@ -1,55 +1,65 @@
 .navbar {
-  height: 80px; /* Altura fixa importante para o cálculo depois */
+  height: 80px;
   background-color: var(--surface);
   border-bottom: 1px solid var(--border-color);
   padding: 0 32px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  position: relative; /* Necessário para centralizar os links */
+}
+
+.logo {
+  margin-right: auto; /* Empurra o logo pra esquerda */
 }
 
 .logo h1 {
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   font-weight: 800;
   color: var(--text-main);
-  letter-spacing: -1px;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
 }
 
 .links {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%); /* Centraliza perfeitamente no meio da tela */
   display: flex;
   gap: 8px;
-  height: 100%; /* Para os links ocuparem a altura toda se quiser borda embaixo */
+  height: 100%;
+  align-items: center;
 }
 
 .link {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 20px;
+  padding: 0 16px;
   color: var(--text-light);
   font-weight: 600;
   font-size: 0.9rem;
   border-radius: 8px;
-  height: 48px; /* Botão gordinho */
-  margin-top: 16px; /* Centraliza verticalmente visualmente */
+  height: 44px;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .link:hover {
   background-color: var(--surface-hover);
-  color: var(--text-main);
+  color: var(--primary-color);
 }
 
 .active {
-  background-color: rgba(234, 29, 44, 0.1); /* Vermelho bem fraquinho */
+  background-color: rgba(249, 115, 22, 0.1); /* Laranja suave (Primary Color) */
   color: var(--primary-color);
 }
 
 .active:hover {
-  background-color: rgba(234, 29, 44, 0.2);
+  background-color: rgba(249, 115, 22, 0.15);
 }
 
 .logoutBtn {
+  margin-left: auto; /* Empurra o botão pra direita */
   background: transparent;
   border: none;
   color: var(--text-light);
@@ -63,5 +73,13 @@
 }
 
 .logoutBtn:hover {
-  color: #ef4444; /* Vermelho alerta no hover */
+  color: #ef4444; /* Vermelho alerta no hover mantido */
+}
+
+/* Responsividade: Se a tela for pequena, esconde texto ou ajusta layout */
+@media (max-width: 1024px) {
+  .logo h1 { font-size: 1.1rem; }
+  .link span { display: none; } /* Só ícones em telas menores */
+  .link { padding: 0 12px; }
+  .navbar { padding: 0 16px; }
 }

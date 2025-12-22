@@ -1,0 +1,131 @@
+.container {
+  padding: 24px 24px 100px 24px;
+}
+
+.title {
+  font-size: 1.5rem;
+  color: var(--text-main);
+  margin-bottom: 24px;
+  font-weight: 800;
+}
+
+.empty {
+  height: 70vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-light);
+  gap: 16px;
+}
+
+.backBtn {
+  padding: 12px 24px;
+  background: var(--primary-color);
+  color: white;
+  border-radius: 8px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+}
+.orderId { font-weight: 800; color: var(--primary-color); font-size: 1.1rem; }
+.date { color: var(--text-light); font-size: 0.85rem; }
+
+/* STEPPER */
+.stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+}
+.step { display: flex; flex-direction: column; align-items: center; gap: 6px; z-index: 2; }
+.step span { font-size: 0.7rem; color: var(--text-light); font-weight: 600; }
+
+.iconCircle {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--background); border: 2px solid var(--border-color);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-light);
+}
+
+.line { flex: 1; height: 3px; background: var(--border-color); margin: 0 -10px 20px -10px; z-index: 1; }
+
+.stepActive .iconCircle { background: var(--primary-color); border-color: var(--primary-color); color: white; }
+.stepActive span { color: var(--primary-color); }
+.lineActive { background: var(--primary-color); }
+
+.itemsSummary {
+  background: #f9fafb;
+  padding: 12px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.itemsSummary p { font-size: 0.9rem; color: var(--text-main); }
+
+.infoRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  padding: 0 4px;
+}
+.infoRow small { color: var(--text-light); }
+
+.cardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+  margin-top: 4px;
+}
+
+.totalWrapper {
+  display: flex;
+  flex-direction: column;
+}
+.totalWrapper small { font-size: 0.8rem; color: var(--text-light); }
+.total { font-weight: 800; font-size: 1.2rem; color: var(--text-main); }
+
+/* BOTÃO DE AJUDA WHATSAPP */
+.helpBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #25D366; /* Verde WhatsApp Oficial */
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 24px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s;
+  box-shadow: 0 4px 10px rgba(37, 211, 102, 0.2);
+}
+.helpBtn:hover { transform: scale(1.05); }
+.helpBtn:active { transform: scale(0.95); }

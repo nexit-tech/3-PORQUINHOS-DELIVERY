@@ -12,12 +12,14 @@
   padding: 24px;
   display: flex;
   flex-direction: column;
+  box-shadow: var(--shadow-sm); /* Adicionada sombra suave para destacar no branco */
 }
 
 .chartCard h3 {
   margin-bottom: 24px;
-  color: var(--text-main);
+  color: var(--text-main); /* Isso agora será escuro (#18181b) via globals.css */
   font-size: 1.1rem;
+  font-weight: 700;
 }
 
 .chartWrapper {

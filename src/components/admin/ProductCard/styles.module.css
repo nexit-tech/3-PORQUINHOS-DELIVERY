@@ -11,7 +11,7 @@
 
 .imagePlaceholder {
   height: 140px;
-  background: #2a2a2a; /* Cor de placeholder */
+  background: #f3f4f6; /* Placeholder cinza claro */
   width: 100%;
 }
 
@@ -28,10 +28,10 @@
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.05);
+  background: #fef3c7; /* Fundo amarelado */
   border-radius: 4px;
   font-size: 0.75rem;
-  color: #fbbf24; /* Amarelo ouro */
+  color: #d97706; /* Texto laranja escuro */
 }
 
 .footer { padding: 12px 16px; border-top: 1px solid var(--border-color); }

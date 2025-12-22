@@ -1,0 +1,253 @@
+.container {
+  padding: 24px;
+  /* Espaço calculado: Altura do Footer (aprox 180px) + Respiro (40px) */
+  padding-bottom: 220px; 
+  min-height: 100vh;
+  position: relative;
+  background-color: var(--background);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.header h1 {
+  font-size: 1.2rem;
+  color: var(--text-main);
+  font-weight: 700;
+}
+.iconBtn { 
+  color: var(--text-main); 
+  padding: 8px;
+  margin-left: -8px; /* Alinha visualmente à esquerda */
+}
+
+/* FORMULÁRIO */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sectionHeader {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--primary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 8px;
+  padding-left: 2px;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border-color);
+  opacity: 0.6;
+  margin: 4px 0;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative; /* Contexto para posicionamento */
+  z-index: 1; /* Nível base */
+}
+
+/* Quando o dropdown estiver aberto, esse grupo sobe na pilha via inline-style ou classe,
+   mas aqui garantimos que o dropdown em si tenha z-index alto */
+
+.inputGroup label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-light);
+  margin-left: 2px;
+}
+
+.input {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  color: var(--text-main);
+  font-size: 1rem;
+  outline: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+  transition: border-color 0.2s;
+}
+.input:focus { border-color: var(--primary-color); }
+
+/* INPUT COM ÍCONE */
+.inputIconWrapper {
+  position: relative;
+  width: 100%;
+}
+.inputIcon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-light);
+  pointer-events: none;
+  z-index: 2;
+}
+.inputWithIcon {
+  width: 100%;
+  padding: 14px 14px 14px 44px; /* Espaço para o ícone */
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  color: var(--text-main);
+  font-size: 1rem;
+  outline: none;
+}
+.inputWithIcon:focus { border-color: var(--primary-color); }
+
+/* GRID PARA NÚMERO E COMPLEMENTO (Correção do "Saindo da Tela") */
+.row {
+  display: grid;
+  grid-template-columns: 100px 1fr; /* Número fixo menor, Complemento ocupa o resto */
+  gap: 12px;
+  width: 100%;
+}
+
+/* COMBOBOX */
+.comboboxWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.comboboxTrigger {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  text-align: left;
+}
+
+.triggerInfo {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* Previne texto longo quebrar layout */
+}
+
+.hoodName { font-weight: 700; color: var(--text-main); font-size: 0.95rem; }
+.hoodFee { font-size: 0.8rem; color: var(--primary-color); margin-top: 2px; }
+
+/* DROPDOWN FLUTUANTE */
+.dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+  
+  /* Z-INDEX SUPREMO: Garante que fique acima do footer e de outros inputs */
+  z-index: 9999; 
+  
+  overflow: hidden;
+  max-height: 280px;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.1s ease-out;
+}
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+.searchBox {
+  padding: 10px;
+  background: var(--background);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.searchBox input {
+  border: none;
+  background: transparent;
+  width: 100%;
+  outline: none;
+  font-size: 0.95rem;
+  color: var(--text-main);
+}
+
+.list { overflow-y: auto; }
+
+.listItem {
+  width: 100%;
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-main);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+.listItem:hover, .listItem:active { background: var(--surface-hover); }
+.listItem small { font-weight: 600; color: var(--text-light); }
+
+.emptySearch { padding: 16px; text-align: center; color: var(--text-light); font-size: 0.85rem; }
+
+/* FOOTER FIXO */
+.footerSummary {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: var(--surface);
+  
+  /* Z-INDEX ALTO: Acima do conteúdo, mas ABAIXO do dropdown (9999) */
+  z-index: 500; 
+  
+  padding: 24px 24px 32px 24px; /* Padding bottom maior para safe area */
+  border-top: 1px solid var(--border-color);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summaryLine { display: flex; justify-content: space-between; color: var(--text-light); font-size: 0.9rem; }
+.totalLine { 
+  font-weight: 800; 
+  color: var(--text-main); 
+  font-size: 1.25rem; 
+  margin-top: 6px; 
+  padding-top: 12px; 
+  border-top: 1px dashed var(--border-color); 
+}
+.feeValue { color: #ef4444; font-weight: 600; }
+
+.finishBtn {
+  margin-top: 12px;
+  padding: 16px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1.05rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s;
+}
+.finishBtn:active { transform: scale(0.98); background: var(--primary-dark); }

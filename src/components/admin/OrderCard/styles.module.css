@@ -6,16 +6,13 @@
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  
-  /* --- A CURA PARA O ESMAGAMENTO (MANTIDO) --- */
   flex-shrink: 0; 
-  /* -------------------------------- */
-  
   transition: transform 0.2s, background-color 0.2s;
 }
 
 .header {
-  background: rgba(255,255,255, 0.03);
+  /* Fundo sutil cinza ao invés de branco transparente */
+  background: #f9fafb;
   padding: 10px var(--gap-md);
   display: flex;
   justify-content: space-between;
@@ -44,7 +41,7 @@
 
 .printBtn:hover {
   color: var(--text-main);
-  background-color: var(--surface-hover);
+  background-color: #f3f4f6;
 }
 
 .id {
@@ -60,7 +57,7 @@
   color: var(--text-light);
   font-size: 0.8rem;
   font-weight: 600;
-  background: rgba(0,0,0,0.2);
+  background: #f3f4f6; /* Cinza claro sólido */
   padding: 4px 8px;
   border-radius: 4px;
 }
@@ -88,9 +85,7 @@
 }
 
 .icon { color: var(--text-light); margin-top: 2px; flex-shrink: 0; }
-
 .address { color: var(--text-light); }
-
 .payment { font-weight: 600; }
 
 .divider {
@@ -111,22 +106,21 @@
   width: 4px;
 }
 .itemsList::-webkit-scrollbar-thumb {
-  background-color: var(--border-color);
+  background-color: #d4d4d8;
   border-radius: 4px;
 }
 
 .footer {
-  background: rgba(0,0,0,0.2);
+  background: #f9fafb; /* Fundo cinza bem leve */
   padding: var(--gap-md);
   margin-top: auto;
 }
 
-/* NOVO: Estilo para a linha da taxa */
 .fee {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px; /* Espaço antes do total */
+  margin-bottom: 8px;
   font-size: 0.9rem;
   color: var(--text-light);
 }
@@ -137,8 +131,8 @@
   align-items: center;
   margin-bottom: 16px;
   font-size: 1.1rem;
-  padding-top: 8px; /* Opcional: separação visual */
-  border-top: 1px dashed rgba(255,255,255,0.1); /* Opcional: linha sutil */
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-color);
 }
 
 .actions {
@@ -148,8 +142,10 @@
 }
 
 .btn { border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.9rem; transition: all 0.2s; }
+
+/* Botões com cores ajustadas se necessário, ou mantidas as semânticas */
 .btnPrimary { background: #007bff; color: white; } .btnPrimary:hover { background: #0056b3; }
 .btnAccept { background: #10b981; color: white; } .btnAccept:hover { background: #059669; }
 .btnSuccess { background: #10b981; color: white; width: 100%; grid-column: span 2; }
-.btnReject { background: rgba(239, 68, 68, 0.15); color: #ef4444; } .btnReject:hover { background: rgba(239, 68, 68, 0.25); }
-.btnGhost { background: transparent; color: #ef4444; border: 1px solid #ef4444; } .btnGhost:hover { background: rgba(239, 68, 68, 0.1); }
+.btnReject { background: #fef2f2; color: #ef4444; } .btnReject:hover { background: #fee2e2; }
+.btnGhost { background: transparent; color: #ef4444; border: 1px solid #ef4444; } .btnGhost:hover { background: #fef2f2; }

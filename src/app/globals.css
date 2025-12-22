@@ -1,15 +1,25 @@
 :root {
-  /* ... suas variáveis de cores (mantenha igual) ... */
-  --background: #121212;
-  --surface: #1e1e1e;
-  --surface-hover: #2a2a2a;
-  --primary-color: #ea1d2c;
-  --primary-dark: #c91824;
-  --text-main: #e1e1e6;
-  --text-light: #a8a8b3;
+  /* --- PALETA NOVA: BRANCO & LARANJA --- */
+  
+  /* Fundos */
+  --background: #f4f4f5;       /* Cinza bem clarinho para o fundo da página */
+  --surface: #ffffff;          /* Branco puro para os cartões */
+  --surface-hover: #fff7ed;    /* Laranja bem clarinho no hover (tint of orange) */
+  
+  /* Cor Primária (Laranja) */
+  --primary-color: #f97316;    /* Laranja Vibrante */
+  --primary-dark: #ea580c;     /* Laranja mais escuro para hover */
+  
+  /* Textos */
+  --text-main: #18181b;        /* Preto suave (Zinc 900) */
+  --text-light: #71717a;       /* Cinza médio (Zinc 500) */
+  
+  /* Bordas e Sombras */
   --border-radius: 12px;
-  --border-color: #323238;
-  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --border-color: #e4e4e7;     /* Cinza claro para bordas */
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05); /* Sombra mais suave */
+  
+  /* Espaçamentos (Mantidos) */
   --gap-sm: 8px;
   --gap-md: 16px;
   --gap-lg: 24px;
@@ -22,11 +32,10 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* AQUI É O SEGREDO: Travamos o HTML e BODY */
 html, body {
   height: 100%;
   width: 100%;
-  overflow: hidden; /* Proibido scroll na janela */
+  overflow: hidden;
   background-color: var(--background);
   color: var(--text-main);
 }

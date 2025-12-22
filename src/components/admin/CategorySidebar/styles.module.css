@@ -36,9 +36,9 @@
 .btn:hover { background: var(--surface-hover); color: var(--text-main); }
 
 .active {
-  background: rgba(234, 29, 44, 0.1);
+  background: rgba(249, 115, 22, 0.1); /* Laranja suave */
   color: var(--primary-color);
-  border-color: rgba(234, 29, 44, 0.2);
+  border-color: rgba(249, 115, 22, 0.2);
 }
 
 .addBtn {
