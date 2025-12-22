@@ -1,45 +1,99 @@
-import { useState } from 'react';
-import { Product, Category } from '@/types/product';
-
-const MOCK_CATEGORIES: Category[] = [
-  { id: '1', name: 'Pizzas Salgadas' },
-  { id: '2', name: 'Bebidas' },
-  { id: '3', name: 'Sobremesas' }
-];
-
-const MOCK_PRODUCTS: Product[] = [
-  {
-    id: '101', name: 'Pizza Grande', description: 'Molho de tomate artesanal e queijo', price: 49.90, categoryId: '1',
-    complements: [
-      {
-        id: 'g1', name: 'Escolha os Sabores (Até 2)', min: 1, max: 2,
-        options: [
-          { id: 'o1', name: 'Calabresa', price: 0 },
-          { id: 'o2', name: 'Frango c/ Catupiry', price: 0 },
-          { id: 'o3', name: 'Camarão (Premium)', price: 15.00 } // Sabor mais caro
-        ]
-      },
-      {
-        id: 'g2', name: 'Borda Recheada', min: 0, max: 1,
-        options: [
-          { id: 'b1', name: 'Catupiry', price: 8.00 },
-          { id: 'b2', name: 'Cheddar', price: 8.00 }
-        ]
-      }
-    ]
-  },
-  {
-    id: '201', name: 'Coca Cola 2L', description: 'Bem gelada', price: 12.00, categoryId: '2',
-    complements: []
-  }
-];
+import { useState, useEffect } from 'react';
+import { supabase } from '@/services/supabase'; // Ajuste se seu client estiver em outro lugar
+import { Product } from '@/types/product';
 
 export function useProducts() {
-  const [categories] = useState<Category[]>(MOCK_CATEGORIES);
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
-  const [activeCategory, setActiveCategory] = useState<string>(MOCK_CATEGORIES[0].id);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<any[]>([]); // Tipagem relaxada para evitar erro
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filteredProducts = products.filter(p => p.categoryId === activeCategory);
+  // CARREGAR DADOS
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-  return { categories, products: filteredProducts, activeCategory, setActiveCategory };
+  async function fetchData() {
+    try {
+      setIsLoading(true);
+      // Busca categorias
+      const { data: cats, error: catError } = await supabase.from('categories').select('*');
+      if (catError) throw catError;
+
+      // Busca produtos
+      const { data: prods, error: prodError } = await supabase.from('products').select('*');
+      if (prodError) throw prodError;
+
+      setCategories(cats || []);
+      setProducts(prods || []);
+    } catch (error) {
+      console.error('Erro ao buscar dados:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  // SALVAR / ATUALIZAR
+  async function saveProduct(product: Partial<Product>) {
+    try {
+      // Prepara o payload removendo campos undefined
+      const payload = {
+        name: product.name,
+        description: product.description,
+        price: product.price,
+        image: product.image,
+        category_id: product.categoryId, // Verifica se no banco é category_id ou categoryId
+        complements: product.complements // Supabase salva JSONB direto aqui
+      };
+
+      let error;
+      
+      if (product.id) {
+        // ATUALIZAR
+        const { error: updateError } = await supabase
+          .from('products')
+          .update(payload)
+          .eq('id', product.id);
+        error = updateError;
+      } else {
+        // CRIAR NOVO
+        const { error: insertError } = await supabase
+          .from('products')
+          .insert([payload]);
+        error = insertError;
+      }
+
+      if (error) throw error;
+      
+      await fetchData(); // Recarrega a lista
+      return { success: true };
+
+    } catch (error) {
+      console.error('Erro ao salvar produto:', error);
+      alert('Erro ao salvar no banco. Verifique o console.');
+      return { success: false };
+    }
+  }
+
+  // DELETAR
+  async function deleteProduct(id: string) {
+    if (!confirm('Tem certeza que deseja excluir?')) return;
+    try {
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) throw error;
+      setProducts(prev => prev.filter(p => p.id !== id));
+    } catch (error) {
+      console.error('Erro ao deletar:', error);
+    }
+  }
+
+  return {
+    products,
+    categories,
+    activeCategory,
+    setActiveCategory,
+    saveProduct,   // Função para salvar
+    deleteProduct, // Função para deletar
+    isLoading
+  };
 }

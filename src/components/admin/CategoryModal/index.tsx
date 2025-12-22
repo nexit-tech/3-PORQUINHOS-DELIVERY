@@ -1,46 +1,51 @@
 'use client';
-import { useState } from 'react';
-import { X } from 'lucide-react';
-import styles from './styles.module.css';
 
-interface CategoryModalProps {
+import { useState } from 'react';
+import { useAdmin } from '@/hooks/useAdmin';
+// Importe seu componente de Modal visual aqui (estou usando um genérico como exemplo)
+import Modal from '@/components/common/Modal'; 
+import styles from './styles.module.css'; // Assumindo que você tem/criará um CSS básico
+
+interface Props {
+  isOpen: boolean;
   onClose: () => void;
-  onSave: (name: string) => void;
+  onSuccess: () => void; // Para recarregar a lista
 }
 
-export default function CategoryModal({ onClose, onSave }: CategoryModalProps) {
+export default function CategoryModal({ isOpen, onClose, onSuccess }: Props) {
   const [name, setName] = useState('');
+  const { createCategory, loading } = useAdmin();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const success = await createCategory(name);
+    if (success) {
+      setName('');
+      onSuccess();
+      onClose();
+    }
+  };
 
   return (
-    <div className={styles.overlay}>
-      <div className={styles.modal}>
-        <header className={styles.header}>
-          <h2>Nova Categoria</h2>
-          <button onClick={onClose} className={styles.closeBtn}><X size={20}/></button>
-        </header>
-        
-        <div className={styles.body}>
-          <div className={styles.inputGroup}>
-            <label>Nome da Categoria</label>
-            <input 
-              value={name} 
-              onChange={e => setName(e.target.value)} 
-              placeholder="Ex: Lanches, Bebidas..." 
-              autoFocus
-            />
-          </div>
+    <Modal isOpen={isOpen} onClose={onClose} title="Nova Categoria">
+      <form onSubmit={handleSubmit} className={styles.form}>
+        <div className={styles.field}>
+          <label>Nome da Categoria</label>
+          <input 
+            type="text" 
+            value={name} 
+            onChange={e => setName(e.target.value)} 
+            required 
+            placeholder="Ex: Pizzas, Bebidas..."
+          />
         </div>
-
-        <footer className={styles.footer}>
-          <button onClick={onClose} className={styles.cancelBtn}>Cancelar</button>
-          <button 
-            onClick={() => { if(name) { onSave(name); onClose(); } }} 
-            className={styles.saveBtn}
-          >
-            Salvar Categoria
+        <div className={styles.actions}>
+          <button type="button" onClick={onClose} disabled={loading}>Cancelar</button>
+          <button type="submit" disabled={loading}>
+            {loading ? 'Salvando...' : 'Criar Categoria'}
           </button>
-        </footer>
-      </div>
-    </div>
+        </div>
+      </form>
+    </Modal>
   );
 }

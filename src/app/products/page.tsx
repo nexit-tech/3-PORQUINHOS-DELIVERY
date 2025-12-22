@@ -8,16 +8,29 @@ import ProductCard from '@/components/admin/ProductCard';
 import ProductModal from '@/components/admin/ProductModal';
 import CategoryModal from '@/components/admin/CategoryModal';
 import styles from './page.module.css';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Loader2 } from 'lucide-react';
 
 export default function ProductsPage() {
-  const { categories, products, activeCategory, setActiveCategory } = useProducts();
+  // Puxa tudo do Hook (agora conectado ao DB)
+  const { 
+    products, 
+    categories, 
+    activeCategory, 
+    setActiveCategory, 
+    saveProduct, // Função que vai no DB
+    isLoading 
+  } = useProducts();
   
   const [isProductModalOpen, setProductModalOpen] = useState(false);
   const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
-  // --- HANDLERS ---
+  // FILTRO SEGURO (Evita crash se products for undefined)
+  const filteredProducts = (products || []).filter(p => {
+    if (activeCategory === 'all') return true;
+    return p.categoryId === activeCategory;
+  });
+
   const handleNewProduct = () => {
     setEditingProduct(null);
     setProductModalOpen(true);
@@ -28,63 +41,67 @@ export default function ProductsPage() {
     setProductModalOpen(true);
   };
 
-  const handleSaveProduct = (productData: Partial<Product>) => {
-    console.log("SALVAR PRODUTO:", productData);
+  // SALVAR NO BANCO
+  const handleSaveWrapper = async (productData: Partial<Product>) => {
+    // Se for novo, garante que tem categoryId
+    if (!productData.id && !productData.categoryId) {
+      productData.categoryId = activeCategory === 'all' ? categories[0]?.id : activeCategory;
+    }
+
+    await saveProduct(productData);
     setProductModalOpen(false);
   };
 
-  const handleSaveCategory = (name: string) => {
-    console.log("SALVAR CATEGORIA:", name);
-    alert(`Categoria "${name}" criada!`);
-  };
+  if (isLoading) {
+    return <div className={styles.loading}><Loader2 className={styles.spinner} /> Carregando produtos...</div>;
+  }
 
   return (
     <div className={styles.container}>
       <CategorySidebar 
-        categories={categories} 
+        categories={categories || []} // Proteção contra null
         activeId={activeCategory} 
         onSelect={setActiveCategory}
-        onNewCategory={() => setCategoryModalOpen(true)} // <--- CONECTADO AQUI
+        onNewCategory={() => setCategoryModalOpen(true)}
       />
 
       <main className={styles.mainContent}>
         <header className={styles.header}>
           <div>
-            <h1>Catálogo de Produtos</h1>
-            <p>Gerencie seus itens, preços e complementos</p>
+            <h1>Catálogo</h1>
+            <p>{filteredProducts.length} produtos cadastrados</p>
           </div>
-          
-          {/* BOTÃO REDUNDANTE REMOVIDO DAQUI */}
-          
           <button className={styles.newBtn} onClick={handleNewProduct}>
             <PlusCircle size={20} /> Novo Produto
           </button>
         </header>
 
         <div className={styles.grid}>
-          {products.map(product => (
-            <ProductCard 
-              key={product.id} 
-              product={product} 
-              onEdit={handleEditProduct} 
-            />
-          ))}
+          {filteredProducts.length === 0 ? (
+            <div className={styles.emptyState}>Nenhum produto encontrado.</div>
+          ) : (
+            filteredProducts.map(product => (
+              <ProductCard 
+                key={product.id} 
+                product={product} 
+                onEdit={handleEditProduct} 
+              />
+            ))
+          )}
         </div>
       </main>
 
       {isProductModalOpen && (
         <ProductModal 
-          product={editingProduct} 
+          product={editingProduct}
+          existingProducts={products || []}
           onClose={() => setProductModalOpen(false)} 
-          onSave={handleSaveProduct} 
+          onSave={handleSaveWrapper} 
         />
       )}
 
       {isCategoryModalOpen && (
-        <CategoryModal 
-          onClose={() => setCategoryModalOpen(false)}
-          onSave={handleSaveCategory}
-        />
+        <CategoryModal onClose={() => setCategoryModalOpen(false)} onSave={() => {}} />
       )}
     </div>
   );
