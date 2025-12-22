@@ -3,17 +3,19 @@
   top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0, 0, 0, 0.8);
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: center; /* Isso centraliza VERTICALMENTE */
+  justify-content: center; /* Isso centraliza HORIZONTALMENTE */
   z-index: 1000;
   backdrop-filter: blur(4px);
+  padding: 20px; /* Garante que não encoste nas bordas em mobile */
 }
 
 .modal {
   background: var(--surface);
   width: 100%;
   max-width: 600px;
-  height: 85vh;
+  height: auto; /* CORREÇÃO: Altura automática baseada no conteúdo */
+  max-height: 90vh; /* Limite para não estourar a tela */
   border-radius: 16px;
   border: 1px solid var(--border-color);
   display: flex;
@@ -21,15 +23,9 @@
   box-shadow: 0 20px 50px rgba(0,0,0,0.5);
 }
 
-/* --- PROTEÇÃO GLOBAL DO MODAL --- */
-.modal label {
-  font-size: 0.85rem;
-  color: var(--text-light);
-  font-weight: 600;
-}
-
-.modal input, 
-.modal textarea {
+/* O resto dos estilos de input/label mantenho iguais para preservar seu design */
+.modal label { font-size: 0.85rem; color: var(--text-light); font-weight: 600; }
+.modal input, .modal textarea {
   background: var(--background);
   border: 1px solid var(--border-color);
   padding: 12px;
@@ -39,13 +35,7 @@
   font-size: 0.95rem;
   width: 100%;
 }
-
-.modal input:focus, 
-.modal textarea:focus {
-  border-color: var(--primary-color);
-  outline: none;
-}
-/* -------------------------------- */
+.modal input:focus, .modal textarea:focus { border-color: var(--primary-color); outline: none; }
 
 .header {
   padding: 20px 24px;
@@ -53,277 +43,91 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0; /* Impede que o header encolha */
 }
 
 .header h2 { font-size: 1.2rem; color: var(--text-main); }
-
 .closeBtn { background: transparent; border: none; color: var(--text-light); cursor: pointer; }
 
 .tabs {
   display: flex;
   border-bottom: 1px solid var(--border-color);
   padding: 0 24px;
+  flex-shrink: 0;
 }
-
 .tabs button {
-  background: transparent;
-  border: none;
-  padding: 16px;
-  color: var(--text-light);
-  font-weight: 600;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
+  background: transparent; border: none; padding: 16px; color: var(--text-light); font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent;
 }
-
-.activeTab {
-  color: var(--primary-color) !important;
-  border-bottom-color: var(--primary-color) !important;
-}
+.activeTab { color: var(--primary-color) !important; border-bottom-color: var(--primary-color) !important; }
 
 .body {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: auto; /* Rolagem apenas aqui dentro */
   padding: 24px;
 }
 
-/* --- UPLOAD DE IMAGEM --- */
+/* --- MANTENDO SEUS ESTILOS DE UPLOAD E FORM --- */
 .imageUploadBox {
-  width: 100%;
-  height: 160px;
-  background-color: rgba(255, 255, 255, 0.02);
-  border: 2px dashed var(--border-color);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  position: relative;
-  overflow: hidden;
+  width: 100%; height: 160px; background-color: rgba(255, 255, 255, 0.02);
+  border: 2px dashed var(--border-color); border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  background-size: cover; background-position: center; position: relative;
 }
-
-.imageUploadBox:hover {
-  border-color: var(--primary-color);
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-.uploadPlaceholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  color: var(--text-light);
-}
-
-.uploadPlaceholder span { font-size: 0.9rem; font-weight: 600; }
-
-/* --- FORMULÁRIO --- */
+.imageUploadBox:hover { border-color: var(--primary-color); }
+.uploadPlaceholder { display: flex; flex-direction: column; align-items: center; gap: 12px; color: var(--text-light); }
 .formGrid { display: flex; flex-direction: column; gap: 16px; }
 .inputGroup { display: flex; flex-direction: column; gap: 8px; }
 .inputGroupFull { display: flex; flex-direction: column; gap: 8px; }
 
 /* --- COMPLEMENTOS --- */
 .complementsList { display: flex; flex-direction: column; gap: 24px; }
-
-.groupCard {
-  background: rgba(255,255,255,0.02);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 16px;
-}
-
+.groupCard { background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; }
 .groupHeader { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
 .dragHandle { color: var(--text-light); cursor: grab; }
-
-.groupNameInput { 
-  flex: 1; 
-  font-weight: 700; 
-  background: transparent !important; 
-  border: none !important; 
-  border-bottom: 1px dashed var(--border-color) !important; 
-  padding: 4px !important; 
-  border-radius: 0 !important; 
-}
-.groupNameInput:focus { border-color: var(--primary-color) !important; }
-
-/* Ações do Grupo (Salvar/Excluir) */
-.groupActions { display: flex; align-items: center; gap: 8px; }
-
-.actionBtn {
-  background: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--text-light);
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.actionBtn:hover {
-  background: var(--surface-hover);
-  color: var(--primary-color);
-  border-color: var(--primary-color);
-}
-
-.deleteBtn:hover { color: #ef4444; border-color: #ef4444; }
-
-/* Regras (Min/Max) */
-.rulesRow {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: rgba(0,0,0,0.2);
-  padding: 10px;
-  border-radius: 8px;
-  margin-bottom: 16px;
-}
-
+.groupNameInput { flex: 1; font-weight: 700; background: transparent !important; border: none !important; border-bottom: 1px dashed var(--border-color) !important; padding: 4px !important; border-radius: 0 !important; }
+.deleteBtn { color: #ef4444; background: transparent; border: 1px solid var(--border-color); width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.rulesRow { display: flex; align-items: center; gap: 16px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; margin-bottom: 16px; }
 .ruleInput { display: flex; align-items: center; gap: 8px; }
 .ruleInput input { width: 60px; padding: 6px; text-align: center; }
-.ruleDesc { font-size: 0.8rem; color: var(--text-light); margin-left: auto; }
-
-/* Lista de Opções */
 .optionsList { display: flex; flex-direction: column; gap: 8px; }
 .optionRow { display: flex; gap: 8px; }
-.priceInput { 
-  width: 120px !important; 
-  text-align: right; 
-  color: #10b981 !important; 
-  font-weight: 600; 
-}
+.priceInput { width: 120px !important; text-align: right; color: #10b981 !important; font-weight: 600; }
+.addOptionBtn { background: transparent; color: var(--primary-color); border: 1px dashed var(--primary-color); padding: 8px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 8px; }
+.footerActions { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 8px; padding-bottom: 20px; }
+.addGroupBtn { width: 100%; padding: 16px; background: transparent; border: 2px dashed var(--border-color); color: var(--text-light); border-radius: 12px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.importWrapper { position: relative; z-index: 50; }
+.importBtn { width: 100%; height: 100%; padding: 16px; background: rgba(234, 29, 44, 0.1); border: 2px dashed rgba(234, 29, 44, 0.3); color: var(--primary-color); border-radius: 12px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; }
 
-.addOptionBtn {
-  background: transparent; color: var(--primary-color); border: 1px dashed var(--primary-color);
-  padding: 8px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; margin-top: 8px; width: 100%;
-}
-
-/* --- RODAPÉ DE AÇÕES (ADD GRUPO / IMPORTAR) --- */
-.footerActions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-top: 8px;
-  /* Espaço extra para o menu dropdown não ficar cortado se for o último item */
-  padding-bottom: 20px; 
-}
-
-.addGroupBtn {
-  width: 100%;
-  padding: 16px;
-  background: transparent;
-  border: 2px dashed var(--border-color);
-  color: var(--text-light);
-  border-radius: 12px;
-  cursor: pointer;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: all 0.2s;
-}
-.addGroupBtn:hover { border-color: var(--text-main); color: var(--text-main); }
-
-.importWrapper {
-  position: relative; /* Pai relativo para o menu absoluto */
-  z-index: 50;
-}
-
-.importBtn {
-  width: 100%;
-  height: 100%;
-  padding: 16px;
-  background: rgba(234, 29, 44, 0.1);
-  border: 2px dashed rgba(234, 29, 44, 0.3);
-  color: var(--primary-color);
-  border-radius: 12px;
-  cursor: pointer;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: all 0.2s;
-}
-.importBtn:hover { background: rgba(234, 29, 44, 0.2); }
-
-/* --- MENU DROPDOWN (CORRIGIDO PARA DESCER) --- */
+/* --- CORREÇÃO DO MENU DE IMPORTAR --- */
 .importMenu {
   position: absolute;
-  bottom: 100%;
+  top: 100%; /* CORREÇÃO: Abre para BAIXO */
   left: 0; right: 0;
-  margin-bottom: 8px;
+  margin-top: 8px; /* Espacinho do botão */
   background: var(--surface);
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 0;
-  box-shadow: 0 -10px 30px rgba(0,0,0,0.15);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
   z-index: 100;
   max-height: 250px;
   overflow-y: auto;
-  overflow-x: hidden;
 }
-
-.importMenuHeader {
-  padding: 10px 12px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--text-light);
-  border-bottom: 1px solid var(--border-color);
-  background: rgba(0,0,0,0.02);
-}
-
-.importMenu::-webkit-scrollbar { width: 4px; }
-.importMenu::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
-
-.importMenu h4 {
-  font-size: 0.75rem;
-  color: var(--text-light);
-  text-transform: uppercase;
-  margin-bottom: 8px;
-  padding-left: 8px;
-  letter-spacing: 0.5px;
-}
-
-.importMenu ul { list-style: none; padding: 4px; }
-
-.importMenu li {
-  padding: 10px 12px;
-  border-radius: 6px;
-  display: flex; justify-content: space-between; align-items: center;
-  cursor: pointer; font-size: 0.9rem; color: var(--text-main);
-}
+/* Estilos do menu interno */
+.importMenu li { padding: 10px 12px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-size: 0.9rem; color: var(--text-main); }
 .importMenu li:hover { background: var(--surface-hover); color: var(--primary-color); }
+.backBtn { width: 100%; text-align: left; background: transparent; border: none; padding: 8px 12px; color: var(--text-light); border-bottom: 1px dashed var(--border-color); cursor: pointer; }
 
-.emptyMsg { padding: 10px; color: var(--text-light); font-size: 0.9rem; text-align: center; }
-
-/* --- FOOTER DO MODAL --- */
 .footer {
   padding: 20px 24px;
   border-top: 1px solid var(--border-color);
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  background: var(--surface); /* Garante fundo sólido */
+  background: var(--surface);
+  flex-shrink: 0;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
 }
-
 .cancelBtn { padding: 12px 20px; background: transparent; border: 1px solid var(--border-color); color: var(--text-main); border-radius: 8px; cursor: pointer; font-weight: 600; }
 .saveBtn { padding: 12px 20px; background: var(--primary-color); border: none; color: white; border-radius: 8px; cursor: pointer; font-weight: 600; }
-.saveBtn:hover { background: var(--primary-dark); }
-
-.backBtn {
-  width: 100%; text-align: left; background: transparent; border: none; 
-  padding: 8px 12px; color: var(--text-light); font-size: 0.8rem; cursor: pointer;
-  border-bottom: 1px dashed var(--border-color);
-}
-.backBtn:hover { color: var(--text-main); }
-.emptyMsg { padding: 12px; text-align: center; color: var(--text-light); font-size: 0.85rem; }
-

@@ -1,51 +1,70 @@
 'use client';
 
 import { useState } from 'react';
-import { useAdmin } from '@/hooks/useAdmin';
-// Importe seu componente de Modal visual aqui (estou usando um genérico como exemplo)
-import Modal from '@/components/common/Modal'; 
-import styles from './styles.module.css'; // Assumindo que você tem/criará um CSS básico
+import styles from './styles.module.css';
 
-interface Props {
-  isOpen: boolean;
+interface CategoryModalProps {
+  isOpen?: boolean; // Deixei opcional para flexibilidade
   onClose: () => void;
-  onSuccess: () => void; // Para recarregar a lista
+  onSave: (name: string) => Promise<void> | void;
 }
 
-export default function CategoryModal({ isOpen, onClose, onSuccess }: Props) {
+export default function CategoryModal({ isOpen = true, onClose, onSave }: CategoryModalProps) {
   const [name, setName] = useState('');
-  const { createCategory, loading } = useAdmin();
+  const [loading, setLoading] = useState(false);
+
+  // Se for controlado por boolean externo
+  if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await createCategory(name);
-    if (success) {
+    if (!name.trim()) return;
+
+    setLoading(true);
+    try {
+      await onSave(name);
       setName('');
-      onSuccess();
-      onClose();
+      // onClose será chamado pelo pai após sucesso, ou aqui se preferir
+      // Mas geralmente o pai controla o fechamento
+    } catch (error) {
+      console.error(error);
+      alert('Erro ao salvar categoria');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Nova Categoria">
-      <form onSubmit={handleSubmit} className={styles.form}>
-        <div className={styles.field}>
-          <label>Nome da Categoria</label>
-          <input 
-            type="text" 
-            value={name} 
-            onChange={e => setName(e.target.value)} 
-            required 
-            placeholder="Ex: Pizzas, Bebidas..."
-          />
-        </div>
-        <div className={styles.actions}>
-          <button type="button" onClick={onClose} disabled={loading}>Cancelar</button>
-          <button type="submit" disabled={loading}>
-            {loading ? 'Salvando...' : 'Criar Categoria'}
-          </button>
-        </div>
-      </form>
-    </Modal>
+    <div className={styles.overlay}>
+      <div className={styles.modal}>
+        <header className={styles.header}>
+          <h2>Nova Categoria</h2>
+          <button onClick={onClose} className={styles.closeBtn}>✕</button>
+        </header>
+        
+        <form onSubmit={handleSubmit} className={styles.body}>
+          <div className={styles.inputGroup}>
+            <label>Nome da Categoria</label>
+            <input 
+              autoFocus
+              type="text" 
+              value={name} 
+              onChange={e => setName(e.target.value)} 
+              required 
+              placeholder="Ex: Lanches, Bebidas..."
+            />
+          </div>
+
+          <footer className={styles.footer}>
+            <button type="button" onClick={onClose} className={styles.cancelBtn}>
+              Cancelar
+            </button>
+            <button type="submit" disabled={loading} className={styles.saveBtn}>
+              {loading ? 'Salvando...' : 'Salvar'}
+            </button>
+          </footer>
+        </form>
+      </div>
+    </div>
   );
 }

@@ -94,21 +94,21 @@ export default function ProductModal({ product, existingProducts = [], onClose, 
   };
 
   const handleSave = () => {
-    if (!name.trim()) return alert('Nome obrigatório');
-    const rawPrice = Number(price.replace(/\D/g, '')) / 100;
+      if (!name.trim()) return alert('Nome obrigatório');
+      const rawPrice = typeof price === 'string' ? Number(price.replace(/\D/g, '')) / 100 : price;
 
-    // Limpa IDs temporários antes de mandar (opcional, dependendo do backend)
-    // Aqui mandamos tudo e o backend decide se cria ou atualiza
-    onSave({
-      id: product?.id,
-      name,
-      description: desc,
-      price: rawPrice,
-      image: imagePreview || undefined,
-      complements: groups
-    });
-    onClose();
-  };
+      onSave({
+        id: product?.id,
+        name,
+        description: desc,
+        price: rawPrice,
+        image: imagePreview || undefined,
+        // Ajuste aqui para pegar a categoria se você tiver um select no modal (não vi no seu código original, mas se tiver, use category_id)
+        // category_id: selectedCategory, 
+        complements: groups
+      });
+      onClose();
+    };
 
   return (
     <div className={styles.overlay}>
