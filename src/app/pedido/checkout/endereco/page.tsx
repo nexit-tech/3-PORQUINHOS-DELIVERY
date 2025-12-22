@@ -2,19 +2,18 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ChevronDown, Search, User, Phone } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Search, User, Phone, Loader2 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
+import { supabase } from '@/services/supabase';
 import Link from 'next/link';
 import styles from './page.module.css';
 
-const NEIGHBORHOODS = [
-  { name: 'Centro', fee: 5.00 },
-  { name: 'Jardim das Flores', fee: 8.00 },
-  { name: 'Vila Nova', fee: 10.00 },
-  { name: 'Industrial', fee: 12.00 },
-  { name: 'Bairro Alto', fee: 15.00 },
-  { name: 'Residencial Lagos', fee: 7.00 },
-];
+// Tipo que bate com sua tabela 'delivery_zones'
+interface DeliveryZone {
+  id: string;
+  neighborhood: string; // <-- Corrigido (era name)
+  fee: number;
+}
 
 export default function EnderecoPage() {
   const router = useRouter();
@@ -23,27 +22,60 @@ export default function EnderecoPage() {
     setCustomerName, setCustomerPhone
   } = useCart();
 
-  // Estados
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [street, setStreet] = useState('');
   const [number, setNumber] = useState('');
   const [complement, setComplement] = useState('');
   
-  // Dropdown
-  const [selectedHood, setSelectedHood] = useState(NEIGHBORHOODS[0]);
+  const [neighborhoods, setNeighborhoods] = useState<DeliveryZone[]>([]);
+  const [selectedHood, setSelectedHood] = useState<DeliveryZone | null>(null);
+  const [loadingZones, setLoadingZones] = useState(true);
+
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // 1. BUSCA BAIRROS DO SUPABASE (Corrigido para usar 'neighborhood')
   useEffect(() => {
-    setDeliveryFee(selectedHood.fee);
+    async function fetchZones() {
+      try {
+        setLoadingZones(true);
+        // Busca na tabela 'delivery_zones' ordenando por 'neighborhood'
+        const { data, error } = await supabase
+          .from('delivery_zones')
+          .select('*')
+          .eq('active', true) // Opcional: só busca os ativos
+          .order('neighborhood', { ascending: true }); // <-- Corrigido (era name)
+
+        if (error) throw error;
+
+        if (data) {
+          setNeighborhoods(data);
+          if (data.length > 0) {
+            setSelectedHood(data[0]);
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao buscar bairros:', error);
+      } finally {
+        setLoadingZones(false);
+      }
+    }
+
+    fetchZones();
+  }, []);
+
+  useEffect(() => {
+    if (selectedHood) {
+      setDeliveryFee(selectedHood.fee);
+    }
   }, [selectedHood, setDeliveryFee]);
 
   const filteredHoods = useMemo(() => {
-    return NEIGHBORHOODS.filter(h => 
-      h.name.toLowerCase().includes(searchTerm.toLowerCase())
+    return neighborhoods.filter(h => 
+      h.neighborhood.toLowerCase().includes(searchTerm.toLowerCase()) // <-- Corrigido
     );
-  }, [searchTerm]);
+  }, [neighborhoods, searchTerm]);
 
   const handlePhoneChange = (txt: string) => {
     let val = txt.replace(/\D/g, '');
@@ -53,17 +85,25 @@ export default function EnderecoPage() {
   };
 
   const handleNext = () => {
-    if (!name || !phone || !street || !number) {
+    if (!name || !phone || !street || !number || !selectedHood) {
       alert('Preencha os campos obrigatórios!');
       return;
     }
+    
     setCustomerName(name);
     setCustomerPhone(phone);
-    setAddress({ street, number, complement, neighborhood: selectedHood.name });
+    setAddress({ 
+      street, 
+      number, 
+      complement, 
+      neighborhood: selectedHood.neighborhood // <-- Corrigido
+    });
+    
     router.push('/pedido/checkout/pagamento');
   };
 
-  const total = cartSubtotal + selectedHood.fee;
+  const currentFee = selectedHood?.fee || 0;
+  const total = cartSubtotal + currentFee;
 
   return (
     <main className={styles.container}>
@@ -120,18 +160,28 @@ export default function EnderecoPage() {
           <div className={styles.comboboxWrapper}>
             <button 
               className={styles.comboboxTrigger} 
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              onClick={() => !loadingZones && setIsDropdownOpen(!isDropdownOpen)}
+              disabled={loadingZones}
             >
-              <div className={styles.triggerInfo}>
-                <span className={styles.hoodName}>{selectedHood.name}</span>
-                <span className={styles.hoodFee}>
-                  Taxa: {selectedHood.fee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </span>
-              </div>
-              <ChevronDown size={20} className={styles.chevron} />
+              {loadingZones ? (
+                <div className={styles.triggerInfo}>
+                  <span className={styles.hoodName}>Carregando bairros...</span>
+                </div>
+              ) : selectedHood ? (
+                <div className={styles.triggerInfo}>
+                  <span className={styles.hoodName}>{selectedHood.neighborhood}</span>
+                  <span className={styles.hoodFee}>
+                    Taxa: {selectedHood.fee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </span>
+                </div>
+              ) : (
+                <span className={styles.hoodName}>Selecione um bairro</span>
+              )}
+              
+              {loadingZones ? <Loader2 className={styles.spin} size={20} /> : <ChevronDown size={20} className={styles.chevron} />}
             </button>
 
-            {isDropdownOpen && (
+            {isDropdownOpen && !loadingZones && (
               <div className={styles.dropdown}>
                 <div className={styles.searchBox}>
                   <Search size={16} color="#71717a" />
@@ -146,7 +196,7 @@ export default function EnderecoPage() {
                 <div className={styles.list}>
                   {filteredHoods.map(hood => (
                     <button
-                      key={hood.name}
+                      key={hood.id}
                       className={styles.listItem}
                       onClick={() => {
                         setSelectedHood(hood);
@@ -154,12 +204,16 @@ export default function EnderecoPage() {
                         setSearchTerm('');
                       }}
                     >
-                      <span>{hood.name}</span>
+                      <span>{hood.neighborhood}</span>
                       <small>{hood.fee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</small>
                     </button>
                   ))}
                   {filteredHoods.length === 0 && (
-                    <div className={styles.emptySearch}>Nenhum bairro encontrado</div>
+                    <div className={styles.emptySearch}>
+                      {neighborhoods.length === 0 
+                        ? 'Nenhum bairro cadastrado.' 
+                        : 'Nenhum bairro encontrado.'}
+                    </div>
                   )}
                 </div>
               </div>
@@ -210,8 +264,10 @@ export default function EnderecoPage() {
           <span>{cartSubtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
         </div>
         <div className={styles.summaryLine}>
-          <span>Taxa ({selectedHood.name})</span>
-          <span className={styles.feeValue}>+ {selectedHood.fee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+          <span>Taxa {selectedHood ? `(${selectedHood.neighborhood})` : ''}</span>
+          <span className={styles.feeValue}>
+            + {currentFee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+          </span>
         </div>
         <div className={`${styles.summaryLine} ${styles.totalLine}`}>
           <span>Total</span>

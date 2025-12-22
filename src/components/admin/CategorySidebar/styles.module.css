@@ -1,54 +1,140 @@
 .sidebar {
-  width: 260px;
-  background: var(--surface);
-  border-right: 1px solid var(--border-color);
-  padding: 24px;
+  width: 280px;
+  background-color: white;
+  border-right: 1px solid #eee;
   display: flex;
   flex-direction: column;
+  height: 100%; /* Garante altura total */
   flex-shrink: 0;
 }
 
-.title {
-  color: var(--text-light);
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  margin-bottom: 16px;
-  letter-spacing: 1px;
-}
-
-.list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
-
-.btn {
-  width: 100%;
-  padding: 12px 16px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: var(--text-light);
+.header {
+  padding: 24px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.2s;
+  justify-content: space-between;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.btn:hover { background: var(--surface-hover); color: var(--text-main); }
-
-.active {
-  background: rgba(249, 115, 22, 0.1); /* Laranja suave */
-  color: var(--primary-color);
-  border-color: rgba(249, 115, 22, 0.2);
+.header h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #111;
+  margin: 0;
 }
 
 .addBtn {
-  margin-top: 24px;
-  padding: 12px;
-  border: 1px dashed var(--text-light);
-  background: transparent;
-  color: var(--text-light);
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #555;
+  transition: all 0.2s;
+}
+
+.addBtn:hover {
+  background-color: #f9f9f9;
+  color: #e11d48;
+  border-color: #e11d48;
+}
+
+.nav {
+  padding: 16px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Botão "Todos os Produtos" */
+.navItem {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 12px 16px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  color: #555;
+  font-weight: 500;
+  transition: all 0.2s;
+  margin-bottom: 8px;
 }
-.addBtn:hover { border-color: var(--primary-color); color: var(--primary-color); }
+
+.navItem:hover {
+  background-color: #f3f4f6;
+}
+
+.active {
+  background-color: #fff1f2;
+  color: #e11d48;
+  font-weight: 600;
+}
+
+/* Container do Item da Categoria (Nome + Lixeira) */
+.navItemWrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: 8px;
+  transition: background 0.2s;
+  padding-right: 8px; /* Espaço para o botão de delete */
+}
+
+.navItemWrapper:hover {
+  background-color: #f3f4f6;
+}
+
+.activeWrapper {
+  background-color: #fff1f2; /* Fundo rosinha claro quando ativo */
+}
+
+/* O botão com o nome da categoria */
+.navItemContent {
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  color: #555;
+  font-weight: 500;
+}
+
+.activeWrapper .navItemContent {
+  color: #e11d48;
+  font-weight: 600;
+}
+
+/* Botão de Excluir Categoria (Lixeira) */
+.deleteCatBtn {
+  background: none;
+  border: none;
+  color: #ccc;
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0; /* Invisível por padrão */
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.deleteCatBtn:hover {
+  background-color: #fee2e2;
+  color: #ef4444;
+}
+
+/* Mostra o botão quando passa o mouse na linha inteira */
+.navItemWrapper:hover .deleteCatBtn {
+  opacity: 1;
+}

@@ -1,26 +1,34 @@
 'use client';
 
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Product, ComplementGroup } from '@/types/product';
-import { X, Plus, Trash2, GripVertical, Upload, Save, Download, Copy, ChevronRight } from 'lucide-react';
+import { X, Plus, Trash2, GripVertical, Upload, Save, Download, Copy, ChevronRight, Loader2 } from 'lucide-react';
+import { supabase } from '@/services/supabase';
 import styles from './styles.module.css';
 
 interface ProductModalProps {
   product?: Product | null;
   existingProducts: Product[];
+  categories: any[]; 
   onClose: () => void;
   onSave: (product: Partial<Product>) => void;
 }
 
-export default function ProductModal({ product, existingProducts = [], onClose, onSave }: ProductModalProps) {
+export default function ProductModal({ product, existingProducts = [], categories = [], onClose, onSave }: ProductModalProps) {
   const [activeTab, setActiveTab] = useState<'DATA' | 'COMPLEMENTS'>('DATA');
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [name, setName] = useState(product?.name || '');
   const [desc, setDesc] = useState(product?.description || '');
-  const [imagePreview, setImagePreview] = useState<string | null>(product?.image || null);
   
-  // Clone profundo para quebrar referências
+  const [selectedCategory, setSelectedCategory] = useState<string>(
+    product?.categoryId || (product as any)?.category_id || ''
+  );
+
+  const [imagePreview, setImagePreview] = useState<string | null>(product?.image || null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Inicializa grupos garantindo ID único para evitar conflitos de renderização
   const [groups, setGroups] = useState<ComplementGroup[]>(() => {
     return product?.complements ? JSON.parse(JSON.stringify(product.complements)) : [];
   });
@@ -33,39 +41,53 @@ export default function ProductModal({ product, existingProducts = [], onClose, 
   const [showImportMenu, setShowImportMenu] = useState(false);
   const [selectedProductToImport, setSelectedProductToImport] = useState<Product | null>(null);
 
-  const productsWithComplements = useMemo(() => {
-    return existingProducts.filter(p => p.id !== product?.id && p.complements && p.complements.length > 0);
-  }, [existingProducts, product]);
-
   const handlePriceChange = (value: string) => {
     const numericValue = value.replace(/\D/g, '');
     setPrice((Number(numericValue) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
   };
 
-  // --- LÓGICA DE GRUPOS ---
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  // ADICIONAR GRUPO: ID vazio para o backend criar
-  const addGroup = () => {
-    setGroups([...groups, { 
-      id: `new_${Date.now()}`, // ID temporário apenas para a UI do React (não vai pro banco se tratar no hook)
-      name: '', min: 0, max: 1, options: [] 
-    }]);
+    try {
+      setIsUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage.from('produtos').upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('produtos').getPublicUrl(filePath);
+      setImagePreview(data.publicUrl); 
+    } catch (error: any) {
+      console.error('Erro upload:', error);
+      alert('Erro ao enviar imagem.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-  // IMPORTAR GRUPO: Remove os IDs originais para criar CÓPIAS NOVAS no banco
+  // --- Lógica de Grupos ---
+  const addGroup = () => {
+    // Cria um ID temporário único
+    setGroups([...groups, { id: `new_${Date.now()}`, name: '', min: 0, max: 1, options: [] }]);
+  };
+
+  const removeGroup = (groupIdToDelete: string) => {
+    setGroups(currentGroups => currentGroups.filter(g => g.id !== groupIdToDelete));
+  };
+
   const importGroup = (group: ComplementGroup) => {
-    const newGroup = {
-      ...group,
-      id: `imported_${Date.now()}`, // ID temporário para UI
-      options: group.options.map(opt => ({
-        ...opt,
-        id: `opt_${Math.random()}` // ID temporário para UI
-      }))
+    // Ao importar, gera um novo ID para ser tratado como novo vínculo
+    const newGroup = { 
+      ...group, 
+      id: `imported_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      options: group.options.map(opt => ({ ...opt, id: `opt_${Math.random()}` })) 
     };
-    
-    // IMPORTANTE: Ao salvar, o hook/backend deve ignorar esses IDs temporários e criar UUIDs reais
     setGroups(prev => [...prev, newGroup]);
-    setShowImportMenu(false);
+    setShowImportMenu(false); 
     setSelectedProductToImport(null);
   };
 
@@ -74,41 +96,44 @@ export default function ProductModal({ product, existingProducts = [], onClose, 
   };
 
   const addOptionToGroup = (groupId: string) => {
-    setGroups(groups.map(g => {
-      if (g.id !== groupId) return g;
-      return { 
-        ...g, 
-        options: [...g.options, { id: `new_opt_${Date.now()}`, name: '', price: 0 }] 
-      };
+    setGroups(groups.map(g => g.id !== groupId ? g : { 
+      ...g, 
+      options: [...g.options, { id: `new_opt_${Date.now()}`, name: '', price: 0 }] 
     }));
   };
 
   const updateOption = (groupId: string, optId: string, field: 'name' | 'price', value: any) => {
-    setGroups(groups.map(g => {
-      if (g.id !== groupId) return g;
-      return {
-        ...g,
-        options: g.options.map(opt => opt.id === optId ? { ...opt, [field]: value } : opt)
-      };
+    setGroups(groups.map(g => g.id !== groupId ? g : { 
+      ...g, 
+      options: g.options.map(opt => opt.id === optId ? { ...opt, [field]: value } : opt) 
     }));
   };
 
-  const handleSave = () => {
-      if (!name.trim()) return alert('Nome obrigatório');
-      const rawPrice = typeof price === 'string' ? Number(price.replace(/\D/g, '')) / 100 : price;
+  const removeOption = (groupId: string, optId: string) => {
+    setGroups(groups.map(g => g.id !== groupId ? g : {
+      ...g,
+      options: g.options.filter(o => o.id !== optId)
+    }));
+  };
+  // ------------------------
 
-      onSave({
-        id: product?.id,
-        name,
-        description: desc,
-        price: rawPrice,
-        image: imagePreview || undefined,
-        // Ajuste aqui para pegar a categoria se você tiver um select no modal (não vi no seu código original, mas se tiver, use category_id)
-        // category_id: selectedCategory, 
-        complements: groups
-      });
-      onClose();
-    };
+  const handleSave = () => {
+    if (!name.trim()) return alert('Nome obrigatório');
+    if (!selectedCategory) return alert('Selecione uma categoria!');
+
+    const rawPrice = typeof price === 'string' ? Number(price.replace(/\D/g, '')) / 100 : price;
+
+    onSave({
+      id: product?.id,
+      name,
+      description: desc,
+      price: rawPrice,
+      image: imagePreview || undefined,
+      categoryId: selectedCategory,
+      complements: groups // Envia a lista exata que está na tela (sem os excluídos)
+    });
+    onClose();
+  };
 
   return (
     <div className={styles.overlay}>
@@ -126,12 +151,42 @@ export default function ProductModal({ product, existingProducts = [], onClose, 
         <div className={styles.body}>
           {activeTab === 'DATA' ? (
             <div className={styles.formGrid}>
-               <div className={styles.imageUploadBox} style={{ backgroundImage: imagePreview ? `url(${imagePreview})` : 'none' }}>
-                 {!imagePreview && <div className={styles.uploadPlaceholder}><Upload size={32} /><span>Imagem</span></div>}
-                 <input type="file" hidden onChange={e => { if(e.target.files?.[0]) setImagePreview(URL.createObjectURL(e.target.files[0])) }} />
+               <div 
+                 className={styles.imageUploadBox} 
+                 style={{ backgroundImage: imagePreview ? `url(${imagePreview})` : 'none' }}
+                 onClick={() => fileInputRef.current?.click()}
+               >
+                 {isUploading ? (
+                   <span className={styles.uploadPlaceholder}><Loader2 className={styles.spin} /> Enviando...</span>
+                 ) : !imagePreview && (
+                   <div className={styles.uploadPlaceholder}><Upload size={32} /><span>Clique para enviar foto</span></div>
+                 )}
+                 <input ref={fileInputRef} type="file" hidden accept="image/*" onChange={handleImageUpload} />
                </div>
+
               <div className={styles.inputGroup}><label>Nome</label><input value={name} onChange={e => setName(e.target.value)} /></div>
-              <div className={styles.inputGroup}><label>Preço</label><input value={price} onChange={e => handlePriceChange(e.target.value)} /></div>
+              
+              <div className={styles.row}>
+                <div className={styles.inputGroup}>
+                  <label>Preço</label>
+                  <input value={price} onChange={e => handlePriceChange(e.target.value)} />
+                </div>
+                
+                <div className={styles.inputGroup}>
+                  <label>Categoria</label>
+                  <select 
+                    value={selectedCategory} 
+                    onChange={e => setSelectedCategory(e.target.value)}
+                    className={styles.selectInput}
+                  >
+                    <option value="">Selecione...</option>
+                    {categories.map((cat: any) => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div className={styles.inputGroupFull}><label>Descrição</label><textarea value={desc} onChange={e => setDesc(e.target.value)} rows={3} /></div>
             </div>
           ) : (
@@ -140,38 +195,51 @@ export default function ProductModal({ product, existingProducts = [], onClose, 
                 <div key={group.id} className={styles.groupCard}>
                   <div className={styles.groupHeader}>
                     <GripVertical size={16} className={styles.dragHandle}/>
-                    <input className={styles.groupNameInput} placeholder="Nome do Grupo" value={group.name} onChange={e => updateGroup(group.id, 'name', e.target.value)} />
-                    <button onClick={() => setGroups(groups.filter(g => g.id !== group.id))} className={`${styles.actionBtn} ${styles.deleteBtn}`}><Trash2 size={16}/></button>
+                    <input className={styles.groupNameInput} placeholder="Nome do Grupo (Ex: Escolha o Molho)" value={group.name} onChange={e => updateGroup(group.id, 'name', e.target.value)} />
+                    
+                    {/* BOTÃO DE EXCLUIR GRUPO (O X QUE VOCÊ FALOU) */}
+                    <button 
+                      onClick={() => removeGroup(group.id)} 
+                      className={`${styles.actionBtn} ${styles.deleteBtn}`}
+                      title="Excluir Grupo"
+                    >
+                      <Trash2 size={16}/>
+                    </button>
                   </div>
+                  
                   <div className={styles.rulesRow}>
                     <div className={styles.ruleInput}><label>Min</label><input type="number" value={group.min} onChange={e => updateGroup(group.id, 'min', Number(e.target.value))} /></div>
                     <div className={styles.ruleInput}><label>Max</label><input type="number" value={group.max} onChange={e => updateGroup(group.id, 'max', Number(e.target.value))} /></div>
                   </div>
+                  
                   <div className={styles.optionsList}>
                     {group.options.map(opt => (
                       <div key={opt.id} className={styles.optionRow}>
                         <input className={styles.optionNameInput} value={opt.name} onChange={e => updateOption(group.id, opt.id, 'name', e.target.value)} placeholder="Opção" />
                         <input className={styles.priceInput} value={opt.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} onChange={e => { const r = Number(e.target.value.replace(/\D/g, ''))/100; updateOption(group.id, opt.id, 'price', r); }} />
-                        <button onClick={() => { const n = group.options.filter(o => o.id !== opt.id); updateGroup(group.id, 'options', n); }} className={styles.removeOptionBtn}><X size={14}/></button>
+                        <button onClick={() => removeOption(group.id, opt.id)} className={styles.removeOptionBtn}><X size={14}/></button>
                       </div>
                     ))}
                     <button onClick={() => addOptionToGroup(group.id)} className={styles.addOptionBtn}>+ Opção</button>
                   </div>
                 </div>
               ))}
+              
               <div className={styles.footerActions}>
                 <button onClick={addGroup} className={styles.addGroupBtn}><Plus size={20} /> Novo Grupo</button>
+                
                 <div className={styles.importWrapper}>
                   <button onClick={() => setShowImportMenu(!showImportMenu)} className={styles.importBtn}><Download size={20} /> Importar</button>
                   {showImportMenu && (
                     <div className={styles.importMenu}>
                       {!selectedProductToImport ? 
-                        productsWithComplements.map(p => <li key={p.id} onClick={() => setSelectedProductToImport(p)}>{p.name} <ChevronRight size={14}/></li>) :
+                        existingProducts.filter(p => p.id !== product?.id && p.complements?.length).map(p => <li key={p.id} onClick={() => setSelectedProductToImport(p)}>{p.name} <ChevronRight size={14}/></li>) :
                         <div>
                           <button onClick={() => setSelectedProductToImport(null)} className={styles.backBtn}>Voltar</button>
                           {selectedProductToImport.complements.map(g => <li key={g.id} onClick={() => importGroup(g)}>{g.name} <Copy size={14}/></li>)}
                         </div>
                       }
+                      {existingProducts.filter(p => p.complements?.length).length === 0 && <li style={{color: '#999'}}>Sem grupos para importar</li>}
                     </div>
                   )}
                 </div>

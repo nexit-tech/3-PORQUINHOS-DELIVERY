@@ -1,36 +1,67 @@
-import { Category } from '@/types/product';
-import { UtensilsCrossed, Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react'; // Importe o Trash2
 import styles from './styles.module.css';
 
-interface SidebarProps {
-  categories: Category[];
+interface CategorySidebarProps {
+  categories: any[];
   activeId: string;
   onSelect: (id: string) => void;
-  onNewCategory: () => void; // <--- NOVA PROP
+  onNewCategory: () => void;
+  onDeleteCategory?: (id: string) => void; // Nova Prop Opcional
 }
 
-export default function CategorySidebar({ categories, activeId, onSelect, onNewCategory }: SidebarProps) {
+export default function CategorySidebar({ 
+  categories, 
+  activeId, 
+  onSelect, 
+  onNewCategory,
+  onDeleteCategory 
+}: CategorySidebarProps) {
+  
   return (
     <aside className={styles.sidebar}>
-      <h3 className={styles.title}>Categorias</h3>
-      <ul className={styles.list}>
+      <div className={styles.header}>
+        <h3>Categorias</h3>
+        <button onClick={onNewCategory} className={styles.addBtn} title="Nova Categoria">
+          <Plus size={18} />
+        </button>
+      </div>
+
+      <nav className={styles.nav}>
+        <button 
+          className={`${styles.navItem} ${activeId === 'all' ? styles.active : ''}`}
+          onClick={() => onSelect('all')}
+        >
+          Todos os Produtos
+        </button>
+
         {categories.map(cat => (
-          <li key={cat.id}>
+          <div 
+            key={cat.id} 
+            className={`${styles.navItemWrapper} ${activeId === cat.id ? styles.activeWrapper : ''}`}
+          >
             <button 
-              className={`${styles.btn} ${activeId === cat.id ? styles.active : ''}`}
+              className={styles.navItemContent}
               onClick={() => onSelect(cat.id)}
             >
-              <UtensilsCrossed size={16} />
               {cat.name}
             </button>
-          </li>
+            
+            {/* Botão de Excluir Categoria */}
+            {onDeleteCategory && (
+              <button 
+                className={styles.deleteCatBtn}
+                onClick={(e) => {
+                  e.stopPropagation(); // Evita selecionar a categoria ao clicar em excluir
+                  onDeleteCategory(cat.id);
+                }}
+                title="Excluir Categoria"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
         ))}
-      </ul>
-      
-      {/* Botão agora chama a função recebida do pai */}
-      <button className={styles.addBtn} onClick={onNewCategory}>
-        <Plus size={16} /> Nova Categoria
-      </button>
+      </nav>
     </aside>
   );
 }

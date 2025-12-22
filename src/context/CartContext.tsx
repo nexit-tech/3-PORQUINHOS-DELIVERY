@@ -1,122 +1,95 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Product, ComplementOption } from '@/types/product';
 
-// --- TIPAGENS ---
-
+// Tipo do item no carrinho
 export interface CartItem {
-  uuid: string; // ID único para o item no carrinho
-  product: {
-    id: number;
-    name: string;
-    price: number;
-    desc: string;
-  };
+  uuid: string; // Identificador único para o carrinho (importante!)
+  product: Product;
   quantity: number;
-  flavors: string[];    // Sabores selecionados
-  extras: string[];     // Bordas/Adicionais
-  observation: string;  // Obs do item
-  totalPrice: number;   // Preço total deste item (unitário * qtd)
-}
-
-export interface Address {
-  street: string;
-  number: string;
-  neighborhood: string;
-  complement?: string;
-}
-
-export interface Customer {
-  name: string;
-  phone: string;
-}
-
-export interface Order {
-  id: string;
-  items: CartItem[];
-  total: number;
-  deliveryFee: number;
-  address: Address;
-  customer: Customer;
-  paymentMethod: string;
-  status: 'recebido' | 'preparando' | 'saiu' | 'entregue';
-  date: Date;
+  observation?: string;
+  flavors?: string[];
+  customizations?: { name: string; price: number }[]; // Adicionais
+  totalPrice: number; // Preço total (unitário * quantidade)
+  selections?: Record<string, ComplementOption[]>; // Para restaurar o modal
 }
 
 interface CartContextType {
-  // Carrinho
   items: CartItem[];
+  cartCount: number;
+  cartSubtotal: number;
+  deliveryFee: number;
+  setDeliveryFee: (fee: number) => void;
   addToCart: (item: Omit<CartItem, 'uuid'>) => void;
-  editCartItem: (uuid: string, updatedItem: Partial<CartItem>) => void;
-  removeFromCart: (uuid: string) => void;
-  updateQuantity: (uuid: string, delta: number) => void;
+  removeItem: (uuid: string) => void;
+  updateQuantity: (uuid: string, quantity: number) => void;
+  editCartItem: (uuid: string, updatedData: Partial<CartItem>) => void;
   clearCart: () => void;
   
-  // Totais
-  cartSubtotal: number;
-  cartCount: number;
-
-  // Checkout - Taxa e Endereço
-  deliveryFee: number;
-  setDeliveryFee: (val: number) => void;
+  // Dados do Cliente
+  customerName: string;
+  setCustomerName: (name: string) => void;
+  customerPhone: string;
+  setCustomerPhone: (phone: string) => void;
   address: Address;
   setAddress: (addr: Address) => void;
-  
-  // Checkout - Cliente
-  customerName: string;
-  setCustomerName: (val: string) => void;
-  customerPhone: string;
-  setCustomerPhone: (val: string) => void;
-
-  // Pedidos (Histórico)
-  orders: Order[];
-  placeOrder: (paymentMethod: string) => void;
 }
 
-// --- CONTEXTO ---
+interface Address {
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood: string;
+}
 
-const CartContext = createContext<CartContextType>({} as CartContextType);
-
-// --- PROVIDER ---
+const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  // 1. Estado do Carrinho
   const [items, setItems] = useState<CartItem[]>([]);
-  
-  // 2. Estado do Checkout (Endereço e Taxa)
   const [deliveryFee, setDeliveryFee] = useState(0);
-  const [address, setAddress] = useState<Address>({ street: '', number: '', neighborhood: '' });
-  
-  // 3. Estado do Cliente (Nome e Telefone)
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  
-  // 4. Histórico de Pedidos
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [address, setAddress] = useState<Address>({ street: '', number: '', neighborhood: '' });
 
-  // --- AÇÕES DO CARRINHO ---
+  // Carrega do LocalStorage ao iniciar
+  useEffect(() => {
+    const saved = localStorage.getItem('anota_cart');
+    if (saved) {
+      try {
+        setItems(JSON.parse(saved));
+      } catch (e) {
+        console.error('Erro ao carregar carrinho', e);
+      }
+    }
+  }, []);
 
+  // Salva no LocalStorage sempre que mudar
+  useEffect(() => {
+    localStorage.setItem('anota_cart', JSON.stringify(items));
+  }, [items]);
+
+  // ADICIONAR
   const addToCart = (newItem: Omit<CartItem, 'uuid'>) => {
-    const uuid = Math.random().toString(36).substring(7);
-    setItems((prev) => [...prev, { ...newItem, uuid }]);
+    setItems((prev) => {
+      // Cria um UUID aleatório para esse item
+      const uuid = Math.random().toString(36).substring(2, 9);
+      return [...prev, { ...newItem, uuid }];
+    });
   };
 
-  const editCartItem = (uuid: string, updatedData: Partial<CartItem>) => {
-    setItems((prev) => 
-      prev.map(item => item.uuid === uuid ? { ...item, ...updatedData } : item)
-    );
-  };
-
-  const removeFromCart = (uuid: string) => {
+  // REMOVER (Correção do botão de lixo)
+  const removeItem = (uuid: string) => {
     setItems((prev) => prev.filter((item) => item.uuid !== uuid));
   };
 
-  const updateQuantity = (uuid: string, delta: number) => {
+  // ATUALIZAR QUANTIDADE (+ / -)
+  const updateQuantity = (uuid: string, newQuantity: number) => {
+    if (newQuantity < 1) return;
     setItems((prev) =>
       prev.map((item) => {
         if (item.uuid === uuid) {
-          const newQuantity = Math.max(1, item.quantity + delta);
-          // Recalcula o preço total proporcionalmente
+          // Recalcula o preço total baseado no unitário original
           const unitPrice = item.totalPrice / item.quantity;
           return { ...item, quantity: newQuantity, totalPrice: unitPrice * newQuantity };
         }
@@ -125,70 +98,43 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  const clearCart = () => {
-    setItems([]);
-    setDeliveryFee(0);
-    // Opcional: Limpar endereço/cliente se quiser resetar tudo
-    // setAddress({ street: '', number: '', neighborhood: '' });
+  // EDITAR ITEM (Quando volta do Modal)
+  const editCartItem = (uuid: string, updatedData: Partial<CartItem>) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.uuid === uuid) {
+          // Atualiza os dados mantendo o UUID e o Produto base
+          return { ...item, ...updatedData };
+        }
+        return item;
+      })
+    );
   };
 
-  // --- AÇÃO FINAL: CRIAR PEDIDO ---
+  const clearCart = () => setItems([]);
 
-  const placeOrder = (paymentMethod: string) => {
-    // Gera um ID aleatório (ex: #8392)
-    const orderId = `#${Math.floor(1000 + Math.random() * 9000)}`;
-    
-    const newOrder: Order = {
-      id: orderId,
-      items: [...items], // Copia os itens atuais
-      total: items.reduce((acc, item) => acc + item.totalPrice, 0) + deliveryFee,
-      deliveryFee,
-      address,
-      customer: {
-        name: customerName,
-        phone: customerPhone
-      },
-      paymentMethod,
-      status: 'recebido',
-      date: new Date()
-    };
-
-    // Adiciona ao início do histórico
-    setOrders(prev => [newOrder, ...prev]);
-    
-    // Limpa o carrinho para o próximo pedido
-    clearCart();
-  };
-
-  // --- CÁLCULOS ---
-
-  const cartSubtotal = items.reduce((acc, item) => acc + item.totalPrice, 0);
   const cartCount = items.reduce((acc, item) => acc + item.quantity, 0);
+  const cartSubtotal = items.reduce((acc, item) => acc + item.totalPrice, 0);
 
   return (
-    <CartContext.Provider 
-      value={{ 
-        items, 
-        addToCart, 
-        editCartItem, 
-        removeFromCart, 
-        updateQuantity, 
-        clearCart, 
-        cartSubtotal, 
+    <CartContext.Provider
+      value={{
+        items,
         cartCount,
-        
-        deliveryFee, 
-        setDeliveryFee, 
-        address, 
-        setAddress,
-        
-        customerName, 
-        setCustomerName, 
-        customerPhone, 
+        cartSubtotal,
+        deliveryFee,
+        setDeliveryFee,
+        addToCart,
+        removeItem,
+        updateQuantity,
+        editCartItem,
+        clearCart,
+        customerName,
+        setCustomerName,
+        customerPhone,
         setCustomerPhone,
-        
-        orders, 
-        placeOrder
+        address,
+        setAddress,
       }}
     >
       {children}
@@ -196,5 +142,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Hook personalizado para usar o contexto
-export const useCart = () => useContext(CartContext);
+export function useCart() {
+  const context = useContext(CartContext);
+  if (!context) throw new Error('useCart must be used within a CartProvider');
+  return context;
+}

@@ -17,7 +17,9 @@ export default function ProductsPage() {
     activeCategory, 
     setActiveCategory, 
     saveProduct, 
-    addCategory, // <--- Certifique-se que seu hook exporta isso (adicionei na resposta anterior)
+    deleteProduct,   
+    addCategory, 
+    deleteCategory,  
     isLoading 
   } = useProducts();
   
@@ -25,11 +27,9 @@ export default function ProductsPage() {
   const [isCategoryModalOpen, setCategoryModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
-  // FILTRO CORRIGIDO
+  // --- FILTRO DE PRODUTOS ---
   const filteredProducts = (products || []).filter(p => {
     if (activeCategory === 'all') return true;
-    // Compara o category_id do produto com a categoria ativa
-    // Verifica ambas as notações (categoryId ou category_id) para garantir
     return (p.categoryId === activeCategory) || ((p as any).category_id === activeCategory);
   });
 
@@ -43,47 +43,56 @@ export default function ProductsPage() {
     setProductModalOpen(true);
   };
 
+  // --- SALVAR PRODUTO ---
   const handleSaveWrapper = async (productData: Partial<Product>) => {
-    // Se for novo produto e não tiver categoria selecionada no form, usa a ativa
-    if (!productData.id && !productData.categoryId && activeCategory !== 'all') {
-      productData.categoryId = activeCategory;
-    } else if (!productData.id && !productData.categoryId && categories.length > 0) {
-      // Fallback para a primeira categoria se estiver em 'all'
-      productData.categoryId = categories[0].id;
+    // Se a categoria vier vazia (ex: usuário esqueceu), tenta usar a ativa
+    if (!productData.id && !productData.categoryId) {
+      if (activeCategory !== 'all') {
+        productData.categoryId = activeCategory;
+      }
     }
 
     await saveProduct(productData);
     setProductModalOpen(false);
   };
 
-  // --- AQUI ESTAVA O PROBLEMA DO MODAL DE CATEGORIA ---
   const handleSaveCategory = async (name: string) => {
     if (addCategory) {
       await addCategory(name);
-      setCategoryModalOpen(false); // Fecha o modal só depois de salvar
-    } else {
-      alert("Função de adicionar categoria não encontrada no hook.");
+      setCategoryModalOpen(false);
     }
   };
 
   if (isLoading) {
-    return <div className={styles.loading}><Loader2 className={styles.spinner} /> Carregando...</div>;
+    return (
+      <div className={styles.loadingContainer}>
+        <Loader2 className={styles.spinner} size={48} />
+        <p>Carregando catálogo...</p>
+      </div>
+    );
   }
 
   return (
     <div className={styles.container}>
+      {/* SIDEBAR COM OPÇÃO DE DELETAR */}
       <CategorySidebar 
         categories={categories || []} 
         activeId={activeCategory} 
         onSelect={setActiveCategory}
         onNewCategory={() => setCategoryModalOpen(true)}
+        onDeleteCategory={deleteCategory} 
       />
 
       <main className={styles.mainContent}>
         <header className={styles.header}>
           <div>
             <h1>Catálogo</h1>
-            <p>{filteredProducts.length} produtos nesta categoria</p>
+            <p>
+              {filteredProducts.length} produto(s) 
+              {activeCategory !== 'all' 
+                ? ` em "${categories.find(c => c.id === activeCategory)?.name || 'Categoria'}"` 
+                : ' no total'}
+            </p>
           </div>
           <button className={styles.newBtn} onClick={handleNewProduct}>
             <PlusCircle size={20} /> Novo Produto
@@ -92,33 +101,44 @@ export default function ProductsPage() {
 
         <div className={styles.grid}>
           {filteredProducts.length === 0 ? (
-            <div className={styles.emptyState}>Nenhum produto encontrado.</div>
+            <div className={styles.emptyState}>
+              <p>Nenhum produto encontrado nesta categoria.</p>
+              {activeCategory !== 'all' && (
+                <button className={styles.clearFilterBtn} onClick={() => setActiveCategory('all')}>
+                  Ver todos os produtos
+                </button>
+              )}
+            </div>
           ) : (
             filteredProducts.map(product => (
               <ProductCard 
                 key={product.id} 
                 product={product} 
                 onEdit={handleEditProduct} 
+                onDelete={deleteProduct} 
               />
             ))
           )}
         </div>
       </main>
 
+      {/* MODAL DE PRODUTO (Agora recebe categories) */}
       {isProductModalOpen && (
         <ProductModal 
           product={editingProduct}
           existingProducts={products || []}
+          categories={categories || []} /* <--- IMPORTANTE: Passando as categorias aqui */
           onClose={() => setProductModalOpen(false)} 
           onSave={handleSaveWrapper} 
         />
       )}
 
+      {/* MODAL DE CATEGORIA */}
       {isCategoryModalOpen && (
         <CategoryModal 
           isOpen={isCategoryModalOpen}
           onClose={() => setCategoryModalOpen(false)} 
-          onSave={handleSaveCategory} // <--- Agora passando a função correta
+          onSave={handleSaveCategory} 
         />
       )}
     </div>

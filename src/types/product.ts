@@ -1,21 +1,23 @@
-export interface Category {
-  id: string;
-  name: string;
-}
-
 export interface ComplementOption {
   id: string;
   name: string;
   price: number;
-  max_quantity?: number; // Opcional, caso queira usar depois
+  max_quantity?: number;
+  active?: boolean;
 }
 
 export interface ComplementGroup {
   id: string;
   name: string;
-  min: number; // No banco é min_selection
-  max: number; // No banco é max_selection
+  min: number;
+  max: number;
   options: ComplementOption[];
+}
+
+// --- ADICIONE ISSO AQUI ---
+export interface Category {
+  id: string;
+  name: string;
 }
 
 export interface Product {
@@ -23,8 +25,13 @@ export interface Product {
   name: string;
   description: string;
   price: number;
-  category_id?: string; // Ajustado para bater com o banco
   image?: string;
+  image_url?: string; // Compatibilidade com banco
   active: boolean;
+  
+  // Adicione estes campos para parar o erro de "Property does not exist"
+  categoryId?: string; 
+  category_id?: string;
+
   complements: ComplementGroup[];
 }

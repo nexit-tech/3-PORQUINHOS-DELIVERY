@@ -34,7 +34,12 @@
   color: #d97706; /* Texto laranja escuro */
 }
 
-.footer { padding: 12px 16px; border-top: 1px solid var(--border-color); }
+.footer {
+  padding: 12px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  gap: 8px; /* Espaço entre os botões */
+}
 
 .editBtn {
   width: 100%;
@@ -49,5 +54,25 @@
   justify-content: center;
   gap: 8px;
   transition: background 0.2s;
+  flex: 1;
 }
 .editBtn:hover { background: var(--surface-hover); }
+
+.deleteBtn {
+  background: #fee2e2;
+  color: #ef4444;
+  border: 1px solid #fca5a5;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.deleteBtn:hover {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}

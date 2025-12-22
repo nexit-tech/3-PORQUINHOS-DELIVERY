@@ -1,34 +1,46 @@
-import { useState, useEffect } from 'react';
-import { Order, OrderStatus } from '@/types/order';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/services/supabase';
+import { Order, OrderStatus } from '@/types/order';
 
 export function useOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Função para buscar pedidos
-  const fetchOrders = async () => {
+  const fetchMyOrders = useCallback(async () => {
     try {
-      setLoading(true);
+      // 1. Lê os IDs salvos no celular
+      const storedIds = JSON.parse(localStorage.getItem('my_orders') || '[]');
+      
+      if (storedIds.length === 0) {
+        setOrders([]);
+        setLoading(false);
+        return;
+      }
+
+      // 2. Busca os pedidos no banco
       const { data, error } = await supabase
         .from('orders')
         .select(`
           *,
           items:order_items (
-            id,
             product_name, 
             quantity,
-            observation,
-            unit_price
+            observation
           )
         `)
-        .order('created_at', { ascending: false }); // Mais recentes primeiro
+        .in('id', storedIds)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      // Formatação para bater com a interface Order
-      const formattedOrders: Order[] = (data || []).map((order: any) => ({
-        id: `#${order.id}`, // Adiciona o # visualmente
+      // 3. FILTRO MÁGICO: Remove os Cancelados e Finalizados da lista visual
+      const activeOrders = (data || []).filter((order: any) => {
+        return order.status !== 'CANCELED' && order.status !== 'COMPLETED';
+      });
+
+      // 4. Formata para exibir
+      const formattedOrders: Order[] = activeOrders.map((order: any) => ({
+        id: `#${order.id}`,
         customerName: order.customer_name,
         customerPhone: order.customer_phone,
         customerAddress: order.customer_address,
@@ -38,8 +50,7 @@ export function useOrders() {
         deliveryFee: order.delivery_fee,
         createdAt: new Date(order.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         items: order.items.map((item: any) => ({
-          id: item.id,
-          name: item.product_name, // Usamos o nome salvo no item para garantir histórico
+          name: item.product_name, 
           quantity: item.quantity,
           observation: item.observation
         }))
@@ -47,41 +58,20 @@ export function useOrders() {
 
       setOrders(formattedOrders);
     } catch (error) {
-      console.error('Erro ao buscar pedidos:', error);
+      console.error('Erro ao buscar meus pedidos:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchOrders();
-
-    // (Opcional) Aqui poderíamos adicionar um Subscribe do Supabase para atualizar em Tempo Real!
-    // Mas por enquanto, vamos manter o fetch simples.
   }, []);
 
-  const updateStatus = async (idStr: string, newStatus: OrderStatus) => {
-    try {
-      // Remove o '#' para pegar o ID numérico real do banco
-      const numericId = idStr.replace('#', '');
+  useEffect(() => {
+    setLoading(true);
+    fetchMyOrders();
+    
+    // Atualiza a cada 5 segundos para verificar se o status mudou para "COMPLETED" ou "CANCELED"
+    const interval = setInterval(fetchMyOrders, 5000); 
+    return () => clearInterval(interval);
+  }, [fetchMyOrders]);
 
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: newStatus })
-        .eq('id', numericId);
-
-      if (error) throw error;
-
-      // Atualiza o estado localmente para refletir na hora
-      setOrders(prev => prev.map(order => 
-        order.id === idStr ? { ...order, status: newStatus } : order
-      ));
-
-    } catch (error) {
-      console.error('Erro ao atualizar status:', error);
-      alert('Erro ao atualizar status do pedido');
-    }
-  };
-
-  return { orders, updateStatus, loading, refreshOrders: fetchOrders };
+  return { orders, loading, refreshOrders: fetchMyOrders };
 }
