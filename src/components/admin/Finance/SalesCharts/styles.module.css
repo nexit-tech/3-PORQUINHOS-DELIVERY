@@ -1,0 +1,33 @@
+.chartsRow {
+  display: grid;
+  grid-template-columns: 2fr 1fr; /* Esquerda maior, Direita menor */
+  gap: 24px;
+  min-height: 350px;
+}
+
+.chartCard {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chartCard h3 {
+  margin-bottom: 24px;
+  color: var(--text-main);
+  font-size: 1.1rem;
+}
+
+.chartWrapper {
+  flex: 1;
+  min-height: 250px;
+}
+
+/* Responsividade: Empilha um gráfico em cima do outro no mobile/tablet */
+@media (max-width: 1024px) {
+  .chartsRow {
+    grid-template-columns: 1fr;
+  }
+}

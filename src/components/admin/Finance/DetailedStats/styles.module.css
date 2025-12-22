@@ -1,0 +1,200 @@
+/* ... Mantenha as classes de .container, .tabs, .tab, .content, .table, etc ... */
+/* ... Pode copiar do anterior, vou focar apenas nas mudanças do MODAL abaixo ... */
+
+.container { display: flex; flex-direction: column; gap: 16px; }
+.tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--border-color); }
+.tab { display: flex; align-items: center; gap: 8px; background: transparent; border: none; padding: 12px 24px; color: var(--text-light); font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+.tab:hover { color: var(--text-main); background: rgba(255,255,255,0.02); }
+.tab.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
+.content { background: var(--surface); border: 1px solid var(--border-color); border-radius: 16px; overflow: hidden; min-height: 400px; padding: 0; }
+.table { width: 100%; border-collapse: collapse; }
+.table th { text-align: left; color: var(--text-light); padding: 16px 24px; border-bottom: 1px solid var(--border-color); font-size: 0.85rem; background: rgba(255,255,255,0.02); }
+.table td { padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.05); color: var(--text-main); font-size: 0.9rem; }
+.clickableRow { cursor: pointer; transition: background 0.2s; }
+.clickableRow:hover { background: rgba(255,255,255,0.05); }
+.idCell { font-family: monospace; color: var(--text-light); }
+.valueCell { font-weight: 600; color: #10b981; }
+.statusBadge { background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; }
+.rankBadge { background: #f59e0b; color: #000; font-weight: 800; padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; }
+
+/* --- NOVO ESTILO DO MODAL (ESTILO RECIBO) --- */
+
+.modalBody {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 8px; /* Padding interno do conteúdo */
+}
+
+/* 1. Cabeçalho do Recibo */
+.receiptHeader {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.statusRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.bigStatusBadge {
+  background: #10b981;
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex; align-items: center; gap: 6px;
+  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.2);
+}
+
+.dateLabel {
+  color: var(--text-light);
+  font-size: 0.85rem;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.infoItem { display: flex; flex-direction: column; gap: 4px; }
+.label { 
+  font-size: 0.75rem; 
+  color: var(--text-light); 
+  text-transform: uppercase; 
+  letter-spacing: 0.5px;
+  display: flex; align-items: center; gap: 6px;
+}
+.infoItem p { font-weight: 600; color: var(--text-main); font-size: 0.95rem; }
+
+/* 2. Lista de Itens */
+.itemsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionTitle {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  font-weight: 700;
+  text-transform: uppercase;
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 4px;
+}
+
+.itemsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.itemRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 12px;
+  background: var(--surface); /* Fundo um pouco diferente se quiser, ou transparente */
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  transition: transform 0.2s;
+}
+
+.itemRow:hover { border-color: var(--text-light); }
+
+.qtdBox {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-main);
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.itemDetails {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.itemName { font-weight: 600; color: var(--text-main); }
+.itemObs { font-size: 0.8rem; color: var(--text-light); font-style: italic; margin-top: 2px; }
+
+.itemPrice {
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 1rem;
+}
+
+/* 3. Rodapé de Totais */
+.summarySection {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-light);
+  font-size: 0.9rem;
+}
+
+.dividerDotted {
+  height: 1px;
+  border-bottom: 2px dashed var(--border-color);
+  margin: 8px 0;
+  opacity: 0.5;
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.totalRow span:first-child {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.totalValue {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #10b981; /* Verde Destaque */
+}
+
+/* Botão Imprimir */
+.printBtn {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  border: 1px dashed var(--border-color);
+  color: var(--text-light);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+.printBtn:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  background: rgba(234, 29, 44, 0.05);
+}

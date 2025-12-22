@@ -1,0 +1,148 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Header removido do CSS também */
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+
+.list::-webkit-scrollbar { width: 6px; }
+.list::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 10px; }
+
+.row {
+  display: flex;
+  justify-content: space-between; /* Separa Esquerda (Nome) da Direita (Preço+Lixo) */
+  align-items: center;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.info { display: flex; align-items: center; gap: 12px; }
+.icon { color: var(--text-light); }
+.name { font-weight: 600; color: var(--text-main); }
+
+/* --- AQUI ESTÁ A CORREÇÃO DO ALINHAMENTO --- */
+.actions { 
+  display: flex; 
+  align-items: center; /* Centraliza verticalmente */
+  gap: 16px; /* Espaço entre o preço e a lixeira */
+}
+
+.price { 
+  font-weight: 700; 
+  color: #10b981; 
+  font-size: 1rem; 
+  white-space: nowrap; /* Não deixa o preço quebrar linha */
+}
+
+.deleteBtn {
+  background: rgba(239, 68, 68, 0.1);
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.deleteBtn:hover { background: rgba(239, 68, 68, 0.2); }
+/* ------------------------------------------- */
+
+.addBoxWrapper {
+  padding: 20px 24px;
+  background: var(--surface);
+  border-top: 1px solid var(--border-color);
+  z-index: 10;
+}
+
+.addBox {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px dashed var(--border-color);
+}
+
+.addBox h3 { font-size: 0.85rem; color: var(--text-light); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.formRow { display: flex; gap: 12px; }
+
+.inputName {
+  flex: 2;
+  background: var(--background);
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  border-radius: 8px;
+  color: var(--text-main);
+  outline: none;
+}
+
+.inputPrice {
+  flex: 1;
+  background: var(--background);
+  border: 1px solid var(--border-color);
+  padding: 12px;
+  border-radius: 8px;
+  color: var(--text-main);
+  outline: none;
+  font-weight: 600;
+  text-align: right;
+}
+
+.inputName:focus, .inputPrice:focus { border-color: var(--primary-color); }
+
+.addBtn {
+  background: var(--primary-color);
+  border: none;
+  color: white;
+  width: 48px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.addBtn:hover { background: var(--primary-dark); }
+
+.footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+  background: rgba(0,0,0,0.2);
+  flex-shrink: 0;
+}
+
+.saveBtn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}

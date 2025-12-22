@@ -1,0 +1,80 @@
+.card {
+  /* Fundo SÓLIDO e escuro */
+  background: var(--surface); 
+  /* Borda sutil para separar do fundo */
+  border: 1px solid var(--border-color); 
+  border-radius: 8px; /* Cantos menos arredondados para parecer mais "encaixado" */
+  padding: 24px;
+  
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+  
+  height: 100%;
+  min-height: 180px; /* Altura mínima para ficarem uniformes */
+}
+
+.card:hover {
+  /* No hover, apenas clareia levemente o fundo e acende a borda */
+  background-color: var(--surface-hover); 
+  border-color: var(--text-light);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.iconBox {
+  /* Ícone simples, sem fundo colorido atrás */
+  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-light);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Cores específicas para as badges, se quiser usar */
+.green { color: #10b981; border-color: rgba(16, 185, 129, 0.3); }
+.blue { color: #3b82f6; border-color: rgba(59, 130, 246, 0.3); }
+.gray { color: #888; }
+
+.content h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 6px;
+}
+
+.content p {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  line-height: 1.4;
+}
+
+.footer {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  opacity: 0.8;
+}
+
+.card:hover .footer { opacity: 1; }

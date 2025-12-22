@@ -1,0 +1,13 @@
+.container {
+  max-width: 1200px; /* Padrão antigo */
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 var(--gap-md);
+  transition: max-width 0.3s;
+}
+
+/* Nova classe que sobrescreve o limite */
+.fluid {
+  max-width: 100%;
+  padding: 0 var(--gap-lg); /* Um pouco mais de borda quando é tela cheia */
+}

@@ -1,0 +1,33 @@
+.container {
+  height: calc(100vh - 80px); /* Altura total menos o header do layout */
+  overflow-y: auto;
+  padding: 40px;
+  background-color: var(--background);
+}
+
+.pageHeader {
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.pageHeader h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.pageHeader p {
+  color: var(--text-light);
+  font-size: 0.95rem;
+}
+
+.grid {
+  display: grid;
+  /* MÁGICA: Isso faz os cards esticarem para preencher a linha inteira, 
+     sem deixar buracos. Mínimo de 300px, mas cresce (1fr) se sobrar espaço. */
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px; 
+  width: 100%;
+}

@@ -1,0 +1,35 @@
+:root {
+  /* ... suas variáveis de cores (mantenha igual) ... */
+  --background: #121212;
+  --surface: #1e1e1e;
+  --surface-hover: #2a2a2a;
+  --primary-color: #ea1d2c;
+  --primary-dark: #c91824;
+  --text-main: #e1e1e6;
+  --text-light: #a8a8b3;
+  --border-radius: 12px;
+  --border-color: #323238;
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --gap-sm: 8px;
+  --gap-md: 16px;
+  --gap-lg: 24px;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* AQUI É O SEGREDO: Travamos o HTML e BODY */
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden; /* Proibido scroll na janela */
+  background-color: var(--background);
+  color: var(--text-main);
+}
+
+a { text-decoration: none; color: inherit; }
+button { font-family: inherit; }
