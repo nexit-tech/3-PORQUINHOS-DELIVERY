@@ -2,39 +2,36 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/services/supabase';
 import { Order, OrderStatus } from '@/types/order';
 
-// O parâmetro 'onlyActive' define se escondemos os finalizados/cancelados (Padrão: SIM)
 export function useOrders(onlyActive = true) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // --- BUSCAR PEDIDOS ---
   const fetchMyOrders = useCallback(async () => {
     try {
-      // Tenta pegar IDs do localStorage (Cliente) OU busca tudo se for Admin (lógica mista)
-      // Se a sua Home (Admin) não usa localStorage, ela vai depender da query direta.
-      // Vou assumir que o Admin lista tudo que está no banco (filtrado por status) 
-      // ou usa os IDs se existirem. Para garantir que o Admin funcione:
-      
+      // Query corrigida para a estrutura do seu banco
       let query = supabase
         .from('orders')
         .select(`
           *,
           items:order_items (
-            product_name, 
+            id,
+            product_name,
             quantity,
-            observation
+            unit_price,
+            total_price,
+            observation,
+            customizations
           )
         `)
         .order('created_at', { ascending: false });
 
-      // Se for cliente (tem IDs salvos), filtramos pelos IDs. 
-      // Se for Admin (sem IDs salvos), trazemos tudo (respeitando o filtro de status abaixo).
+      // Lógica de filtro por ID (se existir no localStorage do cliente)
       const storedIds = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('my_orders') || '[]') : [];
       if (storedIds.length > 0) {
          query = query.in('id', storedIds);
       }
 
-      // FILTRO: Esconde Finalizados e Cancelados se solicitado (Padrão da Cozinha e Cliente)
+      // Filtro de status ativos
       if (onlyActive) {
         query = query.not('status', 'in', '("COMPLETED","CANCELED")');
       }
@@ -43,21 +40,27 @@ export function useOrders(onlyActive = true) {
 
       if (error) throw error;
 
-      // Formata para o Front
+      // Mapeamento correto: Banco (snake_case) -> Front (camelCase)
       const formattedOrders: Order[] = (data || []).map((order: any) => ({
-        id: `#${order.id}`,
+        id: order.id,
+        displayId: `#${order.id}`, // Exibe #123
         customerName: order.customer_name,
         customerPhone: order.customer_phone,
         customerAddress: order.customer_address,
         paymentMethod: order.payment_method,
-        status: order.status,
+        status: order.status.toUpperCase(), 
         total: order.total,
-        deliveryFee: order.delivery_fee,
-        createdAt: new Date(order.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+        deliveryFee: order.delivery_fee || 0,
+        createdAt: order.created_at,
+        updatedAt: order.updated_at,
         items: order.items.map((item: any) => ({
-          name: item.product_name, 
+          id: item.id,
+          name: item.product_name, // Campo direto da tabela order_items
           quantity: item.quantity,
-          observation: item.observation
+          unitPrice: item.unit_price, // Campo direto da tabela order_items
+          totalPrice: item.total_price,
+          observation: item.observation,
+          customizations: item.customizations
         }))
       }));
 
@@ -69,11 +72,11 @@ export function useOrders(onlyActive = true) {
     }
   }, [onlyActive]);
 
-  // --- ATUALIZAR STATUS (A FUNÇÃO QUE FALTAVA) ---
-  async function updateStatus(orderId: string, newStatus: OrderStatus) {
+  async function updateStatus(orderId: number | string, newStatus: OrderStatus) {
     try {
-      // Remove o '#' para enviar ao banco (Ex: "#10" vira "10")
-      const id = orderId.replace('#', '');
+      // Garante que o ID seja numérico para o banco (remove # se vier string)
+      const idStr = String(orderId).replace('#', '');
+      const id = parseInt(idStr, 10);
       
       const { error } = await supabase
         .from('orders')
@@ -82,23 +85,20 @@ export function useOrders(onlyActive = true) {
 
       if (error) throw error;
       
-      // Atualiza a lista imediatamente
       await fetchMyOrders();
-      
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
       alert('Erro ao atualizar o status do pedido.');
     }
   }
 
-  // --- EFEITOS ---
   useEffect(() => {
     setLoading(true);
     fetchMyOrders();
+    // Pooling de 5 segundos para atualizar a lista
     const interval = setInterval(fetchMyOrders, 5000); 
     return () => clearInterval(interval);
   }, [fetchMyOrders]);
 
-  // Retorna tudo que a página precisa
   return { orders, loading, refreshOrders: fetchMyOrders, updateStatus };
 }

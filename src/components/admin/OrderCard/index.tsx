@@ -1,52 +1,19 @@
 import { useState } from 'react';
 import { 
-  Clock, 
-  MapPin, 
-  User, 
-  CheckCircle, 
-  XCircle, 
-  Printer, 
-  ChevronDown, 
-  ChevronUp,
-  CreditCard,
-  DollarSign
+  Clock, MapPin, User, CheckCircle, XCircle, Printer, 
+  CreditCard, DollarSign 
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/services/supabase';
 import toast from 'react-hot-toast';
-
-// Tipagem simples do Pedido (ajuste conforme seu Typescript real)
-interface OrderItem {
-  id: string;
-  quantity: number;
-  product: {
-    name: string;
-    price: number;
-  };
-  observation?: string;
-  extras?: any[];
-}
-
-interface Order {
-  id: string;
-  code: string; // Ex: #1234
-  customer_name: string;
-  customer_phone?: string;
-  status: 'pending' | 'preparing' | 'ready' | 'delivery' | 'completed' | 'cancelled';
-  total: number;
-  payment_method: string;
-  created_at: string;
-  delivery_address?: string;
-  items: OrderItem[];
-  type: 'delivery' | 'pickup' | 'table';
-}
+import { Order } from '@/types/order';
+import styles from './styles.module.css'; // O CSS Module original
 
 interface OrderCardProps {
   order: Order;
-  onStatusChange?: () => void;
+  onUpdateStatus?: (id: number, status: any) => void;
 }
 
-export function OrderCard({ order, onStatusChange }: OrderCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
   const [loading, setLoading] = useState(false);
 
   // Formata moeda
@@ -63,9 +30,8 @@ export function OrderCard({ order, onStatusChange }: OrderCardProps) {
     return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   };
 
-  // --- LÓGICA DE IMPRESSÃO TÉRMICA ---
+  // --- LÓGICA DE IMPRESSÃO (Mantida a nova versão que funciona) ---
   const handlePrint = () => {
-    // Cria um iframe oculto para impressão
     const iframe = document.createElement('iframe');
     iframe.style.display = 'none';
     document.body.appendChild(iframe);
@@ -73,7 +39,7 @@ export function OrderCard({ order, onStatusChange }: OrderCardProps) {
     const doc = iframe.contentWindow?.document;
     if (!doc) return;
 
-    // Gera o HTML do Cupom
+    // ... (Mantendo o mesmo HTML de impressão gerado anteriormente) ...
     const receiptContent = `
       <html>
         <head>
@@ -94,53 +60,31 @@ export function OrderCard({ order, onStatusChange }: OrderCardProps) {
         </head>
         <body>
           <div class="header">
-            <div class="title">PEDIDO ${order.code || order.id.slice(0, 4)}</div>
-            <div class="info">${new Date().toLocaleDateString('pt-BR')} - ${formatTime(order.created_at)}</div>
-            <div class="info">Cliente: ${order.customer_name}</div>
-            <div class="info">Tel: ${order.customer_phone || 'N/A'}</div>
+            <div class="title">PEDIDO ${order.displayId}</div>
+            <div class="info">${new Date().toLocaleDateString('pt-BR')} - ${formatTime(order.createdAt)}</div>
+            <div class="info">Cliente: ${order.customerName}</div>
+            <div class="info">Tel: ${order.customerPhone || 'N/A'}</div>
           </div>
-
           <table class="items">
             <thead>
-              <tr>
-                <th>Qtd</th>
-                <th>Item</th>
-                <th style="text-align: right;">R$</th>
-              </tr>
+              <tr><th>Qtd</th><th>Item</th><th style="text-align: right;">R$</th></tr>
             </thead>
             <tbody>
               ${order.items.map(item => `
                 <tr class="item-row">
                   <td class="qty">${item.quantity}x</td>
-                  <td>
-                    ${item.product.name}
-                    ${item.observation ? `<br/><span class="obs">Obs: ${item.observation}</span>` : ''}
-                  </td>
-                  <td class="price">${formatCurrency(item.product.price * item.quantity)}</td>
+                  <td>${item.name}${item.observation ? `<br/><span class="obs">Obs: ${item.observation}</span>` : ''}</td>
+                  <td class="price">${formatCurrency(item.totalPrice)}</td>
                 </tr>
               `).join('')}
             </tbody>
           </table>
-
-          <div class="total">
-            TOTAL: ${formatCurrency(order.total)}
-          </div>
-          
+          <div class="total">TOTAL: ${formatCurrency(order.total)}</div>
           <div style="margin-top: 10px; font-size: 11px;">
-            <strong>Pagamento:</strong> ${order.payment_method}<br/>
-            <strong>Tipo:</strong> ${order.type === 'delivery' ? 'Entrega' : 'Retirada'}
+            <strong>Pagamento:</strong> ${order.paymentMethod}<br/>
+            <strong>Endereço:</strong> ${order.customerAddress}
           </div>
-
-          ${order.delivery_address ? `
-            <div style="margin-top: 10px; border-top: 1px dashed #000; padding-top: 5px;">
-              <strong>Entrega:</strong><br/>
-              ${order.delivery_address}
-            </div>
-          ` : ''}
-
-          <div class="footer">
-            --- Fim do Pedido ---
-          </div>
+          <div class="footer">--- Fim do Pedido ---</div>
         </body>
       </html>
     `;
@@ -149,21 +93,22 @@ export function OrderCard({ order, onStatusChange }: OrderCardProps) {
     doc.write(receiptContent);
     doc.close();
 
-    // Aguarda carregar e imprime
     iframe.onload = () => {
       iframe.contentWindow?.focus();
       iframe.contentWindow?.print();
-      // Remove o iframe após a impressão (pequeno delay para garantir)
-      setTimeout(() => {
-        document.body.removeChild(iframe);
-      }, 1000);
+      setTimeout(() => { document.body.removeChild(iframe); }, 1000);
     };
   };
 
-  // --- AÇÕES DO PEDIDO ---
-
+  // --- LÓGICA DE STATUS ---
   const updateOrderStatus = async (newStatus: string) => {
     setLoading(true);
+    if (onUpdateStatus) {
+      await onUpdateStatus(order.id, newStatus);
+      setLoading(false);
+      return;
+    }
+    
     try {
       const { error } = await supabase
         .from('orders')
@@ -171,201 +116,161 @@ export function OrderCard({ order, onStatusChange }: OrderCardProps) {
         .eq('id', order.id);
 
       if (error) throw error;
-      
-      toast.success(`Pedido atualizado para: ${newStatus}`);
-      if (onStatusChange) onStatusChange();
+      toast.success(`Pedido atualizado!`);
     } catch (error) {
-      console.error('Erro ao atualizar:', error);
-      toast.error('Erro ao atualizar pedido');
+      console.error('Erro:', error);
+      toast.error('Erro ao atualizar');
     } finally {
       setLoading(false);
     }
   };
 
   const handleAcceptOrder = async () => {
-    // 1. Dispara a impressão automática
     handlePrint();
-    
-    // 2. Atualiza status para 'preparing' (Em Preparo)
-    await updateOrderStatus('preparing');
+    await updateOrderStatus('PREPARING');
   };
 
   const handleCancelOrder = async () => {
-    if (window.confirm('Tem certeza que deseja cancelar este pedido?')) {
-      await updateOrderStatus('cancelled');
+    if (window.confirm('Cancelar este pedido?')) {
+      await updateOrderStatus('CANCELED');
     }
   };
 
-  // Cores baseadas no status
+  // Cores do Status (Mantivemos Tailwind APENAS para as cores do badge, já que o CSS não tem classes de status)
   const getStatusColor = (status: string) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      preparing: 'bg-blue-100 text-blue-800 border-blue-200',
-      ready: 'bg-green-100 text-green-800 border-green-200',
-      delivery: 'bg-purple-100 text-purple-800 border-purple-200',
-      completed: 'bg-gray-100 text-gray-800 border-gray-200',
-      cancelled: 'bg-red-100 text-red-800 border-red-200',
+    const colors: any = {
+      PENDING: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      PREPARING: 'bg-blue-100 text-blue-800 border-blue-200',
+      DELIVERING: 'bg-purple-100 text-purple-800 border-purple-200',
+      COMPLETED: 'bg-gray-100 text-gray-800 border-gray-200',
+      CANCELED: 'bg-red-100 text-red-800 border-red-200',
     };
-    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
-  };
-
-  const getStatusLabel = (status: string) => {
-    const labels = {
-      pending: 'Pendente',
-      preparing: 'Em Preparo',
-      ready: 'Pronto',
-      delivery: 'Em Entrega',
-      completed: 'Concluído',
-      cancelled: 'Cancelado',
-    };
-    return labels[status as keyof typeof labels] || status;
+    return colors[status] || 'bg-gray-100 text-gray-800';
   };
 
   return (
-    <div className={`bg-white border rounded-xl shadow-sm transition-all duration-200 overflow-hidden ${isExpanded ? 'ring-2 ring-primary-color/20' : ''}`}>
-      
-      {/* HEADER DO CARD (Resumo) */}
-      <div className="p-4 cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => setIsExpanded(!isExpanded)}>
-        <div className="flex justify-between items-start mb-3">
-          <div className="flex items-center gap-3">
-            <span className="font-bold text-lg text-gray-900">
-              #{order.code || order.id.slice(0, 4)}
-            </span>
-            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
-              {getStatusLabel(order.status)}
-            </span>
-          </div>
-          <span className="text-sm text-gray-500 flex items-center gap-1">
-            <Clock size={14} />
-            {formatTime(order.created_at)}
+    <div className={styles.card}>
+      {/* HEADER: ID, Status, Hora, Impressão */}
+      <div className={styles.header}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span className={styles.id}>{order.displayId}</span>
+          <span className={`px-2 py-0.5 rounded text-xs font-bold border ${getStatusColor(order.status)}`}>
+            {order.status}
           </span>
         </div>
-
-        <div className="flex justify-between items-end">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-gray-700 font-medium">
-              <User size={16} className="text-gray-400" />
-              {order.customer_name}
-            </div>
-            <div className="text-sm text-gray-500 pl-6">
-              {order.items.length} {order.items.length === 1 ? 'item' : 'itens'} • {formatCurrency(order.total)}
-            </div>
+        
+        <div className={styles.headerRight}>
+          <div className={styles.timeBadge}>
+            <Clock size={14} />
+            {formatTime(order.createdAt)}
           </div>
-          
-          <button className="text-gray-400 hover:text-primary-color transition-colors">
-            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+          <button 
+            onClick={(e) => { e.stopPropagation(); handlePrint(); }} 
+            className={styles.printBtn} 
+            title="Imprimir Cupom"
+          >
+            <Printer size={16} />
           </button>
         </div>
       </div>
 
-      {/* CONTEÚDO EXPANDIDO (Detalhes) */}
-      {isExpanded && (
-        <div className="border-t border-gray-100 bg-gray-50/50 p-4 animate-fadeIn">
-          
-          {/* Endereço */}
-          {order.delivery_address && (
-            <div className="mb-4 flex gap-2 text-sm text-gray-600 bg-white p-3 rounded-lg border border-gray-100">
-              <MapPin size={16} className="text-primary-color shrink-0 mt-0.5" />
-              <span>{order.delivery_address}</span>
+      {/* CONTEÚDO: Cliente, Endereço, Itens */}
+      <div className={styles.content}>
+        <div className={styles.infoBlock}>
+          <div className={styles.infoRow}>
+            <User size={16} className={styles.icon} />
+            <span>{order.customerName}</span>
+          </div>
+          {order.customerAddress && (
+            <div className={styles.infoRow}>
+              <MapPin size={16} className={styles.icon} />
+              <span className={styles.address}>{order.customerAddress}</span>
             </div>
           )}
+        </div>
 
-          {/* Lista de Itens */}
-          <div className="space-y-3 mb-6">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Itens do Pedido</h4>
-            {order.items.map((item) => (
-              <div key={item.id} className="flex justify-between items-start text-sm">
-                <div className="flex gap-2">
-                  <span className="font-medium text-gray-900 w-6">{item.quantity}x</span>
-                  <div className="flex flex-col">
-                    <span className="text-gray-700">{item.product.name}</span>
-                    {item.observation && (
-                      <span className="text-xs text-gray-500 italic">Obs: {item.observation}</span>
-                    )}
-                  </div>
-                </div>
-                <span className="text-gray-600">{formatCurrency(item.product.price * item.quantity)}</span>
-              </div>
-            ))}
-            
-            <div className="border-t border-dashed border-gray-200 my-2 pt-2 flex justify-between items-center font-bold text-gray-900">
-              <span>Total</span>
-              <span>{formatCurrency(order.total)}</span>
-            </div>
+        <div className={styles.divider} />
 
-            <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-100 p-2 rounded">
-              {order.payment_method === 'credit_card' ? <CreditCard size={14} /> : <DollarSign size={14} />}
-              <span className="uppercase">{order.payment_method.replace('_', ' ')}</span>
-            </div>
-          </div>
-
-          {/* BOTÕES DE AÇÃO */}
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            {order.status === 'pending' && (
-              <>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleCancelOrder(); }}
-                  disabled={loading}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-red-600 bg-white border border-red-200 hover:bg-red-50 hover:border-red-300 transition-all disabled:opacity-50"
-                >
-                  <XCircle size={18} />
-                  Recusar
-                </button>
-                
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleAcceptOrder(); }}
-                  disabled={loading}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-primary-color hover:bg-primary-dark shadow-sm hover:shadow transition-all disabled:opacity-50"
-                >
-                  {loading ? 'Processando...' : (
-                    <>
-                      <CheckCircle size={18} />
-                      Aceitar & Imprimir
-                    </>
+        <ul className={styles.itemsList}>
+          {order.items.map((item, idx) => (
+            <li key={item.id || idx} className={styles.infoRow} style={{ justifyContent: 'space-between', width: '100%', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span style={{ fontWeight: 'bold' }}>{item.quantity}x</span>
+                <div>
+                  {item.name}
+                  {item.observation && (
+                    <span style={{ display: 'block', fontSize: '0.8em', color: '#71717a', fontStyle: 'italic' }}>
+                      Obs: {item.observation}
+                    </span>
                   )}
-                </button>
-              </>
-            )}
+                </div>
+              </div>
+              <span style={{ fontWeight: '600' }}>{formatCurrency(item.totalPrice)}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
 
-            {/* Ações para outros status */}
-            {order.status === 'preparing' && (
-               <button
-                 onClick={() => updateOrderStatus('ready')}
-                 className="col-span-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-all"
-               >
-                 Marcar como Pronto
-               </button>
-            )}
-
-            {order.status === 'ready' && (
-               <button
-                 onClick={() => updateOrderStatus('delivery')}
-                 className="col-span-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 transition-all"
-               >
-                 Saiu para Entrega
-               </button>
-            )}
-
-            {order.status === 'delivery' && (
-               <button
-                 onClick={() => updateOrderStatus('completed')}
-                 className="col-span-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white bg-green-600 hover:bg-green-700 transition-all"
-               >
-                 Concluir Pedido
-               </button>
-            )}
-            
-            {/* Botão de Reimpressão manual (sempre visível) */}
-            <button
-              onClick={(e) => { e.stopPropagation(); handlePrint(); }}
-              className="col-span-2 mt-2 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-all border border-transparent hover:border-gray-200"
-            >
-              <Printer size={14} />
-              Reimprimir Cupom
-            </button>
+      {/* FOOTER: Totais e Ações */}
+      <div className={styles.footer}>
+        <div className={styles.fee}>
+          <span>Taxa de Entrega</span>
+          <span>{formatCurrency(order.deliveryFee)}</span>
+        </div>
+        
+        <div className={styles.total}>
+          <span>TOTAL</span>
+          <span>{formatCurrency(order.total)}</span>
+        </div>
+        
+        <div className={styles.fee} style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {order.paymentMethod === 'CREDIT_CARD' ? <CreditCard size={14}/> : <DollarSign size={14}/>}
+            <span style={{ fontWeight: '500' }}>{order.paymentMethod}</span>
           </div>
         </div>
-      )}
+
+        <div className={styles.actions}>
+          {order.status === 'PENDING' && (
+            <>
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleCancelOrder(); }} 
+                disabled={loading}
+                className={`${styles.btn} ${styles.btnReject}`}
+              >
+                <XCircle size={18} /> Recusar
+              </button>
+              
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleAcceptOrder(); }} 
+                disabled={loading}
+                className={`${styles.btn} ${styles.btnAccept}`}
+              >
+                {loading ? '...' : <><CheckCircle size={18} /> Aceitar</>}
+              </button>
+            </>
+          )}
+
+          {order.status === 'PREPARING' && (
+             <button 
+               onClick={() => updateOrderStatus('DELIVERING')} 
+               className={`${styles.btn} ${styles.btnPrimary}`} 
+               style={{ gridColumn: 'span 2' }}
+             >
+               Saiu para Entrega
+             </button>
+          )}
+
+          {order.status === 'DELIVERING' && (
+             <button 
+               onClick={() => updateOrderStatus('COMPLETED')} 
+               className={`${styles.btn} ${styles.btnSuccess}`} 
+             >
+               Concluir Pedido
+             </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
