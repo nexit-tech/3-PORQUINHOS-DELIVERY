@@ -6,18 +6,27 @@ interface OrderTicketProps {
 }
 
 export const OrderTicket = forwardRef<HTMLDivElement, OrderTicketProps>(({ order }, ref) => {
+  // 1. TRUQUE PARA O TYPESCRIPT NÃO RECLAMAR
+  // Convertemos para 'any' para acessar campos que podem vir do banco mas não estão no Type oficial
+  const safeOrder = order as any;
+
+  const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val || 0);
   
-  const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-  // Usa o createdAt que já é string ou converte se necessário. No hook está vindo como string timestamp.
-  const date = new Date(order.createdAt).toLocaleString('pt-BR');
+  // Tratamento de data seguro
+  const date = safeOrder.createdAt 
+    ? new Date(safeOrder.createdAt).toLocaleString('pt-BR') 
+    : new Date().toLocaleString('pt-BR');
+
+  // Ajuste para usar displayId (que vem do Hook) ou o id
+  const displayId = safeOrder.displayId || safeOrder.code || `#${safeOrder.id}`;
 
   const getPaymentLabel = () => {
-    switch(order.paymentMethod) {
+    switch(safeOrder.paymentMethod) {
       case 'PIX': return 'PIX';
       case 'CREDIT_CARD': return 'Cartão de Crédito';
       case 'DEBIT_CARD': return 'Cartão de Débito';
       case 'CASH': return 'Dinheiro';
-      default: return order.paymentMethod;
+      default: return safeOrder.paymentMethod || 'Outros';
     }
   };
 
@@ -34,14 +43,16 @@ export const OrderTicket = forwardRef<HTMLDivElement, OrderTicketProps>(({ order
               width: 80mm;
               margin: 0 !important;
               padding: 0 !important;
+              background-color: #fff !important;
+              -webkit-print-color-adjust: exact;
             }
             .print-content {
               width: 100%;
               padding: 5px;
               font-family: 'Courier New', Courier, monospace;
               font-size: 12px;
-              color: #000;
-              background: #fff;
+              color: #000 !important;
+              background: #fff !important;
             }
             .divider { border-bottom: 1px dashed #000; margin: 5px 0; width: 100%; }
             .text-center { text-align: center; }
@@ -54,17 +65,19 @@ export const OrderTicket = forwardRef<HTMLDivElement, OrderTicketProps>(({ order
 
         <div className="text-center">
           <h1 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0 }}>3 PORQUINHOS</h1>
-          <div>{order.code || order.id}</div>
+          <div style={{ fontSize: '14px', fontWeight: 'bold' }}>{displayId}</div>
           <div style={{ fontSize: '10px' }}>{date}</div>
         </div>
 
         <div className="divider" />
 
-        <div style={{ fontSize: '14px' }} className="font-bold">{order.customerName}</div>
-        <div>Tel: {order.customerPhone || 'Não inf.'}</div>
+        <div style={{ fontSize: '14px' }} className="font-bold">{safeOrder.customerName}</div>
+        <div>Tel: {safeOrder.customerPhone || 'Não inf.'}</div>
+        
         <div style={{ marginTop: '5px' }}>
           <span className="font-bold">Entrega: </span>
-          {order.type === 'pickup' ? 'RETIRADA' : (order.customerAddress || 'Balcão')}
+          {/* Se tiver customerAddress é entrega, senão assume retirada/balcão */}
+          {safeOrder.customerAddress ? safeOrder.customerAddress : 'RETIRADA / BALCÃO'}
         </div>
 
         <div className="divider" />
@@ -78,20 +91,26 @@ export const OrderTicket = forwardRef<HTMLDivElement, OrderTicketProps>(({ order
             </tr>
           </thead>
           <tbody>
-            {order.items.map((item, idx) => (
-              <tr key={item.id || idx}>
-                <td className="font-bold">{item.quantity}x</td>
-                <td>
-                  <div>{item.name}</div>
-                  {item.observation && (
-                    <div style={{ fontSize: '10px', fontStyle: 'italic' }}>({item.observation})</div>
-                  )}
-                </td>
-                <td className="text-right" style={{ whiteSpace: 'nowrap' }}>
-                  {formatMoney(item.price * item.quantity)}
-                </td>
-              </tr>
-            ))}
+            {(safeOrder.items || []).map((item: any, idx: number) => {
+              // CORREÇÃO CRÍTICA: O Hook manda unitPrice, não price.
+              const price = item.unitPrice || item.price || 0;
+              const total = price * (item.quantity || 1);
+              
+              return (
+                <tr key={item.id || idx}>
+                  <td className="font-bold">{item.quantity}x</td>
+                  <td>
+                    <div>{item.name}</div>
+                    {item.observation && (
+                      <div style={{ fontSize: '10px', fontStyle: 'italic' }}>({item.observation})</div>
+                    )}
+                  </td>
+                  <td className="text-right" style={{ whiteSpace: 'nowrap' }}>
+                    {formatMoney(total)}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 
@@ -100,18 +119,21 @@ export const OrderTicket = forwardRef<HTMLDivElement, OrderTicketProps>(({ order
         <div className="text-right">
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span>Subtotal:</span>
-            <span>{formatMoney(order.total - (order.deliveryFee || 0))}</span>
+            <span>{formatMoney(safeOrder.total - (safeOrder.deliveryFee || 0))}</span>
           </div>
-          {order.deliveryFee > 0 && (
+          
+          {(safeOrder.deliveryFee > 0) && (
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>Entrega:</span>
-              <span>{formatMoney(order.deliveryFee)}</span>
+              <span>{formatMoney(safeOrder.deliveryFee)}</span>
             </div>
           )}
-          {order.change && order.change > 0 && (
+
+          {/* Uso do safeOrder para acessar 'change' sem erro de TS */}
+          {safeOrder.change && safeOrder.change > 0 && (
              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                <span>Troco:</span>
-               <span>{formatMoney(order.change)}</span>
+               <span>{formatMoney(safeOrder.change)}</span>
              </div>
           )}
           
@@ -119,7 +141,7 @@ export const OrderTicket = forwardRef<HTMLDivElement, OrderTicketProps>(({ order
           
           <div style={{ fontSize: '16px', fontWeight: 'bold', display: 'flex', justifyContent: 'space-between' }}>
             <span>TOTAL:</span>
-            <span>{formatMoney(order.total)}</span>
+            <span>{formatMoney(safeOrder.total)}</span>
           </div>
         </div>
 

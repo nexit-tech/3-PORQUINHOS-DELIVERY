@@ -1,12 +1,14 @@
 {
   "name": "anota-delivery",
   "version": "0.1.0",
+  "main": "main.js",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "app": "concurrently \"next dev\" \"wait-on http://localhost:3000 && electron .\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.89.0",
@@ -26,6 +28,9 @@
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "electron": "^28.0.0",
+    "concurrently": "^8.2.2",
+    "wait-on": "^7.2.0"
   }
 }

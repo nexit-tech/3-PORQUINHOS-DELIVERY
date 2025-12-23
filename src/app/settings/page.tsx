@@ -9,6 +9,7 @@ import PaymentSettings from '@/components/admin/PaymentSettings';
 import WhatsappConnect from '@/components/admin/WhatsappConnect'; 
 import { Clock, Bike, Printer, CreditCard, MessageCircle } from 'lucide-react';
 import styles from './page.module.css';
+import { PrinterSettings } from '@/components/admin/PrinterSettings';
 
 type SettingType = 'HOURS' | 'FEES' | 'PRINTER' | 'PAYMENTS' | 'WHATSAPP' | null;
 
@@ -21,15 +22,7 @@ export default function SettingsPage() {
       case 'FEES': return <DeliveryFees />;
       case 'PAYMENTS': return <PaymentSettings />;
       case 'WHATSAPP': return <WhatsappConnect />;
-      case 'PRINTER': 
-        return (
-          <div style={{padding: 40, textAlign: 'center', color: '#888'}}>
-            <Printer size={48} style={{marginBottom: 16, opacity: 0.5}}/>
-            <h3>Configuração de Impressora</h3>
-            <p>Em breve você poderá conectar sua impressora térmica aqui.</p>
-          </div>
-        );
-      default: return null;
+      case 'PRINTER': return <PrinterSettings />;
     }
   };
 
@@ -92,4 +85,4 @@ export default function SettingsPage() {
       )}
     </div>
   );
-}
+} 

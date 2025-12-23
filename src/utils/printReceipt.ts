@@ -1,128 +1,181 @@
-import { Order } from "@/types/order";
+import { PrinterSettings } from "@/types/settings";
 
-export const printReceipt = (order: Order, copies: number = 1) => {
-  // Formata moeda
-  const formatMoney = (value: number) => 
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+export const printReceipt = async (order: any, settings: PrinterSettings, copies: number = 1) => {
+  // --- PREPARAÇÃO DOS DADOS ---
+  const is58mm = settings?.paperWidth === '58mm';
+  
+  // --- LARGURA BLINDADA (EM PIXELS) ---
+  // 58mm = ~226px total. Usamos 210px para ter margem de segurança.
+  // 80mm = ~302px total. Usamos 280px para ter margem de segurança.
+  const widthPx = is58mm ? '180px' : '280px'; 
+  const fontSize = is58mm ? '11px' : '12px';
 
-  // Formata Data
-  const date = new Date().toLocaleString('pt-BR');
+  const id = String(order.id || '???').slice(0, 8);
+  const cliente = (order.customerName || order.customer?.name || 'CLIENTE').toUpperCase();
+  const tel = order.customerPhone || order.customer?.phone || '';
+  const endereco = order.customerAddress || order.address?.street || 'Retirada';
+  
+  const formatMoney = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+  const total = formatMoney(order.total || 0);
+  const subtotal = formatMoney(order.subtotal || order.items?.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0) || 0);
+  const entrega = order.deliveryFee ? formatMoney(order.deliveryFee) : null;
+  const data = new Date().toLocaleString('pt-BR');
 
-  // Conteúdo do Cupom HTML
+  // --- HTML CLÁSSICO (TABELAS) ---
+  // Usamos tabelas porque elas não "quebram" nem somem em impressoras térmicas.
   const content = `
+    <!DOCTYPE html>
     <html>
-      <head>
-        <title>Pedido #${order.id}</title>
-        <style>
-          @page { margin: 0; size: 80mm auto; }
-          body { 
-            font-family: 'Courier New', monospace; 
-            width: 80mm; 
-            margin: 0; 
-            padding: 10px;
-            font-size: 12px;
-            color: black;
-          }
-          .header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
-          .title { font-size: 16px; font-weight: bold; }
-          .info { margin-bottom: 5px; }
-          .divider { border-top: 1px dashed #000; margin: 10px 0; }
-          .item { display: flex; justify-content: space-between; margin-bottom: 5px; }
-          .total { font-size: 14px; font-weight: bold; text-align: right; margin-top: 10px; }
-          .footer { text-align: center; margin-top: 20px; font-size: 10px; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <div class="title">3 PORQUINHOS</div>
-          <div>Delivery App</div>
-          <div>${date}</div>
+    <head>
+      <meta charset="UTF-8">
+      <style>
+        /* Reseta tudo */
+        * { box-sizing: border-box; }
+        
+        body { 
+          margin: 0; 
+          padding: 0; 
+          background-color: #fff; 
+          font-family: 'Courier New', monospace; /* Fonte de recibo */
+        }
+
+        /* O CONTAINER MÁGICO */
+        .page {
+          width: ${widthPx}; /* Largura TRAVADA */
+          padding: 5px 0 20px 0; /* Margem em cima e em baixo */
+          margin: 0 auto; /* Centraliza se o papel for maior, mas mantém a largura */
+          font-size: ${fontSize};
+          line-height: 1.2;
+          color: #000;
+        }
+
+        .center { text-align: center; }
+        .left { text-align: left; }
+        .right { text-align: right; }
+        
+        .bold { font-weight: bold; }
+        .big { font-size: 14px; font-weight: bold; }
+        
+        /* Tracejado */
+        .line { 
+          border-top: 1px dashed #000; 
+          width: 100%; 
+          margin: 5px 0;
+        }
+
+        /* TABELA DE ITENS (A solução para esquerda/direita) */
+        table { width: 100%; border-collapse: collapse; }
+        td { vertical-align: top; }
+        
+        /* Coluna do Item: Pega todo o espaço possível */
+        .col-name { text-align: left; padding-right: 5px; }
+        
+        /* Coluna do Preço: Não quebra linha (nowrap) */
+        .col-price { text-align: right; white-space: nowrap; width: 1%; }
+
+        .obs { font-size: 10px; font-style: italic; display: block; margin-top: 2px; }
+      </style>
+    </head>
+    <body>
+      <div class="page">
+        
+        <br />
+
+        <div class="center">
+          <div class="big">CONSUMO NO LOCAL</div>
+          <div class="line"></div>
+          <div>${data}</div>
+          <div class="bold">3 Porquinhos Delivery</div>
+          <div class="line"></div>
+          <div>PEDIDO: <span class="big">#${id}</span></div>
         </div>
 
-        <div class="info">
-          <strong>PEDIDO #${order.id.slice(0, 8)}</strong><br/>
-          <strong>Cliente:</strong> ${order.customer.name}<br/>
-          <strong>Tel:</strong> ${order.customer.phone}
-        </div>
+        <div class="line"></div>
+        <div class="bold" style="margin-bottom: 5px;">ITENS</div>
 
-        <div class="divider"></div>
-
-        <div class="info">
-          <strong>ENTREGA:</strong><br/>
-          ${order.address.street}, ${order.address.number}<br/>
-          ${order.address.neighborhood} - ${order.address.city}<br/>
-          ${order.address.complement ? `Comp: ${order.address.complement}` : ''}
-        </div>
-
-        <div class="divider"></div>
-
-        <div>
-          ${order.items.map(item => `
-            <div class="item">
-              <span>${item.quantity}x ${item.product.name}</span>
-              <span>${formatMoney(item.price * item.quantity)}</span>
-            </div>
-            ${item.observation ? `<div style="font-size:10px; margin-bottom:4px;">(Obs: ${item.observation})</div>` : ''}
+        <table>
+          ${(order.items || []).map((item: any) => `
+            <tr>
+              <td class="col-name">
+                ${item.quantity || 1}x ${(item.name || item.product?.name || 'Item')}
+                ${item.observation ? `<span class="obs">- ${item.observation}</span>` : ''}
+                ${item.adicionais ? `<span class="obs">+ ${item.adicionais}</span>` : ''}
+              </td>
+              <td class="col-price">
+                ${formatMoney((item.price || item.unitPrice || 0) * (item.quantity || 1))}
+              </td>
+            </tr>
+            <tr><td colspan="2" style="height: 5px;"></td></tr>
           `).join('')}
-        </div>
+        </table>
 
-        <div class="divider"></div>
+        <div class="line"></div>
+        <div><span class="bold">CLIENTE:</span> ${cliente}</div>
+        ${tel ? `<div>Tel: ${tel}</div>` : ''}
 
-        <div class="item">
-          <span>Subtotal:</span>
-          <span>${formatMoney(order.total - (order.deliveryFee || 0))}</span>
-        </div>
-        <div class="item">
-          <span>Taxa Entrega:</span>
-          <span>${formatMoney(order.deliveryFee || 0)}</span>
-        </div>
-        <div class="total">
-          TOTAL: ${formatMoney(order.total)}
-        </div>
+        <div class="line"></div>
+        <div class="bold">ENTREGA:</div>
+        <div>${endereco}</div>
 
-        <div class="divider"></div>
+        <div class="line"></div>
+        
+        <table>
+          <tr>
+            <td class="col-name">Subtotal:</td>
+            <td class="col-price">${subtotal}</td>
+          </tr>
+          ${entrega ? `
+          <tr>
+            <td class="col-name">Taxa Entrega:</td>
+            <td class="col-price">${entrega}</td>
+          </tr>
+          ` : ''}
+        </table>
 
-        <div class="info">
-          <strong>PAGAMENTO:</strong><br/>
-          ${order.paymentMethod === 'pix' ? 'PIX' : 
-            order.paymentMethod === 'cash' ? `Dinheiro (Troco: ${order.change ? formatMoney(order.change) : 'Não'})` : 
-            'Cartão'}
-        </div>
+        <div class="line"></div>
 
-        <div class="footer">
+        <table>
+          <tr>
+            <td class="col-name big">TOTAL:</td>
+            <td class="col-price big">${total}</td>
+          </tr>
+        </table>
+
+        <div class="line"></div>
+        
+        <div class="center" style="font-size: 10px; margin-top: 10px;">
           www.3porquinhos.com.br
+          <br/>Powered by Anota AI
         </div>
-      </body>
+        
+        <br/><br/>
+        <div class="center">.</div>
+      </div>
+    </body>
     </html>
   `;
 
-  // Cria um iframe invisível para imprimir
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'fixed';
-  iframe.style.right = '0';
-  iframe.style.bottom = '0';
-  iframe.style.width = '0';
-  iframe.style.height = '0';
-  iframe.style.border = '0';
-  document.body.appendChild(iframe);
-
-  const doc = iframe.contentWindow?.document;
-  if (doc) {
-    doc.open();
-    doc.write(content);
-    doc.close();
-
-    // Aguarda carregar e imprime
-    iframe.contentWindow?.focus();
-    setTimeout(() => {
-      // Loop para o número de cópias
-      for(let i=0; i<copies; i++) {
-        iframe.contentWindow?.print();
-      }
-      // Remove o iframe depois (limpeza)
-      setTimeout(() => {
-        document.body.removeChild(iframe);
-      }, 1000);
-    }, 500);
+  // --- ENVIO ---
+  if (typeof window !== 'undefined' && (window as any).require) {
+    try {
+      const { ipcRenderer } = (window as any).require('electron');
+      await ipcRenderer.invoke('print-silent', { 
+        content, 
+        printerName: settings?.printerName, 
+        width: settings?.paperWidth || '80mm'
+      });
+    } catch (e) {
+      console.error("Erro print:", e);
+    }
+  } else {
+    // Fallback navegador
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow?.document;
+    if(doc) {
+      doc.open(); doc.write(content); doc.close();
+      setTimeout(() => iframe.contentWindow?.print(), 500);
+    }
   }
 };

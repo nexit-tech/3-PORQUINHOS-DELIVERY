@@ -1,154 +1,166 @@
 .container {
-  background: white;
-  border-radius: 12px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  padding: 20px;
   border: 1px solid #e4e4e7;
-  overflow: hidden;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
 }
 
 .header {
-  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
   border-bottom: 1px solid #f4f4f5;
-  background: #ffffff;
 }
 
-.titleWrapper {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-}
-
-.iconBox {
-  width: 48px;
-  height: 48px;
-  background: #eff6ff; /* Azulzinho claro */
-  color: #3b82f6; /* Azul */
-  border-radius: 12px;
+.titleContainer {
   display: flex;
   align-items: center;
-  justify-content: center;
-  border: 1px solid #dbeafe;
+  gap: 12px;
 }
 
-.titleWrapper h3 {
-  font-size: 1rem;
+.icon {
+  color: #f97316;
+}
+
+.title {
+  font-size: 1.1rem;
   font-weight: 600;
   color: #18181b;
-  margin: 0 0 2px 0;
-}
-
-.titleWrapper p {
-  font-size: 0.8rem;
-  color: #71717a;
   margin: 0;
 }
 
-.content {
-  padding: 24px;
-  flex: 1;
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Botão Salvar (Laranja) */
+.saveButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #f97316;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.saveButton:hover {
+  background-color: #ea580c;
+}
+
+/* Botão Testar (Cinza) */
+.testButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #f4f4f5;
+  color: #52525b;
+  border: 1px solid #e4e4e7;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.testButton:hover {
+  background-color: #e4e4e7;
+  color: #18181b;
+  border-color: #d4d4d8;
+}
+
+/* Formulário */
+.form {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #3f3f46;
+}
+
 .row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  gap: 10px;
 }
 
-.row label {
-  font-size: 0.9rem;
-  color: #3f3f46;
-  font-weight: 500;
+.input,
+.select {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  color: #18181b;
+  background-color: #fff;
 }
 
-.counter {
+.input:focus,
+.select:focus {
+  outline: none;
+  border-color: #f97316;
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.1);
+}
+
+.scanButton {
   display: flex;
   align-items: center;
-  gap: 12px;
-  background: #f4f4f5;
-  padding: 4px;
-  border-radius: 8px;
-}
-
-.counter button {
-  width: 32px;
-  height: 32px;
-  background: white;
-  border: 1px solid #e4e4e7;
+  justify-content: center;
+  width: 44px;
+  background-color: #f4f4f5;
+  border: 1px solid #d4d4d8;
   border-radius: 6px;
   cursor: pointer;
-  font-weight: bold;
+  color: #52525b;
+  transition: all 0.2s;
+}
+
+.scanButton:hover {
+  background-color: #e4e4e7;
   color: #18181b;
+  border-color: #a1a1aa;
 }
 
-.counter button:hover {
-  background: #fafafa;
+.scanButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.counter span {
-  font-weight: 600;
-  min-width: 20px;
-  text-align: center;
+.checkboxGroup {
+  margin-top: 10px;
 }
 
 .checkboxLabel {
   display: flex;
   align-items: center;
   gap: 10px;
+  font-size: 0.95rem;
+  color: #18181b;
   cursor: pointer;
 }
 
-.checkboxLabel input {
+.checkbox {
   width: 18px;
   height: 18px;
-  accent-color: #3b82f6;
-}
-
-.actions {
-  margin-top: auto;
-  display: flex;
-  gap: 10px;
-}
-
-.testBtn {
-  flex: 1;
-  padding: 12px;
-  background: white;
-  border: 1px solid #e4e4e7;
-  color: #3f3f46;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.saveBtn {
-  flex: 1;
-  padding: 12px;
-  background: #3b82f6;
-  border: none;
-  color: white;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.saveBtn:hover { background: #2563eb; }
-
-.hint {
-  font-size: 0.75rem;
-  color: #a1a1aa;
-  margin-top: 10px;
-  text-align: center;
+  accent-color: #f97316;
 }
