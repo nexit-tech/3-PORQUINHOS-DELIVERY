@@ -22,94 +22,111 @@ function createWindow() {
 app.whenReady().then(() => {
   createWindow();
 
+  // Lista impressoras
   ipcMain.handle('get-printers', async (event) => {
     try {
       const printers = await mainWindow.webContents.getPrintersAsync();
       return printers;
     } catch (err) {
+      console.error('[Electron] Erro ao listar impressoras:', err);
       return [];
     }
   });
 
-  // --- IMPRESSÃO BRUTAL (AJUSTADA) ---
-  ipcMain.handle('print-silent', async (event, { content, printerName }) => {
-    console.log(`[Electron] 🏁 Imprimindo ticket...`);
-
-    const printers = await event.sender.getPrintersAsync();
-    let targetPrinter = printers.find(p => p.name === printerName) || printers.find(p => p.isDefault);
-
-    if (!targetPrinter) throw new Error('Sem impressora.');
-
-    const workerWindow = new BrowserWindow({ 
-      show: true, // Mantive true para você conferir visualmente
-      width: 400, 
-      height: 600,
-      webPreferences: { nodeIntegration: true, contextIsolation: false }
-    });
+  // IMPRESSÃO SILENCIOSA OTIMIZADA
+  ipcMain.handle('print-silent', async (event, { content, printerName, width }) => {
+    console.log(`[Electron] 🖨️ Iniciando impressão...`);
+    console.log(`[Electron] 📄 Impressora: ${printerName || 'Padrão'}`);
+    console.log(`[Electron] 📏 Largura: ${width}`);
 
     try {
-      await workerWindow.loadURL('about:blank');
+      const printers = await event.sender.getPrintersAsync();
+      let targetPrinter = printers.find(p => p.name === printerName);
+      
+      if (!targetPrinter) {
+        targetPrinter = printers.find(p => p.isDefault);
+      }
 
-      // INJEÇÃO DE HTML + CSS CORRIGIDO
-      await workerWindow.webContents.executeJavaScript(`
-        document.write(decodeURIComponent("${encodeURIComponent(content)}"));
-        
-        const style = document.createElement('style');
-        style.innerHTML = \`
-          @media print {
-            body, html { 
-              background-color: #fff !important; 
-              width: 100% !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              overflow: visible !important; /* IMPORTANTE: Permite a nota crescer */
-            }
-            * { 
-              color: #000 !important; 
-              text-shadow: none !important; 
-            }
-            
-            /* AQUI ESTÁ O SEGREDO DO "NÃO CORTAR" */
-            .safe-zone {
-              margin: 0 !important;
-              padding-left: 10px !important;  /* Margem esquerda de segurança */
-              padding-right: 15px !important; /* Margem direita de segurança */
-              padding-bottom: 50px !important; /* Espaço extra no fundo */
-              width: auto !important;
-            }
-          }
-        \`;
-        document.head.appendChild(style);
-        document.close();
-      `);
+      if (!targetPrinter) {
+        throw new Error('Nenhuma impressora disponível');
+      }
 
-      // Espera renderizar
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      console.log(`[Electron] ✅ Usando impressora: ${targetPrinter.name}`);
 
-      const options = {
-        silent: true,
-        deviceName: targetPrinter.name, 
-        printBackground: true,
-        // Sem margens no driver, controlamos via CSS acima
-      };
-
-      workerWindow.webContents.print(options, (success, failureReason) => {
-          if (!success) console.error(`[Electron] Erro: ${failureReason}`);
-          
-          // Fecha depois de 5s
-          setTimeout(() => { 
-            if(!workerWindow.isDestroyed()) workerWindow.close(); 
-          }, 5000);
+      // Janela invisível para impressão
+      const printWindow = new BrowserWindow({
+        show: false, // IMPORTANTE: Invisível
+        width: width === '58mm' ? 220 : 302,
+        height: 600,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+        }
       });
 
+      // Carrega o HTML
+      await printWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(content)}`);
+
+      // Aguarda renderização completa
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Configurações de impressão OTIMIZADAS
+      const printOptions = {
+        silent: true,
+        deviceName: targetPrinter.name,
+        printBackground: true,
+        color: false,
+        margins: {
+          marginType: 'none'
+        },
+        pageSize: {
+          width: width === '58mm' ? 58000 : 80000, // em microns
+          height: 297000 // Tamanho máximo, será ajustado pelo conteúdo
+        },
+        scaleFactor: 100,
+        landscape: false,
+        pagesPerSheet: 1,
+        collate: false,
+        copies: 1
+      };
+
+      // Executa impressão
+      const success = await new Promise((resolve) => {
+        printWindow.webContents.print(printOptions, (success, failureReason) => {
+          if (success) {
+            console.log('[Electron] ✅ Impressão enviada com sucesso!');
+            resolve(true);
+          } else {
+            console.error('[Electron] ❌ Falha na impressão:', failureReason);
+            resolve(false);
+          }
+        });
+      });
+
+      // Fecha janela após impressão
+      setTimeout(() => {
+        if (!printWindow.isDestroyed()) {
+          printWindow.close();
+        }
+      }, 2000);
+
+      return success;
+
     } catch (error) {
-      console.error('[Electron] Erro fatal:', error);
-      if (!workerWindow.isDestroyed()) workerWindow.close();
+      console.error('[Electron] ❌ Erro fatal na impressão:', error);
       throw error;
     }
   });
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
 });

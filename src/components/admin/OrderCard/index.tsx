@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import { 
   Clock, MapPin, User, CheckCircle, XCircle, Printer, 
@@ -6,7 +8,7 @@ import {
 import { supabase } from '@/services/supabase';
 import toast from 'react-hot-toast';
 import { Order } from '@/types/order';
-import styles from './styles.module.css'; // O CSS Module original
+import styles from './styles.module.css';
 
 interface OrderCardProps {
   order: Order;
@@ -15,8 +17,8 @@ interface OrderCardProps {
 
 export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
   const [loading, setLoading] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
 
-  // Formata moeda
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -24,83 +26,181 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
     }).format(value);
   };
 
-  // Formata data
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   };
 
-  // --- LÓGICA DE IMPRESSÃO (Mantida a nova versão que funciona) ---
-  const handlePrint = () => {
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    document.body.appendChild(iframe);
+  // 🔥 IMPRESSÃO DIRETA (SEM printReceipt.ts)
+  const handlePrint = async () => {
+    if (isPrinting) return;
+    setIsPrinting(true);
     
-    const doc = iframe.contentWindow?.document;
-    if (!doc) return;
+    try {
+      console.log('🖨️ Iniciando impressão...');
+      
+      // 1. Busca a impressora do Supabase
+      const { data: settingsData, error } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'printer')
+        .single();
 
-    // ... (Mantendo o mesmo HTML de impressão gerado anteriormente) ...
-    const receiptContent = `
-      <html>
-        <head>
-          <style>
-            body { font-family: 'Courier New', monospace; width: 300px; font-size: 12px; margin: 0; padding: 10px; color: #000; }
-            .header { text-align: center; margin-bottom: 10px; border-bottom: 1px dashed #000; padding-bottom: 5px; }
-            .title { font-size: 16px; font-weight: bold; }
-            .info { font-size: 11px; margin-bottom: 5px; }
-            .items { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
-            .items th { text-align: left; border-bottom: 1px dashed #000; }
-            .item-row td { padding: 4px 0; vertical-align: top; }
-            .qty { width: 30px; font-weight: bold; }
-            .price { text-align: right; }
-            .total { border-top: 1px dashed #000; padding-top: 5px; font-weight: bold; font-size: 14px; text-align: right; }
-            .footer { margin-top: 15px; text-align: center; font-size: 10px; }
-            .obs { font-style: italic; font-size: 10px; margin-left: 30px; display: block; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="title">PEDIDO ${order.displayId}</div>
-            <div class="info">${new Date().toLocaleDateString('pt-BR')} - ${formatTime(order.createdAt)}</div>
-            <div class="info">Cliente: ${order.customerName}</div>
-            <div class="info">Tel: ${order.customerPhone || 'N/A'}</div>
-          </div>
-          <table class="items">
-            <thead>
-              <tr><th>Qtd</th><th>Item</th><th style="text-align: right;">R$</th></tr>
-            </thead>
-            <tbody>
-              ${order.items.map(item => `
-                <tr class="item-row">
-                  <td class="qty">${item.quantity}x</td>
-                  <td>${item.name}${item.observation ? `<br/><span class="obs">Obs: ${item.observation}</span>` : ''}</td>
-                  <td class="price">${formatCurrency(item.totalPrice)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <div class="total">TOTAL: ${formatCurrency(order.total)}</div>
-          <div style="margin-top: 10px; font-size: 11px;">
-            <strong>Pagamento:</strong> ${order.paymentMethod}<br/>
-            <strong>Endereço:</strong> ${order.customerAddress}
-          </div>
-          <div class="footer">--- Fim do Pedido ---</div>
-        </body>
-      </html>
-    `;
+      if (error || !settingsData) {
+        console.error('❌ Impressora não configurada:', error);
+        toast.error('Configure a impressora em Configurações > Impressão');
+        setIsPrinting(false);
+        return;
+      }
 
-    doc.open();
-    doc.write(receiptContent);
-    doc.close();
+      const printerSettings = settingsData.value;
+      console.log('✅ Configuração encontrada:', printerSettings);
 
-    iframe.onload = () => {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-      setTimeout(() => { document.body.removeChild(iframe); }, 1000);
-    };
+      if (!printerSettings.printerName) {
+        toast.error('Nome da impressora não definido!');
+        setIsPrinting(false);
+        return;
+      }
+
+      // 2. Gera o HTML da nota
+      const is58mm = printerSettings.paperWidth === '58mm';
+      const widthPx = is58mm ? '220px' : '302px';
+      const fontSize = is58mm ? '11px' : '13px';
+
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Courier New', monospace; 
+      width: ${widthPx};
+      margin: 0 auto;
+      padding: 10px 5px 20px 5px;
+      font-size: ${fontSize};
+      line-height: 1.5;
+      color: #000;
+      background: #fff;
+    }
+    .center { text-align: center; margin: 3px 0; }
+    .bold { font-weight: 800; }
+    .big { font-size: 16px; font-weight: 800; }
+    .line { border-top: 1px dashed #000; margin: 5px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    td { vertical-align: top; padding: 2px 0; }
+    .item-name { text-align: left; padding-right: 5px; }
+    .item-price { text-align: right; white-space: nowrap; font-weight: 700; }
+    .obs { font-size: 10px; font-style: italic; display: block; margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <div class="center">
+    <div class="big">3 PORQUINHOS</div>
+    <div class="bold">DELIVERY</div>
+    <div class="line"></div>
+    <div>${new Date().toLocaleString('pt-BR')}</div>
+    <div class="line"></div>
+    <div>PEDIDO: <span class="big">${order.displayId}</span></div>
+  </div>
+
+  <div class="line"></div>
+  <div class="bold">ITENS</div>
+  <br/>
+
+  <table>
+    ${order.items.map(item => `
+      <tr>
+        <td class="item-name">
+          <span class="bold">${item.quantity}x</span> ${item.name}
+          ${item.observation ? `<span class="obs">${item.observation}</span>` : ''}
+        </td>
+        <td class="item-price">
+          ${formatCurrency(item.totalPrice)}
+        </td>
+      </tr>
+    `).join('')}
+  </table>
+
+  <div class="line"></div>
+  <div class="bold">CLIENTE</div>
+  <div>${order.customerName}</div>
+  ${order.customerPhone ? `<div>Tel: ${order.customerPhone}</div>` : ''}
+
+  <div class="line"></div>
+  <div class="bold">ENTREGA</div>
+  <div>${order.customerAddress}</div>
+
+  <div class="line"></div>
+
+  <table>
+    <tr>
+      <td>Subtotal:</td>
+      <td class="item-price bold">${formatCurrency(order.total - order.deliveryFee)}</td>
+    </tr>
+    ${order.deliveryFee > 0 ? `
+    <tr>
+      <td>Taxa:</td>
+      <td class="item-price bold">${formatCurrency(order.deliveryFee)}</td>
+    </tr>
+    ` : ''}
+  </table>
+
+  <div class="line"></div>
+
+  <table>
+    <tr>
+      <td class="big">TOTAL:</td>
+      <td class="item-price big">${formatCurrency(order.total)}</td>
+    </tr>
+  </table>
+
+  <div class="line"></div>
+  
+  <div class="center" style="font-size: 10px; margin-top: 10px;">
+    Obrigado pela preferência!<br/>
+    www.3porquinhos.com.br
+  </div>
+  
+  <br/><br/>
+  <div class="center">.</div>
+</body>
+</html>
+      `;
+
+      // 3. Chama o Electron para imprimir
+      if ((window as any).require) {
+        const { ipcRenderer } = (window as any).require('electron');
+        
+        console.log('📤 Enviando para impressora:', printerSettings.printerName);
+        
+        await ipcRenderer.invoke('print-silent', { 
+          content: html, 
+          printerName: printerSettings.printerName, 
+          width: printerSettings.paperWidth 
+        });
+
+        console.log('✅ Comando de impressão enviado!');
+        toast.success('Impresso com sucesso!');
+      } else {
+        // Fallback: Abre em nova janela
+        const w = window.open('', '_blank', 'width=400,height=600');
+        if (w) {
+          w.document.write(html);
+          w.document.close();
+          setTimeout(() => w.print(), 500);
+        }
+      }
+
+    } catch (error: any) {
+      console.error('❌ Erro fatal:', error);
+      toast.error('Erro ao imprimir: ' + error.message);
+    } finally {
+      setIsPrinting(false);
+    }
   };
 
-  // --- LÓGICA DE STATUS ---
   const updateOrderStatus = async (newStatus: string) => {
     setLoading(true);
     if (onUpdateStatus) {
@@ -125,9 +225,14 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
     }
   };
 
+  // 🔥 ACEITAR = MUDA STATUS + IMPRIME
   const handleAcceptOrder = async () => {
-    handlePrint();
-    await updateOrderStatus('PREPARING');
+    try {
+      await updateOrderStatus('PREPARING');
+      setTimeout(() => handlePrint(), 500);
+    } catch (error) {
+      console.error('Erro ao aceitar:', error);
+    }
   };
 
   const handleCancelOrder = async () => {
@@ -136,7 +241,6 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
     }
   };
 
-  // Cores do Status (Mantivemos Tailwind APENAS para as cores do badge, já que o CSS não tem classes de status)
   const getStatusColor = (status: string) => {
     const colors: any = {
       PENDING: 'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -150,7 +254,6 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
 
   return (
     <div className={styles.card}>
-      {/* HEADER: ID, Status, Hora, Impressão */}
       <div className={styles.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span className={styles.id}>{order.displayId}</span>
@@ -164,17 +267,26 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
             <Clock size={14} />
             {formatTime(order.createdAt)}
           </div>
+          
+          {/* 🔥 BOTÃO DE REIMPRIMIR */}
           <button 
-            onClick={(e) => { e.stopPropagation(); handlePrint(); }} 
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              handlePrint(); 
+            }} 
+            disabled={isPrinting}
             className={styles.printBtn} 
-            title="Imprimir Cupom"
+            title={isPrinting ? "Imprimindo..." : "Reimprimir"}
+            style={{ 
+              opacity: isPrinting ? 0.6 : 1,
+              cursor: isPrinting ? 'not-allowed' : 'pointer'
+            }}
           >
             <Printer size={16} />
           </button>
         </div>
       </div>
 
-      {/* CONTEÚDO: Cliente, Endereço, Itens */}
       <div className={styles.content}>
         <div className={styles.infoBlock}>
           <div className={styles.infoRow}>
@@ -211,7 +323,6 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
         </ul>
       </div>
 
-      {/* FOOTER: Totais e Ações */}
       <div className={styles.footer}>
         <div className={styles.fee}>
           <span>Taxa de Entrega</span>
@@ -242,8 +353,11 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
               </button>
               
               <button 
-                onClick={(e) => { e.stopPropagation(); handleAcceptOrder(); }} 
-                disabled={loading}
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  handleAcceptOrder(); 
+                }} 
+                disabled={loading || isPrinting}
                 className={`${styles.btn} ${styles.btnAccept}`}
               >
                 {loading ? '...' : <><CheckCircle size={18} /> Aceitar</>}
