@@ -1,148 +1,240 @@
 .container {
-  display: flex;
-  flex-direction: column;
+  width: 100%;
   height: 100%;
-  overflow: hidden;
-}
-
-/* Header removido do CSS também */
-
-.content {
-  flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  position: relative;
 }
 
-.list {
-  flex: 1;
-  overflow-y: auto;
+.header {
   padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-color) transparent;
-}
-
-.list::-webkit-scrollbar { width: 6px; }
-.list::-webkit-scrollbar-thumb { background-color: var(--border-color); border-radius: 10px; }
-
-.row {
-  display: flex;
-  justify-content: space-between; /* Separa Esquerda (Nome) da Direita (Preço+Lixo) */
-  align-items: center;
-  padding: 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-bottom: 1px solid var(--border-color, #e4e4e7);
   flex-shrink: 0;
 }
 
-.info { display: flex; align-items: center; gap: 12px; }
-.icon { color: var(--text-light); }
-.name { font-weight: 600; color: var(--text-main); }
-
-/* --- AQUI ESTÁ A CORREÇÃO DO ALINHAMENTO --- */
-.actions { 
-  display: flex; 
-  align-items: center; /* Centraliza verticalmente */
-  gap: 16px; /* Espaço entre o preço e a lixeira */
+.title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
 }
 
-.price { 
-  font-weight: 700; 
-  color: #10b981; 
-  font-size: 1rem; 
-  white-space: nowrap; /* Não deixa o preço quebrar linha */
+.title h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-main, #18181b);
+}
+
+.header p {
+  color: var(--text-light, #71717a);
+  font-size: 0.875rem;
+}
+
+/* --- Área de Adicionar Novo --- */
+.addSection {
+  padding: 16px 24px;
+  background: var(--surface-hover, #fafafa);
+  border-bottom: 1px solid var(--border-color, #e4e4e7);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1; /* Ocupa o espaço sobrando */
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #e4e4e7);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: var(--surface, #fff);
+  color: var(--text-main, #18181b);
+  outline: none;
+  transition: all 0.2s;
+}
+
+.input:focus {
+  border-color: var(--primary-color, #f97316);
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.1);
+}
+
+/* Input de Moeda estilizado */
+.currencyInput {
+  display: flex;
+  align-items: center;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border-color, #e4e4e7);
+  border-radius: 8px;
+  padding: 0 12px;
+  width: 140px; /* Largura fixa para o preço */
+  transition: all 0.2s;
+}
+
+.currencyInput:focus-within {
+  border-color: var(--primary-color, #f97316);
+  box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.1);
+}
+
+.currencyInput span {
+  color: var(--text-light, #71717a);
+  font-size: 0.9rem;
+  margin-right: 4px;
+  font-weight: 500;
+}
+
+.currencyInput input {
+  border: none;
+  background: transparent;
+  width: 100%;
+  padding: 10px 0;
+  font-size: 0.9rem;
+  color: var(--text-main, #18181b);
+  outline: none;
+}
+
+.addBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--primary-color, #f97316);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.addBtn:hover {
+  background: var(--primary-dark, #ea580c);
+}
+.addBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* --- Lista de Bairros --- */
+.list {
+  flex: 1; /* Ocupa o resto da altura */
+  padding: 24px;
+  overflow-y: auto; /* Scroll apenas aqui */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.empty {
+  text-align: center;
+  color: var(--text-light, #71717a);
+  margin-top: 40px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Separa nome do lado esquerdo e ações do direito */
+  padding: 12px 16px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border-color, #e4e4e7);
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.row:hover {
+  border-color: var(--primary-color, #f97316);
+  background: var(--surface-hover, #fff7ed);
+}
+
+.neighborhoodName {
+  font-weight: 500;
+  color: var(--text-main, #18181b);
+  font-size: 0.95rem;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Grupo de Preço dentro da linha */
+.priceGroup {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1px solid var(--border-color, #e4e4e7);
+  border-radius: 6px;
+  padding: 4px 8px;
+  width: 110px;
+}
+
+.currencyLabel {
+  font-size: 0.8rem;
+  color: var(--text-light, #71717a);
+  margin-right: 4px;
+}
+
+.priceInput {
+  border: none;
+  width: 100%;
+  outline: none;
+  font-size: 0.9rem;
+  color: var(--text-main, #18181b);
+  background: transparent;
+  font-weight: 500;
 }
 
 .deleteBtn {
-  background: rgba(239, 68, 68, 0.1);
-  border: none;
-  color: #ef4444;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 8px;
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid #fee2e2;
+  background: #fff;
+  color: #ef4444;
+  border-radius: 6px;
+  cursor: pointer;
   transition: all 0.2s;
 }
-.deleteBtn:hover { background: rgba(239, 68, 68, 0.2); }
-/* ------------------------------------------- */
 
-.addBoxWrapper {
-  padding: 20px 24px;
-  background: var(--surface);
-  border-top: 1px solid var(--border-color);
-  z-index: 10;
+.deleteBtn:hover {
+  background: #fee2e2;
+  color: #dc2626;
 }
 
-.addBox {
-  background: rgba(0, 0, 0, 0.2);
-  padding: 16px;
-  border-radius: 12px;
-  border: 1px dashed var(--border-color);
-}
-
-.addBox h3 { font-size: 0.85rem; color: var(--text-light); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-
-.formRow { display: flex; gap: 12px; }
-
-.inputName {
-  flex: 2;
-  background: var(--background);
-  border: 1px solid var(--border-color);
-  padding: 12px;
-  border-radius: 8px;
-  color: var(--text-main);
-  outline: none;
-}
-
-.inputPrice {
-  flex: 1;
-  background: var(--background);
-  border: 1px solid var(--border-color);
-  padding: 12px;
-  border-radius: 8px;
-  color: var(--text-main);
-  outline: none;
-  font-weight: 600;
-  text-align: right;
-}
-
-.inputName:focus, .inputPrice:focus { border-color: var(--primary-color); }
-
-.addBtn {
-  background: var(--primary-color);
-  border: none;
-  color: white;
-  width: 48px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.addBtn:hover { background: var(--primary-dark); }
-
+/* --- Footer --- */
 .footer {
-  padding: 16px 24px;
-  border-top: 1px solid var(--border-color);
+  padding: 20px 24px;
+  border-top: 1px solid var(--border-color, #e4e4e7);
   display: flex;
   justify-content: flex-end;
-  background: rgba(0,0,0,0.2);
+  background: var(--background, #f4f4f5);
   flex-shrink: 0;
 }
 
 .saveBtn {
-  background: var(--primary-color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--primary-color, #f97316);
   color: white;
   border: none;
   padding: 12px 24px;
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
+  transition: background 0.2s;
 }
+
+.saveBtn:hover {
+  background: var(--primary-dark, #ea580c);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin { 100% { transform: rotate(360deg); } }

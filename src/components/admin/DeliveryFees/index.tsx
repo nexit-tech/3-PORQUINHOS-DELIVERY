@@ -1,110 +1,253 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, Trash2, MapPin } from 'lucide-react'; // Removi 'Bike' pois não usa mais no header
+import { useState, useEffect } from 'react';
+import { supabase } from '@/services/supabase';
+import { MapPin, Plus, Trash2, Save, Loader2, DollarSign } from 'lucide-react';
 import styles from './styles.module.css';
 
-interface DeliveryFee {
+// Tipagem do Front-end
+interface DeliveryZone {
   id: string;
-  name: string;
-  price: number;
+  neighborhood: string;
+  fee: number;
+  active: boolean;
+}
+
+// Tipagem do Banco (Snake Case)
+interface DatabaseZoneItem {
+  id: string;
+  neighborhood: string;
+  fee: number;
+  active: boolean;
 }
 
 export default function DeliveryFees() {
-  const [fees, setFees] = useState<DeliveryFee[]>([
-    { id: '1', name: 'Centro / Até 2km', price: 5.00 },
-    { id: '2', name: 'Bairros Vizinhos (2-5km)', price: 8.00 },
-    { id: '3', name: 'Zona Rural', price: 15.00 },
-  ]);
+  const [zones, setZones] = useState<DeliveryZone[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const [newName, setNewName] = useState('');
-  const [newPrice, setNewPrice] = useState('');
+  // Estados para o formulário de "Adicionar Novo"
+  const [newNeighborhood, setNewNeighborhood] = useState('');
+  const [newFee, setNewFee] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
 
-  const formatCurrency = (value: number) => {
-    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  useEffect(() => {
+    fetchZones();
+  }, []);
+
+  const fetchZones = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('delivery_zones')
+        .select('*')
+        .order('neighborhood', { ascending: true }); // Ordena alfabeticamente
+
+      if (error) throw error;
+
+      if (data) {
+        // Mapeia do banco para o front
+        const formattedData: DeliveryZone[] = (data as DatabaseZoneItem[]).map(item => ({
+          id: item.id,
+          neighborhood: item.neighborhood,
+          fee: item.fee,
+          active: item.active
+        }));
+        setZones(formattedData);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar zonas:', error);
+      alert('Erro ao carregar zonas de entrega.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handlePriceInput = (value: string) => {
-    const numeric = value.replace(/\D/g, '');
-    const float = Number(numeric) / 100;
-    setNewPrice(float.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }));
+  // Função para ADICIONAR imediatamente ao banco
+  const handleAddZone = async () => {
+    if (!newNeighborhood || !newFee) {
+      alert("Preencha o bairro e o valor!");
+      return;
+    }
+
+    setIsAdding(true);
+    try {
+      const { data, error } = await supabase
+        .from('delivery_zones')
+        .insert([{
+          neighborhood: newNeighborhood,
+          fee: parseFloat(newFee.replace(',', '.')), // Garante formato numérico
+          active: true
+        }])
+        .select();
+
+      if (error) throw error;
+
+      // Adiciona na lista visualmente se deu certo
+      if (data) {
+        const newZone = data[0] as DatabaseZoneItem;
+        setZones(prev => [...prev, {
+          id: newZone.id,
+          neighborhood: newZone.neighborhood,
+          fee: newZone.fee,
+          active: newZone.active
+        }].sort((a, b) => a.neighborhood.localeCompare(b.neighborhood)));
+        
+        // Limpa inputs
+        setNewNeighborhood('');
+        setNewFee('');
+      }
+    } catch (error) {
+      console.error('Erro ao adicionar:', error);
+      alert("Erro ao adicionar bairro.");
+    } finally {
+      setIsAdding(false);
+    }
   };
 
-  const addFee = () => {
-    if (!newName || !newPrice) return;
-    
-    const rawPrice = Number(newPrice.replace(/\D/g, '')) / 100;
-    
-    const newFee: DeliveryFee = {
-      id: Math.random().toString(),
-      name: newName,
-      price: rawPrice
-    };
+  // Função para APAGAR imediatamente do banco
+  const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja remover este bairro?")) return;
 
-    setFees([...fees, newFee]);
-    setNewName('');
-    setNewPrice('');
+    try {
+      const { error } = await supabase
+        .from('delivery_zones')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Remove da lista visual
+      setZones(prev => prev.filter(item => item.id !== id));
+    } catch (error) {
+      console.error('Erro ao deletar:', error);
+      alert("Erro ao remover bairro.");
+    }
   };
 
-  const removeFee = (id: string) => {
-    setFees(fees.filter(f => f.id !== id));
+  // Atualiza o estado local quando o usuário digita o preço
+  const handleUpdateFee = (id: string, newValue: string) => {
+    const updatedZones = zones.map(zone => {
+      if (zone.id === id) {
+        return { ...zone, fee: parseFloat(newValue) || 0 };
+      }
+      return zone;
+    });
+    setZones(updatedZones);
   };
+
+  // Botão Salvar Geral (Para salvar alterações de preço em massa)
+  const handleSaveChanges = async () => {
+    setSaving(true);
+    try {
+      const updates = zones.map(zone => ({
+        id: zone.id,
+        neighborhood: zone.neighborhood,
+        fee: zone.fee,
+        active: zone.active
+      }));
+
+      const { error } = await supabase
+        .from('delivery_zones')
+        .upsert(updates);
+
+      if (error) throw error;
+
+      alert("Taxas de entrega atualizadas com sucesso!");
+    } catch (error) {
+      console.error('Erro ao salvar:', error);
+      alert("Erro ao salvar alterações.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center p-10 text-zinc-500">
+        <Loader2 className={styles.spin} size={32} />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>
-      {/* Header removido para não duplicar com o Modal */}
+      <header className={styles.header}>
+        <div className={styles.title}>
+          <MapPin size={24} color="var(--primary-color)" />
+          <h2>Taxas de Entrega</h2>
+        </div>
+        <p>Gerencie os bairros atendidos e seus respectivos valores.</p>
+      </header>
 
-      <div className={styles.content}>
-        <div className={styles.list}>
-          {fees.map(fee => (
-            <div key={fee.id} className={styles.row}>
-              <div className={styles.info}>
-                <MapPin size={16} className={styles.icon} />
-                <span className={styles.name}>{fee.name}</span>
-              </div>
+      {/* Área de Adicionar Novo */}
+      <div className={styles.addSection}>
+        <input 
+          type="text" 
+          placeholder="Nome do Bairro" 
+          value={newNeighborhood}
+          onChange={e => setNewNeighborhood(e.target.value)}
+          className={styles.input}
+        />
+        <div className={styles.currencyInput}>
+          <span>R$</span>
+          <input 
+            type="number" 
+            placeholder="0,00" 
+            value={newFee}
+            onChange={e => setNewFee(e.target.value)}
+          />
+        </div>
+        <button 
+          onClick={handleAddZone} 
+          disabled={isAdding}
+          className={styles.addBtn}
+        >
+          {isAdding ? <Loader2 className={styles.spin} size={18}/> : <Plus size={18} />}
+          Adicionar
+        </button>
+      </div>
+
+      {/* Lista de Bairros */}
+      <div className={styles.list}>
+        {zones.length === 0 ? (
+          <p className={styles.empty}>Nenhum bairro cadastrado.</p>
+        ) : (
+          zones.map((zone) => (
+            <div key={zone.id} className={styles.row}>
+              <span className={styles.neighborhoodName}>{zone.neighborhood}</span>
               
-              {/* Container de Ações: Preço + Lixeira alinhados */}
               <div className={styles.actions}>
-                <span className={styles.price}>{formatCurrency(fee.price)}</span>
-                <button onClick={() => removeFee(fee.id)} className={styles.deleteBtn} title="Remover taxa">
+                <div className={styles.priceGroup}>
+                  <span className={styles.currencyLabel}>R$</span>
+                  <input 
+                    type="number" 
+                    value={zone.fee} 
+                    onChange={e => handleUpdateFee(zone.id, e.target.value)}
+                    className={styles.priceInput}
+                  />
+                </div>
+                
+                <button 
+                  onClick={() => handleDelete(zone.id)}
+                  className={styles.deleteBtn}
+                  title="Remover bairro"
+                >
                   <Trash2 size={18} />
                 </button>
               </div>
             </div>
-          ))}
-          
-          {fees.length === 0 && (
-            <p className={styles.empty}>Nenhuma taxa cadastrada.</p>
-          )}
-        </div>
-
-        <div className={styles.addBoxWrapper}>
-          <div className={styles.addBox}>
-            <h3>Adicionar Nova Área</h3>
-            <div className={styles.formRow}>
-              <input 
-                placeholder="Nome da Área (Ex: Centro)" 
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                className={styles.inputName}
-              />
-              <input 
-                placeholder="R$ 0,00" 
-                value={newPrice}
-                onChange={e => handlePriceInput(e.target.value)}
-                className={styles.inputPrice}
-              />
-              <button onClick={addFee} className={styles.addBtn}>
-                <Plus size={20} />
-              </button>
-            </div>
-          </div>
-        </div>
+          ))
+        )}
       </div>
 
       <footer className={styles.footer}>
-        <button className={styles.saveBtn} onClick={() => alert('Taxas salvas!')}>
-          Salvar Alterações
+        <button 
+          onClick={handleSaveChanges} 
+          disabled={saving}
+          className={styles.saveBtn}
+        >
+          {saving ? <Loader2 size={18} className={styles.spin} /> : <Save size={18} />}
+          {saving ? 'Salvando...' : 'Salvar Alterações'}
         </button>
       </footer>
     </div>

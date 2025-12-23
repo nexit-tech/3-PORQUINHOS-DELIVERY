@@ -1,24 +1,65 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
 import { useOrders } from '@/hooks/useOrders';
 import OrderCard from '@/components/admin/OrderCard';
-// REMOVIDO: import Container ... 
 import styles from './page.module.css';
-import { ClipboardList, ChefHat, Bike } from 'lucide-react';
+import { ClipboardList, ChefHat, Bike, Volume2 } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const { orders, updateStatus } = useOrders();
+  // 1. Hook de Pedidos (Pooling automático já deve estar acontecendo dentro dele)
+  const { orders, updateStatus } = useOrders(true);
 
+  // 2. Lógica de Notificação Sonora
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [prevCount, setPrevCount] = useState(0);
+  const [firstLoad, setFirstLoad] = useState(true);
+
+  // Inicializa o áudio
+  useEffect(() => {
+    // Certifique-se de ter o arquivo 'notification.mp3' na pasta public
+    audioRef.current = new Audio('/notification.mp3');
+    audioRef.current.load();
+  }, []);
+
+  // Monitora novos pedidos
+  useEffect(() => {
+    if (!orders) return;
+
+    // Se for o primeiro carregamento, apenas atualiza o contador sem tocar som
+    if (firstLoad) {
+      setPrevCount(orders.length);
+      setFirstLoad(false);
+      return;
+    }
+
+    // Se a quantidade aumentou, toca o som!
+    if (orders.length > prevCount) {
+      audioRef.current?.play().catch(err => {
+        console.warn("Autoplay bloqueado pelo navegador. Interaja com a página primeiro.", err);
+      });
+    }
+
+    // Atualiza o contador para a próxima comparação
+    setPrevCount(orders.length);
+  }, [orders, prevCount, firstLoad]);
+
+  // Filtros de Status
   const pending = orders.filter(o => o.status === 'PENDING');
   const preparing = orders.filter(o => o.status === 'PREPARING');
   const delivering = orders.filter(o => o.status === 'DELIVERING');
 
   return (
     <div className={styles.pageWrapper}>
-      {/* Container removido. O wrapper agora cuida do padding. */}
       
       <header className={styles.topHeader}>
-        <h1>Monitor de Pedidos</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <h1>Monitor de Pedidos</h1>
+          {/* Indicador visual de que o som está ativo (opcional) */}
+          <div title="Notificação sonora ativa" style={{ padding: '8px', background: '#e0f2fe', borderRadius: '50%', display: 'flex' }}>
+            <Volume2 size={18} color="#0284c7" />
+          </div>
+        </div>
       </header>
       
       <div className={styles.board}>
@@ -34,6 +75,9 @@ export default function AdminDashboard() {
             </h2>
           </div>
           <div className={styles.colContent}>
+            {pending.length === 0 && (
+              <p style={{ textAlign: 'center', color: '#9ca3af', marginTop: '20px' }}>Sem pedidos pendentes</p>
+            )}
             {pending.map(order => (
               <OrderCard key={order.id} order={order} onUpdateStatus={updateStatus} />
             ))}
@@ -52,6 +96,9 @@ export default function AdminDashboard() {
             </h2>
           </div>
           <div className={styles.colContent}>
+             {preparing.length === 0 && (
+              <p style={{ textAlign: 'center', color: '#9ca3af', marginTop: '20px' }}>Cozinha livre</p>
+            )}
             {preparing.map(order => (
               <OrderCard key={order.id} order={order} onUpdateStatus={updateStatus} />
             ))}
@@ -70,6 +117,9 @@ export default function AdminDashboard() {
             </h2>
           </div>
           <div className={styles.colContent}>
+            {delivering.length === 0 && (
+              <p style={{ textAlign: 'center', color: '#9ca3af', marginTop: '20px' }}>Nenhuma entrega agora</p>
+            )}
             {delivering.map(order => (
               <OrderCard key={order.id} order={order} onUpdateStatus={updateStatus} />
             ))}

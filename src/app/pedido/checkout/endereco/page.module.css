@@ -1,10 +1,21 @@
 .container {
-  padding: 24px;
-  /* Espaço calculado: Altura do Footer (aprox 180px) + Respiro (40px) */
-  padding-bottom: 220px; 
-  min-height: 100vh;
-  position: relative;
   background-color: var(--background);
+  
+  /* --- A SOLUÇÃO DO SCROLL (O PULO DO GATO) --- */
+  height: 100vh;       /* Fixa a altura na tela inteira */
+  height: 100dvh;      /* Garante o tamanho certo no celular */
+  overflow-y: auto;    /* LIBERA O SCROLL SÓ AQUI */
+  overflow-x: hidden;  /* Trava scroll lateral */
+  
+  padding: 24px;
+  
+  /* --- O CALÇO GIGANTE --- */
+  /* Isso garante que você consiga rolar até o fim sem o footer cobrir o input */
+  padding-bottom: 320px; 
+
+  display: flex;
+  flex-direction: column;
+  position: relative;
 }
 
 .header {
@@ -12,7 +23,9 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 24px;
+  flex-shrink: 0; /* Impede o header de ser esmagado */
 }
+
 .header h1 {
   font-size: 1.2rem;
   color: var(--text-main);
@@ -21,7 +34,7 @@
 .iconBtn { 
   color: var(--text-main); 
   padding: 8px;
-  margin-left: -8px; /* Alinha visualmente à esquerda */
+  margin-left: -8px;
 }
 
 /* FORMULÁRIO */
@@ -52,12 +65,9 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  position: relative; /* Contexto para posicionamento */
-  z-index: 1; /* Nível base */
+  position: relative;
+  z-index: 1;
 }
-
-/* Quando o dropdown estiver aberto, esse grupo sobe na pilha via inline-style ou classe,
-   mas aqui garantimos que o dropdown em si tenha z-index alto */
 
 .inputGroup label {
   font-size: 0.85rem;
@@ -96,7 +106,7 @@
 }
 .inputWithIcon {
   width: 100%;
-  padding: 14px 14px 14px 44px; /* Espaço para o ícone */
+  padding: 14px 14px 14px 44px;
   border-radius: 12px;
   border: 1px solid var(--border-color);
   background: var(--surface);
@@ -106,10 +116,9 @@
 }
 .inputWithIcon:focus { border-color: var(--primary-color); }
 
-/* GRID PARA NÚMERO E COMPLEMENTO (Correção do "Saindo da Tela") */
 .row {
   display: grid;
-  grid-template-columns: 100px 1fr; /* Número fixo menor, Complemento ocupa o resto */
+  grid-template-columns: 100px 1fr;
   gap: 12px;
   width: 100%;
 }
@@ -136,7 +145,7 @@
 .triggerInfo {
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Previne texto longo quebrar layout */
+  overflow: hidden;
 }
 
 .hoodName { font-weight: 700; color: var(--text-main); font-size: 0.95rem; }
@@ -152,10 +161,7 @@
   border: 1px solid var(--border-color);
   border-radius: 12px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-  
-  /* Z-INDEX SUPREMO: Garante que fique acima do footer e de outros inputs */
   z-index: 9999; 
-  
   overflow: hidden;
   max-height: 280px;
   display: flex;
@@ -199,7 +205,6 @@
 }
 .listItem:hover, .listItem:active { background: var(--surface-hover); }
 .listItem small { font-weight: 600; color: var(--text-light); }
-
 .emptySearch { padding: 16px; text-align: center; color: var(--text-light); font-size: 0.85rem; }
 
 /* FOOTER FIXO */
@@ -209,15 +214,14 @@
   left: 0;
   width: 100%;
   background: var(--surface);
-  
-  /* Z-INDEX ALTO: Acima do conteúdo, mas ABAIXO do dropdown (9999) */
   z-index: 500; 
   
-  padding: 24px 24px 32px 24px; /* Padding bottom maior para safe area */
+  /* Garante que o footer fique visível e bonito */
+  padding: 24px 24px 32px 24px;
   border-top: 1px solid var(--border-color);
-  border-top-left-radius: 20px;
-  border-top-right-radius: 20px;
-  box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
   display: flex;
   flex-direction: column;
   gap: 12px;

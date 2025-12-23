@@ -1,0 +1,154 @@
+.container {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e4e4e7;
+  overflow: hidden;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  padding: 24px;
+  border-bottom: 1px solid #f4f4f5;
+  background: #ffffff;
+}
+
+.titleWrapper {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.iconBox {
+  width: 48px;
+  height: 48px;
+  background: #eff6ff; /* Azulzinho claro */
+  color: #3b82f6; /* Azul */
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dbeafe;
+}
+
+.titleWrapper h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #18181b;
+  margin: 0 0 2px 0;
+}
+
+.titleWrapper p {
+  font-size: 0.8rem;
+  color: #71717a;
+  margin: 0;
+}
+
+.content {
+  padding: 24px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.row label {
+  font-size: 0.9rem;
+  color: #3f3f46;
+  font-weight: 500;
+}
+
+.counter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f4f4f5;
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.counter button {
+  width: 32px;
+  height: 32px;
+  background: white;
+  border: 1px solid #e4e4e7;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  color: #18181b;
+}
+
+.counter button:hover {
+  background: #fafafa;
+}
+
+.counter span {
+  font-weight: 600;
+  min-width: 20px;
+  text-align: center;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.checkboxLabel input {
+  width: 18px;
+  height: 18px;
+  accent-color: #3b82f6;
+}
+
+.actions {
+  margin-top: auto;
+  display: flex;
+  gap: 10px;
+}
+
+.testBtn {
+  flex: 1;
+  padding: 12px;
+  background: white;
+  border: 1px solid #e4e4e7;
+  color: #3f3f46;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.saveBtn {
+  flex: 1;
+  padding: 12px;
+  background: #3b82f6;
+  border: none;
+  color: white;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.saveBtn:hover { background: #2563eb; }
+
+.hint {
+  font-size: 0.75rem;
+  color: #a1a1aa;
+  margin-top: 10px;
+  text-align: center;
+}

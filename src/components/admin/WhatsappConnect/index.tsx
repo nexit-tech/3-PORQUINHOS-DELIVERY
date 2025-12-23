@@ -1,111 +1,175 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Smartphone, RefreshCw, CheckCircle, LogOut, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { evolutionService } from '@/services/evolution';
 import styles from './styles.module.css';
-
-type ConnectionStatus = 'IDLE' | 'GENERATING' | 'WAITING_SCAN' | 'CONNECTED';
+import { QrCode, Wifi, WifiOff, Loader2, Smartphone, ScanLine } from 'lucide-react';
 
 export default function WhatsappConnect() {
-  const [status, setStatus] = useState<ConnectionStatus>('IDLE');
+  const [status, setStatus] = useState<'loading' | 'disconnected' | 'qrcode' | 'connected'>('loading');
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleGenerate = () => {
-    setStatus('GENERATING');
-    // Simula delay de buscar o QR Code no backend
-    setTimeout(() => {
-      setQrCode('https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=AnoteAiDemo');
-      setStatus('WAITING_SCAN');
-    }, 1500);
+  const checkStatus = useCallback(async () => {
+    try {
+      const data = await evolutionService.getConnectionState();
+
+      if (data.state === 'not_found') {
+        await evolutionService.createInstance();
+        setStatus('disconnected');
+      } else if (data.instance?.state === 'open') {
+        setStatus('connected');
+        setQrCode(null);
+      } else if (data.instance?.state === 'close' || data.instance?.state === 'connecting') {
+        setStatus('disconnected'); 
+      }
+    } catch (error) {
+      console.error('Erro ao verificar status:', error);
+      setStatus('disconnected');
+    }
+  }, []);
+
+  const handleGenerateQR = async () => {
+    setLoading(true);
+    try {
+      await checkStatus();
+      const qrBase64 = await evolutionService.connectInstance();
+      if (qrBase64) {
+        setQrCode(qrBase64);
+        setStatus('qrcode');
+      }
+    } catch (error) {
+      alert('Erro ao gerar QR Code. Verifique a API.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Simula o WebSocket avisando que conectou
-  useEffect(() => {
-    let timeout: NodeJS.Timeout;
-    if (status === 'WAITING_SCAN') {
-      // Depois de 5 segundos exibindo o QR, "conecta" sozinho para demo
-      timeout = setTimeout(() => {
-        setStatus('CONNECTED');
-      }, 5000);
-    }
-    return () => clearTimeout(timeout);
-  }, [status]);
-
-  const handleDisconnect = () => {
-    if (confirm('Tem certeza que deseja desconectar?')) {
-      setStatus('IDLE');
+  const handleDisconnect = async () => {
+    if (!confirm('Tem certeza que deseja desconectar?')) return;
+    setLoading(true);
+    try {
+      await evolutionService.logoutInstance();
+      setStatus('disconnected');
       setQrCode(null);
+    } catch (error) {
+      alert('Erro ao desconectar.');
+    } finally {
+      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    checkStatus();
+    const interval = setInterval(() => {
+      if (status === 'qrcode' || status === 'loading') {
+        checkStatus();
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [checkStatus, status]);
 
   return (
     <div className={styles.container}>
-      {status === 'CONNECTED' ? (
-        // --- TELA DE CONECTADO ---
-        <div className={styles.connectedState}>
-          <div className={styles.successIcon}>
-            <CheckCircle size={48} />
+      {/* Cabeçalho do Card */}
+      <div className={styles.header}>
+        <div className={styles.titleWrapper}>
+          <div className={styles.iconBox}>
+            <Smartphone size={24} className={styles.brandIcon} />
           </div>
-          <h2>Tudo certo!</h2>
-          <p>Seu WhatsApp está conectado e recebendo pedidos.</p>
-          
-          <div className={styles.deviceInfo}>
-            <Smartphone size={20} className={styles.deviceIcon} />
-            <div>
-              <strong>WhatsApp Business</strong>
-              <span>(11) 99999-9999</span>
-            </div>
-            <div className={styles.statusBadge}>Online</div>
+          <div>
+            <h3>Conexão WhatsApp</h3>
+            <p>Gerencie a conexão do seu delivery</p>
           </div>
-
-          <button onClick={handleDisconnect} className={styles.disconnectBtn}>
-            <LogOut size={16} /> Desconectar
-          </button>
         </div>
-      ) : (
-        // --- TELA DE QR CODE ---
-        <div className={styles.connectState}>
-          <header className={styles.header}>
-            <h2>Conectar WhatsApp</h2>
-            <p>Escaneie o QR Code com o seu celular para vincular a loja.</p>
-          </header>
+        
+        <div className={styles.statusBadge}>
+          {status === 'connected' ? (
+            <span className={styles.connected}>
+              <Wifi size={14} /> Online
+            </span>
+          ) : (
+            <span className={styles.disconnected}>
+              <WifiOff size={14} /> Offline
+            </span>
+          )}
+        </div>
+      </div>
 
-          <div className={styles.qrArea}>
-            {status === 'IDLE' && (
-              <div className={styles.placeholder}>
-                <Smartphone size={48} style={{ opacity: 0.2 }} />
-                <button onClick={handleGenerate} className={styles.generateBtn}>
-                  Gerar QR Code
+      {/* Área de Conteúdo Principal */}
+      <div className={styles.content}>
+        
+        {/* Loading */}
+        {status === 'loading' && (
+          <div className={styles.stateContainer}>
+            <Loader2 className={styles.spin} size={32} />
+            <p className={styles.stateText}>Verificando conexão...</p>
+          </div>
+        )}
+
+        {/* Conectado */}
+        {status === 'connected' && (
+          <div className={styles.stateContainer}>
+            <div className={styles.successIcon}>
+              <Wifi size={32} />
+            </div>
+            <h4>Tudo pronto!</h4>
+            <p className={styles.stateText}>
+              O sistema está conectado e pronto para enviar mensagens.
+            </p>
+            <button onClick={handleDisconnect} className={styles.disconnectBtn}>
+              Desconectar Sessão
+            </button>
+          </div>
+        )}
+
+        {/* Desconectado ou QR Code */}
+        {(status === 'disconnected' || status === 'qrcode') && (
+          <div className={styles.stateContainer}>
+            {!qrCode ? (
+              // Estado Vazio (Antes de gerar QR)
+              <div className={styles.emptyState}>
+                <div className={styles.placeholderIcon}>
+                  <QrCode size={40} />
+                </div>
+                <p className={styles.stateText}>
+                  Nenhum dispositivo conectado.<br/>
+                  Gere um QR Code para iniciar.
+                </p>
+                <button 
+                  onClick={handleGenerateQR} 
+                  disabled={loading}
+                  className={styles.primaryBtn}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className={styles.spinBtn} size={18} /> Gerando...
+                    </>
+                  ) : (
+                    <>
+                      <ScanLine size={18} /> Gerar Novo QR Code
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : (
+              // Exibição do QR Code
+              <div className={styles.qrWrapper}>
+                <p className={styles.instructionText}>
+                  Abra o WhatsApp no seu celular e escaneie:
+                </p>
+                <div className={styles.qrFrame}>
+                  <img src={qrCode} alt="QR Code WhatsApp" />
+                  <div className={styles.scanLine}></div>
+                </div>
+                <button onClick={() => setQrCode(null)} className={styles.cancelBtn}>
+                  Cancelar
                 </button>
               </div>
             )}
-
-            {status === 'GENERATING' && (
-              <div className={styles.loading}>
-                <Loader2 size={32} className={styles.spin} />
-                <span>Gerando código...</span>
-              </div>
-            )}
-
-            {status === 'WAITING_SCAN' && qrCode && (
-              <div className={styles.qrWrapper}>
-                <img src={qrCode} alt="QR Code WhatsApp" className={styles.qrImage} />
-                <div className={styles.scanInstruction}>
-                  <Loader2 size={14} className={styles.spin} />
-                  <span>Aguardando leitura...</span>
-                </div>
-              </div>
-            )}
           </div>
-          
-          <div className={styles.steps}>
-            <small>1. Abra o WhatsApp no seu celular</small>
-            <small>2. Toque em menu (três pontos) ou Configurações</small>
-            <small>3. Selecione "Aparelhos Conectados"</small>
-            <small>4. Aponte a câmera para esta tela</small>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

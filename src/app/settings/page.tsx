@@ -56,7 +56,6 @@ export default function SettingsPage() {
           title="Conectar WhatsApp" 
           description="Vincule seu número para receber pedidos automaticamente."
           icon={MessageCircle}
-          status="Conectado"
           statusColor="green"
           onClick={() => setActiveSetting('WHATSAPP')}
         />
@@ -65,7 +64,6 @@ export default function SettingsPage() {
           title="Horários" 
           description="Defina quando sua loja abre e fecha."
           icon={Clock}
-          status="Aberto Agora"
           statusColor="green"
           onClick={() => setActiveSetting('HOURS')}
         />
@@ -74,25 +72,14 @@ export default function SettingsPage() {
           title="Taxas de Entrega" 
           description="Configure valores por bairro ou km."
           icon={Bike}
-          status="3 Áreas"
           statusColor="blue"
           onClick={() => setActiveSetting('FEES')}
-        />
-
-        <SettingsCard 
-          title="Pagamentos" 
-          description="Pix, cartões e dinheiro."
-          icon={CreditCard}
-          status="Ativo"
-          statusColor="green"
-          onClick={() => setActiveSetting('PAYMENTS')}
         />
 
         <SettingsCard 
           title="Impressão" 
           description="Impressoras térmicas."
           icon={Printer}
-          status="Não configurado"
           statusColor="gray"
           onClick={() => setActiveSetting('PRINTER')}
         />

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom'; 
 import Image from 'next/image'; 
 import { Minus, Plus, Check } from 'lucide-react';
 import { useCart, CartItem } from '@/context/CartContext';
@@ -16,7 +17,7 @@ interface ProductModalProps {
 export default function ProductModal({ product, onClose, initialData }: ProductModalProps) {
   const { addToCart, editCartItem } = useCart();
 
-  // Estados
+  // --- 1. TODOS OS HOOKS PRIMEIRO (SEM 'IF' NO MEIO) ---
   const [quantity, setQuantity] = useState(1);
   const [observation, setObservation] = useState('');
   const [showToast, setShowToast] = useState(false);
@@ -24,10 +25,11 @@ export default function ProductModal({ product, onClose, initialData }: ProductM
   const [isClosing, setIsClosing] = useState(false);
   const [offsetY, setOffsetY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const startY = useRef(0);
 
-  // --- RESTAURAÇÃO DE DADOS (PARA EDIÇÃO) ---
   useEffect(() => {
+    setMounted(true);
     if (initialData) {
       setQuantity(initialData.quantity);
       setObservation(initialData.observation || '');
@@ -36,10 +38,32 @@ export default function ProductModal({ product, onClose, initialData }: ProductM
         setSelections((initialData as any).selections);
       }
     }
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
   }, [initialData]);
 
-  if (!product) return null;
+  // MOVI OS USEMEMO PARA CÁ (ANTES DO RETURN)
+  const unitPrice = useMemo(() => {
+    if (!product) return 0; // Proteção interna
+    let price = product.price;
+    Object.values(selections).flat().forEach(opt => { price += Number(opt.price); });
+    return price;
+  }, [product, selections]);
 
+  const total = unitPrice * quantity;
+
+  const isValid = useMemo(() => {
+    if (!product || !product.complements) return true;
+    return product.complements.every(group => {
+      const selectedCount = (selections[group.id] || []).length;
+      return selectedCount >= group.min;
+    });
+  }, [product, selections]);
+
+  // --- 2. AGORA SIM O RETURN CONDICIONAL ---
+  if (!product || !mounted) return null;
+
+  // --- LÓGICA DE FUNÇÕES ---
   const handleToggleOption = (group: ComplementGroup, option: ComplementOption) => {
     setSelections(prev => {
       const currentSelected = prev[group.id] || [];
@@ -56,27 +80,9 @@ export default function ProductModal({ product, onClose, initialData }: ProductM
     });
   };
 
-  const unitPrice = useMemo(() => {
-    let price = product.price;
-    Object.values(selections).flat().forEach(opt => { price += Number(opt.price); });
-    return price;
-  }, [product.price, selections]);
-
-  const total = unitPrice * quantity;
-
-  const isValid = useMemo(() => {
-    if (!product.complements) return true;
-    return product.complements.every(group => {
-      const selectedCount = (selections[group.id] || []).length;
-      return selectedCount >= group.min;
-    });
-  }, [product.complements, selections]);
-
-  // --- SALVAR NO CARRINHO ---
   const handleSave = () => {
     if (!isValid) return alert('Verifique os itens obrigatórios!');
     
-    // Lista plana para exibição simples
     const allSelectedOptions = Object.values(selections).flat().map(opt => ({ name: opt.name, price: opt.price }));
     const flavors = allSelectedOptions.map(o => o.name); 
     
@@ -95,8 +101,6 @@ export default function ProductModal({ product, onClose, initialData }: ProductM
       handleClose();
     } else {
       addToCart({
-        // CORREÇÃO AQUI: Usamos 'as any' para burlar a verificação estrita de tipos do CartContext
-        // Isso permite salvar o produto completo (com complementos e ID uuid) sem erro de 'desc missing'
         product: { ...product, desc: product.description || '' } as any, 
         ...itemPayload
       });
@@ -110,7 +114,8 @@ export default function ProductModal({ product, onClose, initialData }: ProductM
   const handleTouchEnd = () => { setIsDragging(false); offsetY > 150 ? handleClose() : setOffsetY(0); };
   const handleClose = () => { setIsClosing(true); setTimeout(() => { onClose(); setIsClosing(false); setOffsetY(0); setShowToast(false); }, 300); };
 
-  return (
+  // --- RENDERIZAÇÃO VIA PORTAL ---
+  return createPortal(
     <div className={`${styles.overlay} ${isClosing ? styles.fadeOut : ''}`} onClick={(e) => e.target === e.currentTarget && handleClose()}>
       {showToast && <div className={styles.toast}><Check size={20} /><span>Adicionado!</span></div>}
       
@@ -198,6 +203,7 @@ export default function ProductModal({ product, onClose, initialData }: ProductM
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1,33 +1,100 @@
 .header {
   display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
   justify-content: space-between;
-  align-items: flex-end;
+  background: #fff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+  border: 1px solid #f0f0f0;
+}
+
+@media (min-width: 768px) {
+  .header {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111;
+  margin: 0;
+}
+
+.header p {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.controls {
+  display: flex;
   flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 1rem;
+  align-items: center;
 }
-.header h1 { font-size: 1.8rem; color: var(--text-main); margin-bottom: 4px; }
-.header p { color: var(--text-light); }
 
-.controls { display: flex; gap: 16px; align-items: center; }
-
+/* O GRUPO DE DATAS ESTILOSO */
 .dateGroup {
-  display: flex; align-items: center; gap: 8px;
-  background: var(--surface); border: 1px solid var(--border-color);
-  padding: 8px 12px; border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #fff;
+  padding: 0.4rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  transition: border-color 0.2s;
 }
-.dateIcon { color: var(--text-light); }
-.separator { color: var(--text-light); font-size: 0.9rem; }
+
+.dateGroup:hover, .dateGroup:focus-within {
+  border-color: #000;
+}
+
 .dateInput {
-  background: transparent; border: none; color: var(--text-main);
-  font-family: inherit; font-size: 0.9rem; outline: none;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: #374151;
+  outline: none;
+  cursor: pointer;
+  width: 130px; /* Largura fixa para não pular */
 }
-.dateInput::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
+
+/* Remove icone padrão feio do navegador em alguns browsers, se desejar */
+.dateInput::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.dateInput::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+.separator {
+  color: #9ca3af;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
 
 .exportBtn {
-  display: flex; align-items: center; gap: 8px;
-  background: var(--primary-color); color: white; border: none;
-  padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer;
-  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #18181b;
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
 }
-.exportBtn:hover { background: var(--primary-dark); }
+
+.exportBtn:hover {
+  background-color: #27272a;
+  transform: translateY(-1px);
+}

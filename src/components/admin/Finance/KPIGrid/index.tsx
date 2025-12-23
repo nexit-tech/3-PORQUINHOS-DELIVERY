@@ -1,46 +1,41 @@
-import { DollarSign, BarChart3, CreditCard } from 'lucide-react';
+import React from 'react';
 import styles from './styles.module.css';
 
 interface KPIGridProps {
-  revenue: number;
-  orders: number;
-  ticket: number;
+  totalRevenue: number;
+  totalOrders: number;
+  averageTicket: number;
 }
 
-export default function KPIGrid({ revenue, orders, ticket }: KPIGridProps) {
+export default function KPIGrid({ totalRevenue, totalOrders, averageTicket }: KPIGridProps) {
   return (
     <div className={styles.kpiGrid}>
+      {/* Card 1: Faturamento */}
       <div className={styles.kpiCard}>
         <div className={styles.kpiHeader}>
-          <span>Faturamento</span>
-          <div className={styles.iconBox} style={{ color: '#10b981', background: 'rgba(16, 185, 129, 0.1)' }}>
-            <DollarSign size={20} />
-          </div>
+          Faturamento Total
         </div>
-        <strong>R$ {revenue.toFixed(2)}</strong>
-        <span className={styles.trendUp}>+12% vs mês anterior</span>
+        <strong>
+          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalRevenue)}
+        </strong>
       </div>
 
+      {/* Card 2: Pedidos */}
       <div className={styles.kpiCard}>
         <div className={styles.kpiHeader}>
-          <span>Pedidos</span>
-          <div className={styles.iconBox} style={{ color: '#3b82f6', background: 'rgba(59, 130, 246, 0.1)' }}>
-            <BarChart3 size={20} />
-          </div>
+          Pedidos Finalizados
         </div>
-        <strong>{orders}</strong>
-        <span className={styles.trendNeutral}>Estável</span>
+        <strong>{totalOrders}</strong>
       </div>
 
+      {/* Card 3: Ticket Médio */}
       <div className={styles.kpiCard}>
         <div className={styles.kpiHeader}>
-          <span>Ticket Médio</span>
-          <div className={styles.iconBox} style={{ color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)' }}>
-            <CreditCard size={20} />
-          </div>
+          Ticket Médio
         </div>
-        <strong>R$ {ticket.toFixed(2)}</strong>
-        <span className={styles.trendUp}>+5% vs mês anterior</span>
+        <strong>
+          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(averageTicket)}
+        </strong>
       </div>
     </div>
   );

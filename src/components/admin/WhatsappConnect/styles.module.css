@@ -1,146 +1,255 @@
 .container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  align-items: center;
-  justify-content: center;
-  padding: 32px;
-  text-align: center;
-  background: var(--surface);
-  color: var(--text-main);
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e4e4e7;
+  
+  /* AQUI ESTÁ A CORREÇÃO: */
+  width: 100%;        /* Ocupa todo o espaço lateral */
+  max-width: none;    /* Remove o limite de 500px */
+  margin: 0 auto;     /* Garante centralização se houver sobra */
+  
+  box-shadow: none;   /* Opcional: Remove a sombra interna já que o modal já tem sombra */
+  overflow: hidden;
 }
 
-/* --- ESTADO CONECTADO --- */
-.connectedState {
+.header {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
+  padding: 24px;
+  border-bottom: 1px solid #f4f4f5;
+  background: #ffffff;
+}
+
+.titleWrapper {
+  display: flex;
   gap: 16px;
-  animation: fadeIn 0.5s ease;
+  align-items: center;
 }
 
-.successIcon {
-  color: #10b981;
-  background: rgba(16, 185, 129, 0.1);
-  width: 80px; height: 80px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  margin-bottom: 8px;
-}
-
-.deviceInfo {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid var(--border-color);
-  padding: 16px 24px;
+.iconBox {
+  width: 48px;
+  height: 48px;
+  background: #fff7ed; /* Laranja bem clarinho (Orange 50) */
   border-radius: 12px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin: 16px 0;
-  text-align: left;
+  justify-content: center;
+  border: 1px solid #ffedd5;
 }
 
-.deviceIcon { color: var(--text-light); }
-
-.deviceInfo div { display: flex; flex-direction: column; }
-.deviceInfo strong { font-size: 0.95rem; }
-.deviceInfo span { font-size: 0.85rem; color: var(--text-light); }
-
-.statusBadge {
-  background: rgba(16, 185, 129, 0.2);
-  color: #10b981;
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: 4px;
-  margin-left: 12px;
+.brandIcon {
+  color: #f97316; /* Laranja Principal */
 }
 
-.disconnectBtn {
-  background: transparent;
-  border: 1px solid #ef4444;
-  color: #ef4444;
-  padding: 10px 20px;
-  border-radius: 8px;
+.titleWrapper h3 {
+  font-size: 1rem;
   font-weight: 600;
-  cursor: pointer;
-  display: flex; align-items: center; gap: 8px;
-  transition: all 0.2s;
+  color: #18181b; /* Zinco 900 */
+  margin: 0 0 2px 0;
 }
-.disconnectBtn:hover { background: rgba(239, 68, 68, 0.1); }
 
-/* --- ESTADO DE CONEXÃO (QR) --- */
-.connectState {
+.titleWrapper p {
+  font-size: 0.8rem;
+  color: #71717a; /* Zinco 500 */
+  margin: 0;
+}
+
+.statusBadge span {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 24px;
-  width: 100%;
-  max-width: 400px;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid transparent;
 }
 
-.header h2 { font-size: 1.5rem; margin-bottom: 8px; }
-.header p { color: var(--text-light); }
+.connected {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #bbf7d0;
+}
 
-.qrArea {
-  width: 240px;
-  height: 240px;
-  background: white;
-  border-radius: 16px;
+.disconnected {
+  background: #f4f4f5;
+  color: #71717a;
+  border-color: #e4e4e7;
+}
+
+/* Área Principal */
+.content {
+  background: #fafafa; /* Fundo levemente cinza (Zinco 50) */
+  padding: 32px 24px;
+  min-height: 280px;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
-  overflow: hidden;
-  border: 4px solid white; /* Borda branca pro QR */
 }
 
-.placeholder {
-  width: 100%; height: 100%;
-  background: var(--background);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
-  color: var(--text-light);
-}
-
-.generateBtn {
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.generateBtn:hover { background: var(--primary-dark); }
-
-.loading {
-  display: flex; flex-direction: column; align-items: center; gap: 12px;
-  color: #333; /* Contraste no fundo branco */
-}
-
-.qrImage { width: 100%; height: 100%; object-fit: contain; }
-
-.scanInstruction {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  background: rgba(0,0,0,0.8);
-  color: white;
-  font-size: 0.8rem;
-  padding: 8px;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-}
-
-.steps {
-  display: flex; flex-direction: column; gap: 4px;
-  color: var(--text-light);
-  text-align: left;
+.stateContainer {
   width: 100%;
-  background: rgba(255,255,255,0.03);
-  padding: 16px;
-  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: fadeIn 0.3s ease-out;
 }
 
-.spin { animation: spin 1s linear infinite; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.stateText {
+  color: #71717a;
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+/* Loading */
+.spin {
+  animation: spin 1s linear infinite;
+  color: #f97316;
+  margin-bottom: 16px;
+}
+
+.spinBtn {
+  animation: spin 1s linear infinite;
+}
 
 @keyframes spin { 100% { transform: rotate(360deg); } }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Botões */
+.primaryBtn {
+  background: #f97316; /* Laranja */
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(249, 115, 22, 0.2);
+}
+
+.primaryBtn:hover {
+  background: #ea580c; /* Laranja mais escuro */
+  transform: translateY(-1px);
+}
+
+.primaryBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.disconnectBtn {
+  padding: 10px 20px;
+  background: white;
+  border: 1px solid #fee2e2;
+  color: #ef4444;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.disconnectBtn:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.cancelBtn {
+  margin-top: 16px;
+  background: transparent;
+  border: none;
+  color: #71717a;
+  cursor: pointer;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: all 0.2s;
+}
+
+.cancelBtn:hover {
+  color: #52525b;
+  text-decoration-color: #a1a1aa;
+}
+
+/* Estado Vazio (Disconnected) */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.placeholderIcon {
+  width: 80px;
+  height: 80px;
+  background: white;
+  border: 2px dashed #e4e4e7;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #d4d4d8;
+  margin-bottom: 16px;
+}
+
+/* QR Code */
+.qrWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.instructionText {
+  font-size: 0.9rem;
+  color: #3f3f46;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.qrFrame {
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #e4e4e7;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.qrFrame img {
+  display: block;
+  max-width: 240px;
+  border-radius: 4px;
+}
+
+/* Estado Conectado */
+.successIcon {
+  width: 64px;
+  height: 64px;
+  background: #dcfce7;
+  color: #16a34a;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.stateContainer h4 {
+  margin: 0 0 8px 0;
+  color: #18181b;
+  font-size: 1.1rem;
+}

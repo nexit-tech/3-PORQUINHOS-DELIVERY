@@ -100,3 +100,4 @@
   transition: background 0.2s;
 }
 .saveBtn:hover { background: var(--primary-dark); }
+
