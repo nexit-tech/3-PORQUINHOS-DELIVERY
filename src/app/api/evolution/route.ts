@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 
-// ⚠️ SUAS CONFIGURAÇÕES AQUI
 const EVOLUTION_URL = 'https://n8n-nexit-evolution-api.7rdajt.easypanel.host';
-const API_KEY = '58F6417D7252-4BB0-8A52-CCA170427CB7'; // Seu Global API Key
+const API_KEY = '58F6417D7252-4BB0-8A52-CCA170427CB7';
 const INSTANCE_NAME = '3 Porquinhos'; 
 
-// Cria o cliente Axios
 const api = axios.create({
   baseURL: EVOLUTION_URL,
   headers: {
@@ -18,13 +16,12 @@ const api = axios.create({
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { action } = body;
+    const { action, phone, message } = body;
 
     let responseData;
 
     switch (action) {
       case 'check':
-        // Checa status
         try {
           const { data } = await api.get(`/instance/connectionState/${INSTANCE_NAME}`);
           responseData = data;
@@ -38,7 +35,6 @@ export async function POST(request: Request) {
         break;
 
       case 'create':
-        // Cria instância
         const { data: createData } = await api.post('/instance/create', {
           instanceName: INSTANCE_NAME,
           qrcode: true,
@@ -48,16 +44,31 @@ export async function POST(request: Request) {
         break;
 
       case 'connect':
-        // Busca QR Code
         const { data: connectData } = await api.get(`/instance/connect/${INSTANCE_NAME}`);
-        // A Evolution pode retornar o base64 direto ou dentro de um objeto
         responseData = connectData;
         break;
 
       case 'logout':
-        // Desconecta
         await api.delete(`/instance/logout/${INSTANCE_NAME}`);
         responseData = { success: true };
+        break;
+
+      // 🔥 NOVA AÇÃO: ENVIAR MENSAGEM
+      case 'send':
+        if (!phone || !message) {
+          return NextResponse.json({ error: 'Phone e message são obrigatórios' }, { status: 400 });
+        }
+
+        // Limpa o telefone (remove caracteres especiais)
+        const cleanPhone = phone.replace(/\D/g, '');
+        
+        // Envia a mensagem
+        const { data: sendData } = await api.post(`/message/sendText/${INSTANCE_NAME}`, {
+          number: `55${cleanPhone}@s.whatsapp.net`, // Formato: 55XXXXXXXXXXX@s.whatsapp.net
+          text: message
+        });
+        
+        responseData = sendData;
         break;
 
       default:

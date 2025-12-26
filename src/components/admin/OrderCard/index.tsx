@@ -9,6 +9,13 @@ import { supabase } from '@/services/supabase';
 import toast from 'react-hot-toast';
 import { Order } from '@/types/order';
 import styles from './styles.module.css';
+// 🔥 IMPORTA AS NOTIFICAÇÕES
+import { 
+  notifyOrderAccepted, 
+  notifyOrderRejected, 
+  notifyOrderCanceled, 
+  notifyOrderDelivering 
+} from '@/services/notifications';
 
 interface OrderCardProps {
   order: Order;
@@ -64,8 +71,51 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
 
       // 2. Gera o HTML da nota
       const is58mm = printerSettings.paperWidth === '58mm';
-      const widthPx = is58mm ? '220px' : '302px';
-      const fontSize = is58mm ? '11px' : '13px';
+      const contentWidth = is58mm ? '50mm' : '72mm';
+      const paddingRight = is58mm ? '6mm' : '8mm';
+      const fontSize = is58mm ? '10px' : '12px';
+
+      // Formatador manual de dinheiro
+      const formatMoney = (val: any) => {
+        if (val === null || val === undefined) return 'R$ 0,00';
+        let num = typeof val === 'string' 
+          ? parseFloat(val.replace(/[^\d.,-]/g, '').replace(',', '.')) 
+          : Number(val);
+        if (isNaN(num)) num = 0;
+        const fixed = num.toFixed(2);
+        const [inteiro, decimal] = fixed.split('.');
+        const inteiroFormatado = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        return `R$ ${inteiroFormatado},${decimal}`;
+      };
+
+      const id = String(order.id).slice(0, 8);
+      const cliente = order.customerName.toUpperCase();
+      const tel = order.customerPhone || '';
+      const endereco = order.customerAddress || 'Retirada';
+      
+      const taxaEntregaNum = Number(order.deliveryFee || 0);
+      const totalNum = Number(order.total || 0);
+      const subtotalVal = totalNum - taxaEntregaNum;
+      
+      const total = formatMoney(totalNum);
+      const subtotal = formatMoney(subtotalVal);
+      const entrega = taxaEntregaNum > 0 ? formatMoney(taxaEntregaNum) : null;
+      
+      // Detecção de troco
+      const metodoPagamento = order.paymentMethod || '';
+      const isDinheiro = metodoPagamento.toLowerCase().includes('dinheiro') || metodoPagamento.toLowerCase().includes('cash');
+      
+      let trocoTexto = null;
+      if (isDinheiro && metodoPagamento.includes('Troco')) {
+        const match = metodoPagamento.match(/Troco para R\$\s*([\d,.]+)/i);
+        if (match) {
+          trocoTexto = `Troco para ${formatMoney(match[1])}`;
+        } else if (metodoPagamento.includes('Sem troco')) {
+          trocoTexto = 'Sem troco';
+        }
+      }
+      
+      const data = new Date().toLocaleString('pt-BR');
 
       const html = `
 <!DOCTYPE html>
@@ -74,97 +124,180 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
   <meta charset="UTF-8">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { 
-      font-family: 'Courier New', monospace; 
-      width: ${widthPx};
+    
+    @page { margin: 0; size: auto; }
+    
+    body {
+      width: ${contentWidth};
       margin: 0 auto;
-      padding: 10px 5px 20px 5px;
-      font-size: ${fontSize};
-      line-height: 1.5;
-      color: #000;
+      padding: 5mm 2mm 50mm ${paddingRight}; 
+      font-family: 'Courier New', Courier, monospace;
       background: #fff;
+      color: #000;
+      font-weight: 700;
+      font-size: ${fontSize};
+      line-height: 1.25;
     }
-    .center { text-align: center; margin: 3px 0; }
-    .bold { font-weight: 800; }
-    .big { font-size: 16px; font-weight: 800; }
-    .line { border-top: 1px dashed #000; margin: 5px 0; }
-    table { width: 100%; border-collapse: collapse; }
-    td { vertical-align: top; padding: 2px 0; }
-    .item-name { text-align: left; padding-right: 5px; }
-    .item-price { text-align: right; white-space: nowrap; font-weight: 700; }
-    .obs { font-size: 10px; font-style: italic; display: block; margin-top: 2px; }
+
+    .center { text-align: center; }
+    .left { text-align: left; }
+    .right { text-align: right; }
+    .bold { font-weight: 900; }
+    
+    .line { 
+      border-top: 1px dashed #000; 
+      margin: 5px 0; 
+      width: 100%;
+    }
+
+    .wrap {
+      white-space: pre-wrap !important;
+      word-wrap: break-word !important;
+      overflow-wrap: break-word !important;
+      word-break: break-word !important;
+      width: 100%;
+      display: block;
+      line-height: 1.35;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: clip;
+    }
+
+    table { 
+      width: 100%; 
+      border-collapse: collapse;
+      table-layout: fixed; 
+    }
+    td { 
+      vertical-align: top; 
+      padding: 1px 0;
+      overflow: hidden;
+    }
+    
+    .col-qtd { width: 15%; white-space: nowrap; }
+    .col-nome { 
+      width: 55%; 
+      padding-right: 3px;
+      word-wrap: break-word;
+      word-break: break-word;
+      overflow: hidden;
+    }
+    .col-valor { 
+      width: 30%; 
+      text-align: right; 
+      white-space: nowrap;
+      padding-right: 2px;
+    }
+
+    .obs { 
+      font-size: 0.85em; 
+      font-weight: normal; 
+      margin-top: 1px; 
+      display: block;
+      word-wrap: break-word;
+    }
+    
+    .big { font-size: 1.2em; font-weight: 900; }
+
+    .section {
+      margin: 5px 0;
+      max-width: 100%;
+      overflow: hidden;
+    }
+    
+    .label {
+      font-weight: 900;
+      margin-bottom: 2px;
+      font-size: 0.95em;
+    }
+    
+    .value {
+      font-weight: 700;
+      word-wrap: break-word;
+      word-break: break-word;
+      line-height: 1.35;
+      max-width: 100%;
+      overflow: hidden;
+    }
+
+    @media print {
+      body { 
+        margin: 0;
+        padding-right: ${paddingRight} !important;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="center">
     <div class="big">3 PORQUINHOS</div>
     <div class="bold">DELIVERY</div>
+    <div style="font-size: 0.75em; margin-top: 3px;">${data}</div>
     <div class="line"></div>
-    <div>${new Date().toLocaleString('pt-BR')}</div>
-    <div class="line"></div>
-    <div>PEDIDO: <span class="big">${order.displayId}</span></div>
+    <div>PEDIDO: <span class="big">#${id}</span></div>
   </div>
-
+  
   <div class="line"></div>
-  <div class="bold">ITENS</div>
-  <br/>
 
+  <div class="bold" style="margin-bottom: 3px; font-size: 0.9em;">ITENS</div>
   <table>
     ${order.items.map(item => `
       <tr>
-        <td class="item-name">
-          <span class="bold">${item.quantity}x</span> ${item.name}
-          ${item.observation ? `<span class="obs">${item.observation}</span>` : ''}
-        </td>
-        <td class="item-price">
-          ${formatCurrency(item.totalPrice)}
-        </td>
+        <td class="col-qtd bold">${item.quantity}x</td>
+        <td class="col-nome">${item.name}${item.observation ? `<span class="obs">(${item.observation})</span>` : ''}</td>
+        <td class="col-valor">${formatMoney(item.totalPrice)}</td>
       </tr>
     `).join('')}
   </table>
 
   <div class="line"></div>
-  <div class="bold">CLIENTE</div>
-  <div>${order.customerName}</div>
-  ${order.customerPhone ? `<div>Tel: ${order.customerPhone}</div>` : ''}
 
-  <div class="line"></div>
-  <div class="bold">ENTREGA</div>
-  <div>${order.customerAddress}</div>
-
-  <div class="line"></div>
-
-  <table>
+  <table style="font-size: 0.95em;">
     <tr>
-      <td>Subtotal:</td>
-      <td class="item-price bold">${formatCurrency(order.total - order.deliveryFee)}</td>
+      <td class="left">Subtotal:</td>
+      <td class="right" style="padding-right: 2px;">${subtotal}</td>
     </tr>
-    ${order.deliveryFee > 0 ? `
+    ${entrega ? `
     <tr>
-      <td>Taxa:</td>
-      <td class="item-price bold">${formatCurrency(order.deliveryFee)}</td>
-    </tr>
-    ` : ''}
-  </table>
-
-  <div class="line"></div>
-
-  <table>
-    <tr>
-      <td class="big">TOTAL:</td>
-      <td class="item-price big">${formatCurrency(order.total)}</td>
+      <td class="left">Taxa:</td>
+      <td class="right" style="padding-right: 2px;">${entrega}</td>
+    </tr>` : ''}
+    <tr style="font-size: 1.15em; font-weight: 900;">
+      <td class="left" style="padding-top: 3px;">TOTAL:</td>
+      <td class="right" style="padding-top: 3px; padding-right: 2px;">${total}</td>
     </tr>
   </table>
 
   <div class="line"></div>
+
+  <div class="section">
+    <div class="label">CLIENTE</div>
+    <div class="value wrap">${cliente}</div>
+    ${tel ? `<div class="value">${tel}</div>` : ''}
+  </div>
   
-  <div class="center" style="font-size: 10px; margin-top: 10px;">
-    Obrigado pela preferência!<br/>
+  <div class="section">
+    <div class="label">ENTREGA</div>
+    <div class="value wrap">${endereco}</div>
+  </div>
+
+  <div class="line"></div>
+
+  <div class="section">
+    <div class="label">PAGAMENTO</div>
+    <div class="value">${metodoPagamento.split(' - ')[0]}</div>
+    ${trocoTexto ? `<div class="value" style="margin-top: 2px; font-size: 0.9em;">${trocoTexto}</div>` : ''}
+  </div>
+
+  <div class="line"></div>
+
+  <div class="center" style="font-size: 0.75em; margin-top: 8px;">
+    Obrigado!<br>
     www.3porquinhos.com.br
   </div>
   
-  <br/><br/>
-  <div class="center">.</div>
+  <br><br><br>
+  <div style="opacity: 0;">.</div>
 </body>
 </html>
       `;
@@ -201,10 +334,25 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
     }
   };
 
+  // 🔥 ATUALIZA STATUS + NOTIFICA
   const updateOrderStatus = async (newStatus: string) => {
     setLoading(true);
     if (onUpdateStatus) {
       await onUpdateStatus(order.id, newStatus);
+      
+      // 🔥 ENVIA NOTIFICAÇÃO BASEADA NO STATUS
+      try {
+        if (newStatus === 'PREPARING') {
+          await notifyOrderAccepted(order);
+        } else if (newStatus === 'DELIVERING') {
+          await notifyOrderDelivering(order);
+        } else if (newStatus === 'CANCELED') {
+          await notifyOrderCanceled(order);
+        }
+      } catch (error) {
+        console.error('Erro ao enviar notificação:', error);
+      }
+      
       setLoading(false);
       return;
     }
@@ -216,6 +364,16 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
         .eq('id', order.id);
 
       if (error) throw error;
+      
+      // 🔥 ENVIA NOTIFICAÇÃO BASEADA NO STATUS
+      if (newStatus === 'PREPARING') {
+        await notifyOrderAccepted(order);
+      } else if (newStatus === 'DELIVERING') {
+        await notifyOrderDelivering(order);
+      } else if (newStatus === 'CANCELED') {
+        await notifyOrderCanceled(order);
+      }
+      
       toast.success(`Pedido atualizado!`);
     } catch (error) {
       console.error('Erro:', error);
@@ -225,13 +383,39 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
     }
   };
 
-  // 🔥 ACEITAR = MUDA STATUS + IMPRIME
+  // 🔥 ACEITAR = MUDA STATUS + IMPRIME + NOTIFICA
   const handleAcceptOrder = async () => {
     try {
       await updateOrderStatus('PREPARING');
       setTimeout(() => handlePrint(), 500);
     } catch (error) {
       console.error('Erro ao aceitar:', error);
+    }
+  };
+
+  // 🔥 RECUSAR = MUDA STATUS + NOTIFICA
+  const handleRejectOrder = async () => {
+    if (!window.confirm('Tem certeza que deseja RECUSAR este pedido?')) return;
+    
+    try {
+      setLoading(true);
+      
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'CANCELED' })
+        .eq('id', order.id);
+
+      if (error) throw error;
+      
+      // 🔥 ENVIA NOTIFICAÇÃO DE RECUSA
+      await notifyOrderRejected(order);
+      
+      toast.success('Pedido recusado e cliente notificado!');
+    } catch (error) {
+      console.error('Erro ao recusar:', error);
+      toast.error('Erro ao recusar pedido');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -341,49 +525,87 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
           </div>
         </div>
 
-        <div className={styles.actions}>
-          {order.status === 'PENDING' && (
-            <>
-              <button 
-                onClick={(e) => { e.stopPropagation(); handleCancelOrder(); }} 
-                disabled={loading}
-                className={`${styles.btn} ${styles.btnReject}`}
-              >
-                <XCircle size={18} /> Recusar
-              </button>
-              
-              <button 
-                onClick={(e) => { 
-                  e.stopPropagation(); 
-                  handleAcceptOrder(); 
-                }} 
-                disabled={loading || isPrinting}
-                className={`${styles.btn} ${styles.btnAccept}`}
-              >
-                {loading ? '...' : <><CheckCircle size={18} /> Aceitar</>}
-              </button>
-            </>
-          )}
+      <div className={styles.actions}>
+        {/* ESTÁGIO 1: PENDENTE */}
+        {order.status === 'PENDING' && (
+          <>
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleRejectOrder(); }} 
+              disabled={loading}
+              className={`${styles.btn} ${styles.btnReject}`}
+            >
+              <XCircle size={18} /> Recusar
+            </button>
+            
+            <button 
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                handleAcceptOrder(); 
+              }} 
+              disabled={loading || isPrinting}
+              className={`${styles.btn} ${styles.btnAccept}`}
+            >
+              {loading ? '...' : <><CheckCircle size={18} /> Aceitar</>}
+            </button>
+          </>
+        )}
 
-          {order.status === 'PREPARING' && (
-             <button 
-               onClick={() => updateOrderStatus('DELIVERING')} 
-               className={`${styles.btn} ${styles.btnPrimary}`} 
-               style={{ gridColumn: 'span 2' }}
-             >
-               Saiu para Entrega
-             </button>
-          )}
+        {/* ESTÁGIO 2: EM PREPARO (COZINHA) */}
+        {order.status === 'PREPARING' && (
+          <>
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleCancelOrder(); }} 
+              disabled={loading}
+              className={`${styles.btn} ${styles.btnReject}`}
+            >
+              <XCircle size={18} /> Cancelar
+            </button>
+            
+            <button 
+              onClick={() => updateOrderStatus('DELIVERING')} 
+              disabled={loading}
+              className={`${styles.btn} ${styles.btnAccept}`}
+            >
+              Saiu para Entrega
+            </button>
+          </>
+        )}
 
-          {order.status === 'DELIVERING' && (
-             <button 
-               onClick={() => updateOrderStatus('COMPLETED')} 
-               className={`${styles.btn} ${styles.btnSuccess}`} 
-             >
-               Concluir Pedido
-             </button>
-          )}
-        </div>
+        {/* ESTÁGIO 3: EM ROTA (ENTREGA) */}
+        {order.status === 'DELIVERING' && (
+          <>
+            <button 
+              onClick={(e) => { e.stopPropagation(); handleCancelOrder(); }} 
+              disabled={loading}
+              className={`${styles.btn} ${styles.btnReject}`}
+            >
+              <XCircle size={18} /> Cancelar
+            </button>
+            
+            <button 
+              onClick={() => updateOrderStatus('COMPLETED')} 
+              disabled={loading}
+              className={`${styles.btn} ${styles.btnSuccess}`}
+            >
+              <CheckCircle size={18} /> Concluir Pedido
+            </button>
+          </>
+        )}
+
+        {/* ESTÁGIOS FINAIS: SEM AÇÕES */}
+        {(order.status === 'COMPLETED' || order.status === 'CANCELED') && (
+          <div style={{ 
+            padding: '12px', 
+            textAlign: 'center', 
+            color: 'var(--text-light)', 
+            fontSize: '0.9rem',
+            fontStyle: 'italic' 
+          }}>
+            {order.status === 'COMPLETED' ? '✅ Pedido Concluído' : '❌ Pedido Cancelado'}
+          </div>
+        )}
+      </div>
+
       </div>
     </div>
   );

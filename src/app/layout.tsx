@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Montserrat } from 'next/font/google';
-import Navbar from '@/components/layout/Navbar'; // <--- Importe aqui
+import Navbar from '@/components/layout/Navbar';
+import { AuthProvider } from '@/context/AuthContext'; // 🔥 NOVO
 import './globals.css';
 
 const montserrat = Montserrat({ 
@@ -10,8 +11,8 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: 'AnotaAI Clone',
-  description: 'Gestão de Delivery',
+  title: '3 porquinhos - Gestão de Delivery',
+  description: 'Gestão de Delivery 3 porquinhos',
 };
 
 export default function RootLayout({
@@ -22,8 +23,10 @@ export default function RootLayout({
   return (
     <html lang="pt-br">
       <body className={montserrat.className}>
-        <Navbar /> {/* <--- Adicione aqui antes do children */}
-        {children}
+        <AuthProvider> {/* 🔥 ENVOLVE TUDO */}
+          <Navbar />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

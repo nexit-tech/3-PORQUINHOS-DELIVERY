@@ -1,7 +1,5 @@
 import axios from 'axios';
 
-// Agora chamamos NOSSA PRÓPRIA rota interna (api/evolution)
-// Isso evita o erro de CORS
 const api = axios.create({
   baseURL: '/api/evolution', 
 });
@@ -19,11 +17,20 @@ export const evolutionService = {
 
   async connectInstance() {
     const response = await api.post('', { action: 'connect' });
-    // Ajuste aqui dependendo de como sua versão retorna (base64 ou code)
     return response.data.base64 || response.data.code || response.data.qrcode;
   },
 
   async logoutInstance() {
     await api.post('', { action: 'logout' });
+  },
+
+  // 🔥 NOVO: Envia mensagem via WhatsApp
+  async sendMessage(phone: string, message: string) {
+    const response = await api.post('', { 
+      action: 'send', 
+      phone, 
+      message 
+    });
+    return response.data;
   }
 };

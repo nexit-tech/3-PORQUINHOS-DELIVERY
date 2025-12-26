@@ -1,28 +1,27 @@
 import { PrinterSettings } from "@/types/settings";
 
 export const printReceipt = async (order: any, settings: PrinterSettings, copies: number = 1) => {
-  // Configuração segura de largura (48mm é a área útil real de impressoras 58mm)
+  // CORREÇÃO: Largura MUITO mais conservadora + padding direito generoso
   const is58mm = settings?.paperWidth === '58mm';
-  const contentWidth = is58mm ? '46mm' : '72mm'; // Margem de segurança maior
-  const fontSize = is58mm ? '11px' : '13px'; // Fonte levemente menor para caber mais
+  const contentWidth = is58mm ? '50mm' : '72mm'; // Largura nominal
+  const paddingRight = is58mm ? '6mm' : '8mm'; // MARGEM DIREITA GRANDE
+  const fontSize = is58mm ? '10px' : '12px';
 
-  // --- CORREÇÃO 1: Formatador de Dinheiro "A prova de falhas" ---
+  // Formatador de dinheiro manual
   const formatMoney = (val: any) => {
     if (val === null || val === undefined) return 'R$ 0,00';
     
-    // Converte para número, limpando caracteres estranhos se for string
     let num = typeof val === 'string' 
       ? parseFloat(val.replace(/[^\d.,-]/g, '').replace(',', '.')) 
       : Number(val);
       
     if (isNaN(num)) num = 0;
 
-    return num.toLocaleString('pt-BR', { 
-      style: 'currency', 
-      currency: 'BRL',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2 
-    });
+    const fixed = num.toFixed(2);
+    const [inteiro, decimal] = fixed.split('.');
+    const inteiroFormatado = inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    
+    return `R$ ${inteiroFormatado},${decimal}`;
   };
 
   // Tratamento de dados
@@ -31,12 +30,27 @@ export const printReceipt = async (order: any, settings: PrinterSettings, copies
   const tel = order.customer_phone || order.customerPhone || '';
   const endereco = order.customer_address || order.customerAddress || 'Retirada';
   
-  const total = formatMoney(order.total);
-  // Cálculo seguro do subtotal e entrega
   const taxaEntregaNum = Number(order.delivery_fee || order.deliveryFee || 0);
-  const subtotalVal = order.subtotal ? order.subtotal : (Number(order.total || 0) - taxaEntregaNum);
+  const totalNum = Number(order.total || 0);
+  const subtotalVal = totalNum - taxaEntregaNum;
+  
+  const total = formatMoney(totalNum);
   const subtotal = formatMoney(subtotalVal);
   const entrega = taxaEntregaNum > 0 ? formatMoney(taxaEntregaNum) : null;
+  
+  // Detecção de troco
+  const metodoPagamento = order.payment_method || order.paymentMethod || '';
+  const isDinheiro = metodoPagamento.toLowerCase().includes('dinheiro') || metodoPagamento.toLowerCase().includes('cash');
+  
+  let trocoTexto = null;
+  if (isDinheiro && metodoPagamento.includes('Troco')) {
+    const match = metodoPagamento.match(/Troco para R\$\s*([\d,.]+)/i);
+    if (match) {
+      trocoTexto = `Troco para ${formatMoney(match[1])}`;
+    } else if (metodoPagamento.includes('Sem troco')) {
+      trocoTexto = 'Sem troco';
+    }
+  }
   
   const data = new Date().toLocaleString('pt-BR');
   const items = order.items || order.order_items || [];
@@ -47,72 +61,136 @@ export const printReceipt = async (order: any, settings: PrinterSettings, copies
     <head>
       <meta charset="UTF-8">
       <style>
-        /* Reset total */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
+        @page {
+          margin: 0;
+          size: auto;
+        }
+        
         body {
-          width: ${contentWidth}; /* Largura travada na área útil */
-          margin: 0 auto; /* Centraliza */
-          padding: 5px 0 50px 0; /* Espaço embaixo pro corte */
+          width: ${contentWidth};
+          margin: 0 auto;
+          /* CORREÇÃO CRÍTICA: Padding direito GENEROSO */
+          padding: 5mm 2mm 50mm ${paddingRight}; 
           font-family: 'Courier New', Courier, monospace;
           background: #fff;
           color: #000;
           font-weight: 700;
           font-size: ${fontSize};
+          line-height: 1.25;
         }
 
-        /* Classes Utilitárias */
         .center { text-align: center; }
         .left { text-align: left; }
         .right { text-align: right; }
         .bold { font-weight: 900; }
         
-        /* Linha divisória simples */
         .line { 
           border-top: 1px dashed #000; 
-          margin: 6px 0; 
+          margin: 5px 0; 
           width: 100%;
         }
 
-        /* --- CORREÇÃO 2: Quebra de Linha Forçada para Endereço --- */
-        .wrap-text {
-          white-space: normal !important;
+        /* Quebra de linha agressiva */
+        .wrap {
+          white-space: pre-wrap !important;
           word-wrap: break-word !important;
-          overflow-wrap: anywhere !important; /* Força quebra em qualquer lugar */
+          overflow-wrap: break-word !important;
+          word-break: break-word !important;
           width: 100%;
           display: block;
-          line-height: 1.3;
+          line-height: 1.35;
+          max-width: 100%;
+          /* NOVO: Evita ultrapassar a borda */
+          overflow: hidden;
+          text-overflow: clip;
         }
 
-        /* Tabela de Itens */
-        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        td { vertical-align: top; padding: 2px 0; }
+        /* Tabela */
+        table { 
+          width: 100%; 
+          border-collapse: collapse;
+          table-layout: fixed; 
+        }
+        td { 
+          vertical-align: top; 
+          padding: 1px 0;
+          overflow: hidden; /* Evita vazamento */
+        }
         
-        .col-qtd { width: 15%; white-space: nowrap; }
-        .col-nome { width: 55%; padding-right: 5px; }
-        .col-valor { width: 30%; text-align: right; white-space: nowrap; }
+        .col-qtd { 
+          width: 15%; 
+          white-space: nowrap; 
+        }
+        .col-nome { 
+          width: 55%; 
+          padding-right: 3px;
+          word-wrap: break-word;
+          word-break: break-word;
+          overflow: hidden;
+        }
+        .col-valor { 
+          width: 30%; 
+          text-align: right; 
+          white-space: nowrap;
+          padding-right: 2px; /* Pequeno afastamento da borda */
+        }
 
-        .obs { font-size: 0.9em; font-weight: normal; margin-top: 2px; display: block; }
-        .big { font-size: 1.3em; font-weight: 900; }
+        .obs { 
+          font-size: 0.85em; 
+          font-weight: normal; 
+          margin-top: 1px; 
+          display: block;
+          word-wrap: break-word;
+        }
+        
+        .big { font-size: 1.2em; font-weight: 900; }
+
+        .section {
+          margin: 5px 0;
+          /* NOVO: Garante que não vaza */
+          max-width: 100%;
+          overflow: hidden;
+        }
+        
+        .label {
+          font-weight: 900;
+          margin-bottom: 2px;
+          font-size: 0.95em;
+        }
+        
+        .value {
+          font-weight: 700;
+          word-wrap: break-word;
+          word-break: break-word;
+          line-height: 1.35;
+          max-width: 100%;
+          overflow: hidden;
+        }
 
         @media print {
-          @page { margin: 0; size: auto; }
-          body { margin: 0; }
+          body { 
+            margin: 0;
+            padding-right: ${paddingRight} !important;
+          }
         }
       </style>
     </head>
     <body>
+      <!-- CABEÇALHO -->
       <div class="center">
         <div class="big">3 PORQUINHOS</div>
         <div class="bold">DELIVERY</div>
-        <div style="font-size: 0.8em; margin-top: 4px;">${data}</div>
+        <div style="font-size: 0.75em; margin-top: 3px;">${data}</div>
         <div class="line"></div>
         <div>PEDIDO: <span class="big">#${id}</span></div>
       </div>
       
       <div class="line"></div>
 
-      <div class="bold" style="margin-bottom: 4px;">ITENS</div>
+      <!-- ITENS -->
+      <div class="bold" style="margin-bottom: 3px; font-size: 0.9em;">ITENS</div>
       <table>
         ${items.map((item: any) => {
           const nome = item.product_name || item.name || item.product?.name || 'Item';
@@ -123,10 +201,7 @@ export const printReceipt = async (order: any, settings: PrinterSettings, copies
           return `
             <tr>
               <td class="col-qtd bold">${qtd}x</td>
-              <td class="col-nome wrap-text">
-                ${nome}
-                ${obs ? `<span class="obs">(${obs})</span>` : ''}
-              </td>
+              <td class="col-nome">${nome}${obs ? `<span class="obs">(${obs})</span>` : ''}</td>
               <td class="col-valor">${formatMoney(preco)}</td>
             </tr>
           `;
@@ -135,45 +210,62 @@ export const printReceipt = async (order: any, settings: PrinterSettings, copies
 
       <div class="line"></div>
 
-      <table>
+      <!-- TOTAIS -->
+      <table style="font-size: 0.95em;">
         <tr>
           <td class="left">Subtotal:</td>
-          <td class="right">${subtotal}</td>
+          <td class="right" style="padding-right: 2px;">${subtotal}</td>
         </tr>
         ${entrega ? `
         <tr>
-          <td class="left">Taxa Entrega:</td>
-          <td class="right">${entrega}</td>
+          <td class="left">Taxa:</td>
+          <td class="right" style="padding-right: 2px;">${entrega}</td>
         </tr>` : ''}
-        <tr style="font-size: 1.2em; font-weight: 900;">
-          <td class="left" style="padding-top: 4px;">TOTAL:</td>
-          <td class="right" style="padding-top: 4px;">${total}</td>
+        <tr style="font-size: 1.15em; font-weight: 900;">
+          <td class="left" style="padding-top: 3px;">TOTAL:</td>
+          <td class="right" style="padding-top: 3px; padding-right: 2px;">${total}</td>
         </tr>
       </table>
 
       <div class="line"></div>
 
-      <div class="bold">CLIENTE</div>
-      <div class="wrap-text">${cliente}</div>
-      ${tel ? `<div>${tel}</div>` : ''}
+      <!-- CLIENTE -->
+      <div class="section">
+        <div class="label">CLIENTE</div>
+        <div class="value wrap">${cliente}</div>
+        ${tel ? `<div class="value">${tel}</div>` : ''}
+      </div>
       
-      <div style="margin-top: 8px;" class="bold">ENTREGA</div>
-      <div class="wrap-text">${endereco}</div>
+      <!-- ENDEREÇO -->
+      <div class="section">
+        <div class="label">ENTREGA</div>
+        <div class="value wrap">${endereco}</div>
+      </div>
 
       <div class="line"></div>
 
-      <div class="center" style="font-size: 0.8em; margin-top: 10px;">
-        Obrigado pela preferência!<br>
+      <!-- PAGAMENTO -->
+      <div class="section">
+        <div class="label">PAGAMENTO</div>
+        <div class="value">${metodoPagamento.split(' - ')[0]}</div>
+        ${trocoTexto ? `<div class="value" style="margin-top: 2px; font-size: 0.9em;">${trocoTexto}</div>` : ''}
+      </div>
+
+      <div class="line"></div>
+
+      <!-- RODAPÉ -->
+      <div class="center" style="font-size: 0.75em; margin-top: 8px;">
+        Obrigado!<br>
         www.3porquinhos.com.br
       </div>
       
-      <br><br><br><br>
+      <br><br><br>
       <div style="opacity: 0;">.</div>
     </body>
     </html>
   `;
 
-  // --- Lógica de Impressão (Electron/Browser) ---
+  // Impressão
   if (typeof window !== 'undefined' && (window as any).require) {
     try {
       const { ipcRenderer } = (window as any).require('electron');
@@ -191,7 +283,6 @@ export const printReceipt = async (order: any, settings: PrinterSettings, copies
       return false;
     }
   } else {
-    // Fallback para navegador
     const printWindow = window.open('', '_blank', 'width=400,height=600');
     if (printWindow) {
       printWindow.document.write(content);

@@ -9,24 +9,22 @@ import {
   LogOut, 
   DollarSign 
 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext'; // 🔥 NOVO
 import styles from './styles.module.css';
 
 export default function Navbar() {
   const pathname = usePathname();
+  const { logout } = useAuth(); // 🔥 NOVO
 
-  // --- TRAVA DE SEGURANÇA ---
-  // Se estiver na área do cliente (/pedido), esconde essa navbar de admin!
+  // Se estiver na área do cliente, esconde navbar
   if (pathname.startsWith('/pedido')) {
     return null;
   }
 
-  // Função para verificar ativo
   const isActive = (path: string) => {
-    // Se for a Home (Dashboard de Pedidos), tem que ser exato
     if (path === '/') {
       return pathname === '/';
     }
-    // Nas outras rotas, pode começar com o path
     return pathname.startsWith(path);
   };
 
@@ -37,7 +35,6 @@ export default function Navbar() {
       </div>
 
       <div className={styles.links}>
-        {/* PEDIDOS (Home) */}
         <Link 
           href="/" 
           className={`${styles.link} ${isActive('/') ? styles.active : ''}`}
@@ -46,7 +43,6 @@ export default function Navbar() {
           <span>Pedidos</span>
         </Link>
 
-        {/* PRODUTOS */}
         <Link 
           href="/products" 
           className={`${styles.link} ${isActive('/products') ? styles.active : ''}`}
@@ -55,7 +51,6 @@ export default function Navbar() {
           <span>Produtos</span>
         </Link>
         
-        {/* FINANCEIRO */}
         <Link 
           href="/finance" 
           className={`${styles.link} ${isActive('/finance') ? styles.active : ''}`}
@@ -64,7 +59,6 @@ export default function Navbar() {
           <span>Financeiro</span>
         </Link>
         
-        {/* CONFIGURAÇÕES */}
         <Link 
           href="/settings" 
           className={`${styles.link} ${isActive('/settings') ? styles.active : ''}`}
@@ -74,7 +68,8 @@ export default function Navbar() {
         </Link>
       </div>
 
-      <button className={styles.logoutBtn}>
+      {/* 🔥 BOTÃO DE SAIR AGORA FUNCIONAL */}
+      <button className={styles.logoutBtn} onClick={logout}>
         <LogOut size={20} />
         <span>Sair</span>
       </button>
