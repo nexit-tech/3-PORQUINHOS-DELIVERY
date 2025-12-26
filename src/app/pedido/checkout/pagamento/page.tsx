@@ -106,25 +106,29 @@ export default function PagamentoPage() {
         localStorage.setItem('my_orders', JSON.stringify(savedOrders));
       }
 
-      // 🔥 FORMATAÇÃO CORRIGIDA COM QUEBRA DE LINHA
+      // 🔥 FORMATAÇÃO CORRIGIDA COM "Pizza 1", "Pizza 2", etc
       const orderItems = items.map((item: any) => {
         const detailsParts = [];
         
-        // Formata grupos separadamente (Pizza 1, Pizza 2, etc)
+        // 🎯 NOVA LÓGICA: Formata grupos separadamente (Pizza 1, Pizza 2, etc)
         if (item.selections && Object.keys(item.selections).length > 0) {
           Object.entries(item.selections).forEach(([groupId, options]: [string, any]) => {
+            // Busca o nome do grupo (ex: "Pizza 1", "Pizza 2")
             const group = item.product.complements?.find((g: any) => g.id === groupId);
             const groupLabel = group?.name || 'Opções';
+            
+            // Lista os sabores selecionados
             const selectedFlavors = options.map((opt: any) => opt.name).join(', ');
             
+            // Adiciona a linha formatada: "Pizza 1: Calabresa, Mussarela"
             detailsParts.push(`${groupLabel}: ${selectedFlavors}`);
           });
         } else if (item.flavors && item.flavors.length > 0) {
-          // Fallback antigo
+          // Fallback antigo (se não tiver selections)
           detailsParts.push(`Sabores: ${item.flavors.join(', ')}`);
         }
         
-        // Adicionais pagos
+        // Adicionais pagos (se houver)
         if (item.customizations && item.customizations.length > 0) {
           const paidExtras = item.customizations
             .filter((c: any) => c.price > 0)
@@ -141,7 +145,7 @@ export default function PagamentoPage() {
           detailsParts.push(`Obs: ${item.observation}`);
         }
         
-        // 🔥 USA QUEBRA DE LINHA
+        // 🔥 USA QUEBRA DE LINHA PARA SEPARAR
         const detailsString = detailsParts.join('\n');
 
         return {
@@ -151,7 +155,7 @@ export default function PagamentoPage() {
           quantity: item.quantity,
           unit_price: item.totalPrice / item.quantity,
           total_price: item.totalPrice,
-          observation: detailsString,
+          observation: detailsString, // 🎯 AQUI VAI A FORMATAÇÃO CORRETA
           customizations: item.customizations || {}
         };
       });

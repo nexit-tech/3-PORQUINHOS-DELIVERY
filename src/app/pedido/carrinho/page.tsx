@@ -9,8 +9,6 @@ import ProductModal from '@/components/client/ProductModal';
 import styles from './page.module.css';
 
 export default function CarrinhoPage() {
-  // MÁGICA AQUI: Adicionei 'as any' para destravar removeItem e updateQuantity
-  // O TypeScript vai parar de reclamar que eles "não existem"
   const { items, removeItem, updateQuantity, cartSubtotal } = useCart() as any;
   const [editingItem, setEditingItem] = useState<CartItem | null>(null);
 
@@ -41,11 +39,10 @@ export default function CarrinhoPage() {
 
       <div className={styles.content}>
         <div className={styles.list}>
-          {/* MÁGICA 2: Tipamos o item como 'any' aqui também para destravar customizations e image */}
           {items.map((item: any) => (
             <div key={item.uuid} className={styles.card}>
               <div className={styles.cardHeader}>
-                {/* Imagem do Produto (Se tiver) */}
+                {/* Imagem do Produto */}
                 <div className={styles.imageWrapper}>
                   {item.product.image ? (
                     <Image 
@@ -63,7 +60,6 @@ export default function CarrinhoPage() {
                   <h3>{item.product.name}</h3>
                   <div className={styles.priceRow}>
                     <span className={styles.unitPrice}>
-                      {/* Preço unitário (base + extras) */}
                       {(item.totalPrice / item.quantity).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                     </span>
                   </div>
@@ -78,19 +74,36 @@ export default function CarrinhoPage() {
                 </button>
               </div>
 
-              {/* Detalhes (Sabores, Extras, Obs) */}
+              {/* 🎯 DETALHES CORRIGIDOS (Pizza 1, Pizza 2, etc) */}
               <div className={styles.details}>
-                {item.flavors && item.flavors.length > 0 && (
-                  <p className={styles.detailLine}>
-                    <strong>Sabores:</strong> {item.flavors.join(', ')}
-                  </p>
+                {/* 🔥 NOVA LÓGICA: Exibe grupos separadamente (Pizza 1, Pizza 2) */}
+                {item.selections && Object.keys(item.selections).length > 0 ? (
+                  Object.entries(item.selections).map(([groupId, options]: [string, any], index) => {
+                    // Busca o nome do grupo (ex: "Pizza 1", "Pizza 2")
+                    const group = item.product.complements?.find((g: any) => g.id === groupId);
+                    const groupLabel = group?.name || `Grupo ${index + 1}`;
+                    
+                    // Lista os sabores selecionados
+                    const selectedFlavors = options.map((opt: any) => opt.name).join(', ');
+                    
+                    return (
+                      <p key={groupId} className={styles.detailLine}>
+                        <strong>{groupLabel}:</strong> {selectedFlavors}
+                      </p>
+                    );
+                  })
+                ) : (
+                  // Fallback antigo (se não tiver selections)
+                  item.flavors && item.flavors.length > 0 && (
+                    <p className={styles.detailLine}>
+                      <strong>Sabores:</strong> {item.flavors.join(', ')}
+                    </p>
+                  )
                 )}
-                {/* Agora o TS aceita customizations sem erro */}
-                {item.customizations && item.customizations.length > 0 && (
-                  <p className={styles.detailLine}>
-                    <strong>Adicionais:</strong> {item.customizations.map((c: any) => c.name).join(', ')}
-                  </p>
-                )}
+
+                {/* 🔥 REMOVIDO: Adicionais (não existe mais) */}
+
+                {/* Observação */}
                 {item.observation && (
                   <p className={styles.detailLine}>
                     <strong>Obs:</strong> {item.observation}
@@ -134,7 +147,6 @@ export default function CarrinhoPage() {
       {/* MODAL DE EDIÇÃO */}
       {editingItem && (
         <ProductModal
-          // 'as any' para garantir que o produto passe mesmo sem 'desc' ou 'active'
           product={editingItem.product as any}
           initialData={editingItem}
           onClose={() => setEditingItem(null)}

@@ -8,7 +8,6 @@ export function useOrders(onlyActive = true) {
 
   const fetchMyOrders = useCallback(async () => {
     try {
-      // Query corrigida para a estrutura do seu banco
       let query = supabase
         .from('orders')
         .select(`
@@ -25,7 +24,7 @@ export function useOrders(onlyActive = true) {
         `)
         .order('created_at', { ascending: false });
 
-      // Lógica de filtro por ID (se existir no localStorage do cliente)
+      // Filtro por ID (se existir no localStorage do cliente)
       const storedIds = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('my_orders') || '[]') : [];
       if (storedIds.length > 0) {
          query = query.in('id', storedIds);
@@ -40,10 +39,10 @@ export function useOrders(onlyActive = true) {
 
       if (error) throw error;
 
-      // Mapeamento correto: Banco (snake_case) -> Front (camelCase)
+      // 🔥 MAPEAMENTO CORRIGIDO: Banco (snake_case) -> Front (camelCase)
       const formattedOrders: Order[] = (data || []).map((order: any) => ({
         id: order.id,
-        displayId: `#${order.id}`, // Exibe #123
+        displayId: `#${order.id}`,
         customerName: order.customer_name,
         customerPhone: order.customer_phone,
         customerAddress: order.customer_address,
@@ -51,15 +50,16 @@ export function useOrders(onlyActive = true) {
         status: order.status.toUpperCase(), 
         total: order.total,
         deliveryFee: order.delivery_fee || 0,
-        createdAt: order.created_at,
+        createdAt: new Date(order.created_at).toLocaleDateString('pt-BR'),
         updatedAt: order.updated_at,
         items: order.items.map((item: any) => ({
           id: item.id,
-          name: item.product_name, // Campo direto da tabela order_items
+          name: item.product_name,
           quantity: item.quantity,
-          unitPrice: item.unit_price, // Campo direto da tabela order_items
+          unitPrice: item.unit_price,
           totalPrice: item.total_price,
-          observation: item.observation,
+          // 🎯 OBSERVATION JÁ VEM FORMATADO DO BANCO
+          observation: item.observation || '',
           customizations: item.customizations
         }))
       }));
@@ -74,7 +74,6 @@ export function useOrders(onlyActive = true) {
 
   async function updateStatus(orderId: number | string, newStatus: OrderStatus) {
     try {
-      // Garante que o ID seja numérico para o banco (remove # se vier string)
       const idStr = String(orderId).replace('#', '');
       const id = parseInt(idStr, 10);
       
@@ -95,7 +94,6 @@ export function useOrders(onlyActive = true) {
   useEffect(() => {
     setLoading(true);
     fetchMyOrders();
-    // Pooling de 5 segundos para atualizar a lista
     const interval = setInterval(fetchMyOrders, 5000); 
     return () => clearInterval(interval);
   }, [fetchMyOrders]);
