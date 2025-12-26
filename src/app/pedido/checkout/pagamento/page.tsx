@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react'; // <--- Adicionei useEffect
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, CreditCard, Banknote, QrCode, X, Loader2 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
@@ -27,14 +27,12 @@ export default function PagamentoPage() {
 
   const total = cartSubtotal + deliveryFee;
 
-  // CORREÇÃO AQUI: Verificação movida para useEffect para evitar o erro de "Update while rendering"
   useEffect(() => {
     if (items.length === 0 && !isSubmitting) {
       router.replace('/pedido');
     }
   }, [items, router, isSubmitting]);
 
-  // Se não tiver itens, não renderiza nada (evita piscar a tela antes de redirecionar)
   if (items.length === 0) {
     return null;
   }
@@ -108,21 +106,43 @@ export default function PagamentoPage() {
         localStorage.setItem('my_orders', JSON.stringify(savedOrders));
       }
 
+      // 🔥 FORMATAÇÃO CORRIGIDA COM QUEBRA DE LINHA
       const orderItems = items.map((item: any) => {
         const detailsParts = [];
         
-        if (item.flavors && item.flavors.length > 0) {
+        // Formata grupos separadamente (Pizza 1, Pizza 2, etc)
+        if (item.selections && Object.keys(item.selections).length > 0) {
+          Object.entries(item.selections).forEach(([groupId, options]: [string, any]) => {
+            const group = item.product.complements?.find((g: any) => g.id === groupId);
+            const groupLabel = group?.name || 'Opções';
+            const selectedFlavors = options.map((opt: any) => opt.name).join(', ');
+            
+            detailsParts.push(`${groupLabel}: ${selectedFlavors}`);
+          });
+        } else if (item.flavors && item.flavors.length > 0) {
+          // Fallback antigo
           detailsParts.push(`Sabores: ${item.flavors.join(', ')}`);
         }
         
+        // Adicionais pagos
         if (item.customizations && item.customizations.length > 0) {
-             const extras = item.customizations.map((c: any) => c.name).join(', ');
-             detailsParts.push(`Adicionais: ${extras}`);
+          const paidExtras = item.customizations
+            .filter((c: any) => c.price > 0)
+            .map((c: any) => c.name)
+            .join(', ');
+          
+          if (paidExtras) {
+            detailsParts.push(`Adicionais: ${paidExtras}`);
+          }
         }
 
-        if (item.observation) detailsParts.push(`Obs: ${item.observation}`);
+        // Observação do cliente
+        if (item.observation) {
+          detailsParts.push(`Obs: ${item.observation}`);
+        }
         
-        const detailsString = detailsParts.join(' | ');
+        // 🔥 USA QUEBRA DE LINHA
+        const detailsString = detailsParts.join('\n');
 
         return {
           order_id: orderId,
@@ -139,17 +159,14 @@ export default function PagamentoPage() {
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
       if (itemsError) throw itemsError;
 
-      // Limpa e redireciona
       clearCart();
       router.push('/pedido/historico');
 
     } catch (error: any) {
       console.error('Erro ao processar pedido:', error);
       alert('Erro ao realizar pedido: ' + (error.message || 'Tente novamente.'));
-      setIsSubmitting(false); // Só libera o botão se der erro
-    } 
-    // OBS: Não colocamos setIsSubmitting(false) no finally em caso de sucesso
-    // para evitar que o usuário clique de novo enquanto redireciona.
+      setIsSubmitting(false);
+    }
   };
 
   return (

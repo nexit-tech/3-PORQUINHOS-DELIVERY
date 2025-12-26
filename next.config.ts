@@ -1,8 +1,7 @@
-import type { NextConfig } from "next";
-
-// Removi o ": NextConfig" explícito aqui para o TypeScript não travar no 'eslint'
 const nextConfig = {
+  output: 'export', // Gera a pasta "out" com HTML estático
   images: {
+    unoptimized: true, // Obrigatório: desliga a otimização de imagem do Next.js (que precisa de servidor)
     remotePatterns: [
       {
         protocol: 'https',

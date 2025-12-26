@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { Montserrat } from 'next/font/google';
 import Navbar from '@/components/layout/Navbar';
-import { AuthProvider } from '@/context/AuthContext'; // 🔥 NOVO
+import { AuthProvider } from '@/context/AuthContext';
+import Script from 'next/script';
 import './globals.css';
 
 const montserrat = Montserrat({ 
@@ -22,8 +23,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt-br">
+      <head>
+        {/* 🔥 CARREGA CONFIG ANTES DE TUDO */}
+        <script src="/runtime-config.js" />
+      </head>
       <body className={montserrat.className}>
-        <AuthProvider> {/* 🔥 ENVOLVE TUDO */}
+        <AuthProvider>
           <Navbar />
           {children}
         </AuthProvider>

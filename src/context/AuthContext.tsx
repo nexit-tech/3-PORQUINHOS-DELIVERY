@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { isElectron } from '@/lib/isElectron';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -20,6 +21,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Verifica autenticação ao carregar
   useEffect(() => {
+    // 🔥 SE ESTIVER NO ELECTRON, AUTENTICA AUTOMATICAMENTE
+    if (isElectron()) {
+      console.log('[Auth] Electron detectado - Login automático');
+      setIsAuthenticated(true);
+      setLoading(false);
+      return;
+    }
+
+    // Se for web, verifica token normal
     const token = localStorage.getItem('admin_token');
     if (token === 'authenticated') {
       setIsAuthenticated(true);
@@ -32,6 +42,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (loading) return;
 
     const isPublicRoute = pathname.startsWith('/pedido') || pathname === '/login';
+
+    // 🔥 NO ELECTRON, NUNCA REDIRECIONA PARA LOGIN
+    if (isElectron()) {
+      return;
+    }
 
     if (!isAuthenticated && !isPublicRoute) {
       router.push('/login');
@@ -63,6 +78,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    // 🔥 NO ELECTRON, NÃO FAZ NADA (não pode sair)
+    if (isElectron()) {
+      console.log('[Auth] Logout desabilitado no Electron');
+      return;
+    }
+
     localStorage.removeItem('admin_token');
     setIsAuthenticated(false);
     router.push('/login');

@@ -9,12 +9,13 @@ import {
   LogOut, 
   DollarSign 
 } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext'; // 🔥 NOVO
+import { useAuth } from '@/context/AuthContext';
+import { isElectron } from '@/lib/isElectron'; // 🔥 NOVO
 import styles from './styles.module.css';
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { logout } = useAuth(); // 🔥 NOVO
+  const { logout } = useAuth();
 
   // Se estiver na área do cliente, esconde navbar
   if (pathname.startsWith('/pedido')) {
@@ -27,6 +28,9 @@ export default function Navbar() {
     }
     return pathname.startsWith(path);
   };
+
+  // 🔥 VERIFICA SE ESTÁ NO ELECTRON
+  const inElectron = isElectron();
 
   return (
     <nav className={styles.navbar}>
@@ -68,11 +72,13 @@ export default function Navbar() {
         </Link>
       </div>
 
-      {/* 🔥 BOTÃO DE SAIR AGORA FUNCIONAL */}
-      <button className={styles.logoutBtn} onClick={logout}>
-        <LogOut size={20} />
-        <span>Sair</span>
-      </button>
+      {/* 🔥 SÓ MOSTRA BOTÃO "SAIR" SE NÃO FOR ELECTRON */}
+      {!inElectron && (
+        <button className={styles.logoutBtn} onClick={logout}>
+          <LogOut size={20} />
+          <span>Sair</span>
+        </button>
+      )}
     </nav>
   );
 }
