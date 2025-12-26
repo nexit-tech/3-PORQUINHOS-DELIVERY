@@ -1,7 +1,7 @@
 const nextConfig = {
   output: 'export', // Gera a pasta "out" com HTML estático
   images: {
-    unoptimized: true, // Obrigatório: desliga a otimização de imagem do Next.js (que precisa de servidor)
+    unoptimized: true, // Obrigatório: desliga a otimização de imagem do Next.js
     remotePatterns: [
       {
         protocol: 'https',
@@ -13,11 +13,9 @@ const nextConfig = {
       },
     ],
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // ❌ REMOVIDO: eslint (não é mais suportado aqui)
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: true, // Mantido para acelerar o build
   },
 };
 

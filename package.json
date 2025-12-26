@@ -1,66 +1,69 @@
 {
   "name": "anota-delivery",
   "version": "0.1.0",
-  "main": "main.js",
   "private": true,
+  "main": "main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "app": "concurrently \"next dev\" \"wait-on http://localhost:3000 && electron .\"",
-    "prebuild:app": "npm run build",
-    "build:app": "electron-builder",
-    "postbuild": "cp .env out/.env || copy .env out\\.env"
+    "lint": "next lint",
+    "electron-dev": "electron .",
+    "electron-build": "npm run build && electron-builder",
+    "dist": "npm run build && electron-builder"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.89.0",
-    "dotenv": "^17.2.3",
-    "express": "^4.22.1",
-    "jspdf": "^3.0.4",
-    "jspdf-autotable": "^5.0.2",
-    "lucide-react": "^0.562.0",
+    "@supabase/supabase-js": "^2.45.0",
+    "axios": "^1.7.9",
+    "framer-motion": "^11.15.0",
+    "lucide-react": "^0.469.0",
     "next": "16.1.0",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
-    "react-hot-toast": "^2.6.0",
-    "recharts": "^3.6.0"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-hot-toast": "^2.4.1",
+    "recharts": "^2.15.0"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "babel-plugin-react-compiler": "1.0.0",
-    "concurrently": "^8.2.2",
-    "electron": "^28.0.0",
-    "electron-builder": "^24.0.0",
+    "dotenv": "^16.4.7",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
     "eslint": "^9",
     "eslint-config-next": "16.1.0",
-    "typescript": "^5",
-    "wait-on": "^7.2.0"
+    "express": "^4.21.2",
+    "typescript": "^5"
   },
   "build": {
-      "appId": "com.3porquinhos.delivery",
-      "productName": "3 Porquinhos Delivery",
-      "directories": {
-        "output": "dist"
+    "appId": "com.3porquinhos.delivery",
+    "productName": "3 Porquinhos Delivery",
+    "directories": {
+      "output": "dist"
     },
     "files": [
       "main.js",
       "server.js",
       "out/**/*",
-      "public/**/*",
-      "node_modules/express/**/*",
-      "node_modules/dotenv/**/*"
+      ".env"
     ],
     "extraResources": [
       {
         "from": ".env",
-        "to": ".env"
+        "to": ".env",
+        "filter": ["**/*"]
       }
     ],
     "win": {
       "target": "nsis",
+      "icon": "public/favicon.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "public/favicon.ico"
+    },
+    "linux": {
+      "target": "AppImage",
       "icon": "public/favicon.ico"
     }
   }
