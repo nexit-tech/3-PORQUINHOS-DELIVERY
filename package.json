@@ -1,6 +1,8 @@
 {
   "name": "anota-delivery",
   "version": "0.1.0",
+  "description": "Sistema de Gestão de Delivery - 3 Porquinhos",
+  "author": "3 Porquinhos <contato@3porquinhos.com.br>",
   "private": true,
   "main": "main.js",
   "scripts": {
@@ -13,6 +15,8 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
     "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
     "lucide-react": "^0.469.0",
     "next": "^15.1.11",
     "react": "^18.3.1",
@@ -25,10 +29,8 @@
     "@types/node": "^20.17.10",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
-    "dotenv": "^16.4.7",
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
-    "express": "^4.21.2",
     "typescript": "^5.7.2"
   },
   "build": {
@@ -40,10 +42,33 @@
     "files": [
       "main.js",
       "server.js",
-      "out/**/*"
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".env",
+        "to": ".env"
+      }
     ],
     "win": {
-      "target": "nsis"
-    }
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "asar": true,
+    "asarUnpack": [
+      "**/*.node",
+      "out/**/*"
+    ]
   }
 }
