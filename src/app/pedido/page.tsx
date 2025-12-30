@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Search, ShoppingBag } from 'lucide-react';
 import styles from './page.module.css';
 import ProductModal from '@/components/client/ProductModal';
-import ClosedStoreModal from '@/components/client/ClosedStoreModal';
+import StoreClosedAlert from '@/components/client/StoreClosedAlert';
 import { useProducts } from '@/hooks/useProducts';
 import { useStoreStatus } from '@/hooks/useStoreStatus';
 import { Product } from '@/types/product';
@@ -18,13 +18,13 @@ export default function PedidoHome() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('all');
+  const [showClosedAlert, setShowClosedAlert] = useState(false);
 
-  // 🔥 FILTRA PRODUTOS: Remove inativos E verifica se loja está aberta
+  // 🔥 FILTRA PRODUTOS: Remove inativos
   const filteredProducts = useMemo(() => {
     if (!products) return [];
     
     return products.filter(prod => {
-      // 🔥 NOVA REGRA: Só mostra produtos ativos
       if (!prod.active) return false;
       
       const matchesSearch = prod.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -34,10 +34,15 @@ export default function PedidoHome() {
     });
   }, [products, searchTerm, selectedCategoryId]);
 
-  // 🔥 MOSTRA MODAL DE LOJA FECHADA
-  if (!storeLoading && !isOpen) {
-    return <ClosedStoreModal currentDay={currentDay} />;
-  }
+  // 🔥 FUNÇÃO QUE VERIFICA ANTES DE ABRIR O MODAL
+  const handleProductClick = (product: Product) => {
+    if (!isOpen) {
+      setShowClosedAlert(true);
+      return;
+    }
+    
+    setSelectedProduct(product);
+  };
 
   return (
     <main className={styles.container}>
@@ -101,7 +106,7 @@ export default function PedidoHome() {
               <div 
                 key={prod.id} 
                 className={styles.productCard} 
-                onClick={() => setSelectedProduct(prod)}
+                onClick={() => handleProductClick(prod)}
               >
                 <div className={styles.prodInfo}>
                   <h3>{prod.name}</h3>
@@ -134,12 +139,17 @@ export default function PedidoHome() {
         )}
       </section>
 
-      {/* MODAL DE PRODUTO */}
-      {selectedProduct && (
+      {/* 🔥 MODAL SÓ ABRE SE A LOJA ESTIVER ABERTA */}
+      {selectedProduct && isOpen && (
         <ProductModal 
           product={selectedProduct} 
           onClose={() => setSelectedProduct(null)} 
         />
+      )}
+
+      {/* 🔥 ALERTA DE LOJA FECHADA */}
+      {showClosedAlert && (
+        <StoreClosedAlert onClose={() => setShowClosedAlert(false)} />
       )}
     </main>
   );
