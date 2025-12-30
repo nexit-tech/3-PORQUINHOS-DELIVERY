@@ -1,9 +1,10 @@
+// src/types/product.ts
 export interface ComplementOption {
   id: string;
   name: string;
   price: number;
   max_quantity?: number;
-  active?: boolean;
+  active?: boolean; // 🔥 ADICIONADO
 }
 
 export interface ComplementGroup {
@@ -14,10 +15,10 @@ export interface ComplementGroup {
   options: ComplementOption[];
 }
 
-// --- ADICIONE ISSO AQUI ---
 export interface Category {
   id: string;
   name: string;
+  order?: number; // 🔥 ADICIONADO
 }
 
 export interface Product {
@@ -26,10 +27,10 @@ export interface Product {
   description: string;
   price: number;
   image?: string;
-  image_url?: string; // Compatibilidade com banco
+  image_url?: string;
   active: boolean;
+  order?: number; // 🔥 ADICIONADO
   
-  // Adicione estes campos para parar o erro de "Property does not exist"
   categoryId?: string; 
   category_id?: string;
 

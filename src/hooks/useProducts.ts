@@ -1,3 +1,4 @@
+// src/hooks/useProducts.ts (COM ORDENAÇÃO)
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/services/supabase';
 import { Product, Category, ComplementGroup } from '@/types/product'; 
@@ -8,17 +9,23 @@ export function useProducts() {
   const [activeCategory, setActiveCategory] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Ref para controlar se o componente está montado
   const isMounted = useRef(true);
 
-  // --- BUSCA DE DADOS (COM LIMPEZA DE DUPLICATAS) ---
   const fetchData = useCallback(async (isBackgroundUpdate = false) => {
     try {
       if (!isBackgroundUpdate) setIsLoading(true);
 
       const [categoriesResponse, productsResponse] = await Promise.all([
-        supabase.from('categories').select('*').order('created_at', { ascending: true }),
-        supabase.from('products').select(`
+        // 🔥 ORDENA POR 'order' AGORA (ASCENDENTE = menor primeiro)
+        supabase
+          .from('categories')
+          .select('*')
+          .order('order', { ascending: true })
+          .order('created_at', { ascending: true }), // Fallback se order for igual
+        
+        supabase
+          .from('products')
+          .select(`
             *,
             product_complements (
               complement_groups (
@@ -26,10 +33,12 @@ export function useProducts() {
                 name,
                 min_selection,
                 max_selection,
-                complement_options ( id, name, price )
+                complement_options ( id, name, price, is_active )
               )
             )
-          `).order('created_at', { ascending: false })
+          `)
+          .order('order', { ascending: true }) // 🔥 ORDENA PRODUTOS TAMBÉM
+          .order('created_at', { ascending: true }) // Fallback
       ]);
 
       if (categoriesResponse.error) throw categoriesResponse.error;
@@ -39,22 +48,23 @@ export function useProducts() {
 
       setCategories((categoriesResponse.data as Category[]) || []);
 
-      // MAPPER + SANITIZAÇÃO (REMOVE DUPLICATAS NA LEITURA)
       const formattedProducts: Product[] = (productsResponse.data || []).map((p: any) => {
-        
-        // Lógica para limpar duplicatas que vieram do banco sujo
         const uniqueGroupsMap = new Map();
         if (p.product_complements) {
           p.product_complements.forEach((pc: any) => {
             const group = pc.complement_groups;
-            // Se o grupo existe e ainda não foi processado, adiciona
             if (group && !uniqueGroupsMap.has(group.id)) {
               uniqueGroupsMap.set(group.id, {
                 id: group.id,
                 name: group.name,
                 min: group.min_selection,
                 max: group.max_selection,
-                options: group.complement_options || []
+                options: (group.complement_options || []).map((opt: any) => ({
+                  id: opt.id,
+                  name: opt.name,
+                  price: opt.price,
+                  active: opt.is_active !== false
+                }))
               });
             }
           });
@@ -66,9 +76,10 @@ export function useProducts() {
           description: p.description,
           price: p.price,
           image: p.image_url || p.image,
-          active: p.active,
+          active: p.active !== false,
           categoryId: p.category_id, 
           category_id: p.category_id,
+          order: p.order || 0, // 🔥 INCLUI ORDER
           complements: Array.from(uniqueGroupsMap.values()) as ComplementGroup[]
         };
       });
@@ -82,13 +93,11 @@ export function useProducts() {
     }
   }, []);
 
-  // --- EFEITO: LOAD + POLLING ---
   useEffect(() => {
     isMounted.current = true;
     fetchData(false);
 
     const intervalId = setInterval(() => {
-      // Polling silencioso
       fetchData(true); 
     }, 15000); 
 
@@ -98,11 +107,86 @@ export function useProducts() {
     };
   }, [fetchData]);
 
-  // --- ACTIONS ---
+  // 🔥 REORDENAR CATEGORIAS (CORRIGIDO)
+  async function reorderCategories(newOrder: Category[]) {
+    try {
+      console.log('📋 Reordenando categorias...', newOrder);
+      
+      // 🔥 ENVIA APENAS id E order (nada mais!)
+      const updates = newOrder.map((cat, index) => ({
+        id: cat.id,
+        order: index
+      }));
+
+      console.log('📤 Payload:', updates);
+
+      // 🔥 USA UPDATE EM VEZ DE UPSERT (mais seguro)
+      for (const update of updates) {
+        const { error } = await supabase
+          .from('categories')
+          .update({ order: update.order })
+          .eq('id', update.id);
+
+        if (error) {
+          console.error('❌ Erro ao atualizar categoria:', update.id, error);
+          throw error;
+        }
+      }
+
+      // Atualiza o estado local
+      setCategories(newOrder);
+      console.log('✅ Categorias reordenadas com sucesso!');
+    } catch (error) {
+      console.error('❌ Erro ao reordenar categorias:', error);
+      alert('Erro ao reordenar categorias. Veja o console para detalhes.');
+    }
+  }
+
+  // 🔥 REORDENAR PRODUTOS (CORRIGIDO)
+  async function reorderProducts(newOrder: Product[]) {
+    try {
+      console.log('📋 Reordenando produtos...', newOrder);
+      
+      // 🔥 ENVIA APENAS id E order (nada mais!)
+      const updates = newOrder.map((prod, index) => ({
+        id: prod.id,
+        order: index
+      }));
+
+      console.log('📤 Payload:', updates);
+
+      // 🔥 USA UPDATE EM VEZ DE UPSERT (mais seguro)
+      for (const update of updates) {
+        const { error } = await supabase
+          .from('products')
+          .update({ order: update.order })
+          .eq('id', update.id);
+
+        if (error) {
+          console.error('❌ Erro ao atualizar produto:', update.id, error);
+          throw error;
+        }
+      }
+
+      // Atualiza o estado local
+      setProducts(newOrder);
+      console.log('✅ Produtos reordenados com sucesso!');
+      
+      // Recarrega para garantir sincronia
+      setTimeout(() => fetchData(true), 500);
+    } catch (error) {
+      console.error('❌ Erro ao reordenar produtos:', error);
+      alert('Erro ao reordenar produtos. Veja o console para detalhes.');
+    }
+  }
 
   async function addCategory(name: string) {
     try {
-      await supabase.from('categories').insert({ name });
+      const maxOrder = categories.length > 0 
+        ? Math.max(...categories.map(c => (c as any).order || 0)) 
+        : 0;
+      
+      await supabase.from('categories').insert({ name, order: maxOrder + 1 });
       fetchData(true);
     } catch (error) { console.error(error); }
   }
@@ -116,7 +200,36 @@ export function useProducts() {
     } catch (error) { console.error(error); }
   }
 
-  // --- SALVAMENTO BLINDADO ---
+  async function toggleProductActive(id: string, currentStatus: boolean) {
+    try {
+      console.log('🔄 Toggle iniciado:', { id, currentStatus });
+      const newStatus = !currentStatus;
+      
+      const { error } = await supabase
+        .from('products')
+        .update({ active: newStatus })
+        .eq('id', id);
+
+      if (error) {
+        console.error('❌ Erro no Supabase:', error);
+        throw error;
+      }
+
+      console.log('✅ Supabase atualizado com sucesso');
+
+      setProducts(prev => prev.map(p => 
+        p.id === id ? { ...p, active: newStatus } : p
+      ));
+
+      console.log(`✅ Produto ${newStatus ? 'ativado' : 'pausado'}`);
+      
+      setTimeout(() => fetchData(true), 500);
+    } catch (error) {
+      console.error('❌ Erro ao toggle active:', error);
+      alert('Erro ao atualizar status do produto');
+    }
+  }
+
   async function saveProduct(product: Partial<Product>) {
     try {
       const catId = product.category_id || product.categoryId;
@@ -126,42 +239,41 @@ export function useProducts() {
         price: product.price,
         image_url: product.image,
         category_id: catId,
-        active: product.active !== undefined ? product.active : true
+        active: product.active !== undefined ? product.active : true,
+        order: product.order || 0
       };
 
       let productId = product.id;
 
-      // 1. Salva ou Cria Produto Base
       if (productId) {
         const { error } = await supabase.from('products').update(productPayload).eq('id', productId);
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.from('products').insert(productPayload).select().single();
+        const maxOrder = products.length > 0 
+          ? Math.max(...products.map(p => (p as any).order || 0)) 
+          : 0;
+        
+        const { data, error } = await supabase.from('products').insert({
+          ...productPayload,
+          order: maxOrder + 1
+        }).select().single();
+        
         if (error) throw error;
         productId = data?.id;
       }
 
-      // 2. Processa Complementos (Se houver ID de produto)
       if (productId && product.complements) {
-        
-        // PASSO A: Limpa vínculos antigos (Reset Total)
-        // Isso impede a "multiplicação". Removemos tudo antes de por o novo.
         const { error: deleteError } = await supabase
           .from('product_complements')
           .delete()
           .eq('product_id', productId);
           
-        if (deleteError) {
-          console.error("Erro ao limpar vínculos antigos:", deleteError);
-          throw deleteError;
-        }
+        if (deleteError) throw deleteError;
 
-        // PASSO B: Deduplica a lista que veio do frontend
         const uniquePayloadGroups = new Map();
-        product.complements.forEach(g => uniquePayloadGroups.set(g.id, g)); // ID é a chave única
+        product.complements.forEach(g => uniquePayloadGroups.set(g.id, g));
         const cleanGroups = Array.from(uniquePayloadGroups.values());
 
-        // PASSO C: Insere um por um
         for (const group of cleanGroups) {
           let groupId = group.id;
 
@@ -171,37 +283,31 @@ export function useProducts() {
             max_selection: group.max
           };
 
-          // C.1 - Cria ou Atualiza o Grupo na tabela Mestra
           if (groupId.toString().startsWith('new_') || groupId.toString().startsWith('imported_')) {
-            // Cria Novo
             const { data: newGroup } = await supabase.from('complement_groups')
               .insert(groupPayload)
               .select()
               .single();
             if (newGroup) groupId = newGroup.id;
           } else {
-             // Atualiza Existente
              await supabase.from('complement_groups')
                .update(groupPayload)
                .eq('id', groupId);
           }
 
-          // C.2 - Cria o Vínculo (Agora seguro pois limpamos no Passo A)
           await supabase.from('product_complements').insert({
             product_id: productId,
             group_id: groupId
           });
 
-          // C.3 - Atualiza Opções (Delete All + Insert)
           await supabase.from('complement_options').delete().eq('group_id', groupId);
           
-          // CORREÇÃO AQUI: Adicionado ': any' para o TypeScript não reclamar
           const opts = group.options.map((o: any) => ({
             group_id: groupId,
             name: o.name,
             price: o.price,
             max_quantity: 1,
-            is_active: true
+            is_active: o.active !== false
           }));
 
           if (opts.length > 0) {
@@ -210,7 +316,7 @@ export function useProducts() {
         }
       }
 
-      fetchData(true); // Atualiza UI
+      fetchData(true);
       return { success: true };
     } catch (error) {
       console.error('Erro crítico ao salvar:', error);
@@ -228,7 +334,18 @@ export function useProducts() {
   }
 
   return {
-    products, categories, activeCategory, setActiveCategory,
-    saveProduct, deleteProduct, addCategory, deleteCategory, isLoading, fetchData
+    products, 
+    categories, 
+    activeCategory, 
+    setActiveCategory,
+    saveProduct, 
+    deleteProduct, 
+    addCategory, 
+    deleteCategory,
+    toggleProductActive,
+    reorderCategories, // 🔥 NOVA FUNÇÃO
+    reorderProducts,   // 🔥 NOVA FUNÇÃO
+    isLoading, 
+    fetchData
   };
 }

@@ -1,4 +1,5 @@
-import { Plus, Trash2 } from 'lucide-react'; // Importe o Trash2
+// src/components/admin/CategorySidebar/index.tsx
+import { Plus, Trash2, ArrowUpDown } from 'lucide-react';
 import styles from './styles.module.css';
 
 interface CategorySidebarProps {
@@ -6,7 +7,8 @@ interface CategorySidebarProps {
   activeId: string;
   onSelect: (id: string) => void;
   onNewCategory: () => void;
-  onDeleteCategory?: (id: string) => void; // Nova Prop Opcional
+  onDeleteCategory?: (id: string) => void;
+  onReorder?: () => void;
 }
 
 export default function CategorySidebar({ 
@@ -14,16 +16,25 @@ export default function CategorySidebar({
   activeId, 
   onSelect, 
   onNewCategory,
-  onDeleteCategory 
+  onDeleteCategory,
+  onReorder
 }: CategorySidebarProps) {
   
   return (
     <aside className={styles.sidebar}>
       <div className={styles.header}>
         <h3>Categorias</h3>
-        <button onClick={onNewCategory} className={styles.addBtn} title="Nova Categoria">
-          <Plus size={18} />
-        </button>
+        <div className={styles.headerActions}>
+          {/* 🔥 BOTÃO DE ORDENAR */}
+          {onReorder && categories.length > 1 && (
+            <button onClick={onReorder} className={styles.reorderBtn} title="Reordenar Categorias">
+              <ArrowUpDown size={16} />
+            </button>
+          )}
+          <button onClick={onNewCategory} className={styles.addBtn} title="Nova Categoria">
+            <Plus size={18} />
+          </button>
+        </div>
       </div>
 
       <nav className={styles.nav}>
@@ -51,7 +62,7 @@ export default function CategorySidebar({
               <button 
                 className={styles.deleteCatBtn}
                 onClick={(e) => {
-                  e.stopPropagation(); // Evita selecionar a categoria ao clicar em excluir
+                  e.stopPropagation();
                   onDeleteCategory(cat.id);
                 }}
                 title="Excluir Categoria"

@@ -1,10 +1,12 @@
+/* src/components/admin/CategorySidebar/styles.module.css */
+
 .sidebar {
   width: 280px;
   background-color: white;
   border-right: 1px solid #eee;
   display: flex;
   flex-direction: column;
-  height: 100%; /* Garante altura total */
+  height: 100%;
   flex-shrink: 0;
 }
 
@@ -21,6 +23,31 @@
   font-weight: 700;
   color: #111;
   margin: 0;
+}
+
+.headerActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.reorderBtn {
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #8b5cf6;
+  transition: all 0.2s;
+}
+
+.reorderBtn:hover {
+  background-color: #f5f3ff;
+  border-color: #8b5cf6;
 }
 
 .addBtn {
@@ -85,7 +112,7 @@
   justify-content: space-between;
   border-radius: 8px;
   transition: background 0.2s;
-  padding-right: 8px; /* Espaço para o botão de delete */
+  padding-right: 8px;
 }
 
 .navItemWrapper:hover {
@@ -93,7 +120,7 @@
 }
 
 .activeWrapper {
-  background-color: #fff1f2; /* Fundo rosinha claro quando ativo */
+  background-color: #fff1f2;
 }
 
 /* O botão com o nome da categoria */
@@ -122,7 +149,7 @@
   padding: 6px;
   border-radius: 6px;
   cursor: pointer;
-  opacity: 0; /* Invisível por padrão */
+  opacity: 0;
   transition: all 0.2s;
   display: flex;
   align-items: center;

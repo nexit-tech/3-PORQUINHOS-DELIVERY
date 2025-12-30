@@ -1,3 +1,4 @@
+// src/components/admin/ProductModal/index.tsx (VERSÃO COMPLETA)
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
@@ -28,7 +29,6 @@ export default function ProductModal({ product, existingProducts = [], categorie
   const [imagePreview, setImagePreview] = useState<string | null>(product?.image || null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Inicializa grupos garantindo ID único para evitar conflitos de renderização
   const [groups, setGroups] = useState<ComplementGroup[]>(() => {
     return product?.complements ? JSON.parse(JSON.stringify(product.complements)) : [];
   });
@@ -69,9 +69,7 @@ export default function ProductModal({ product, existingProducts = [], categorie
     }
   };
 
-  // --- Lógica de Grupos ---
   const addGroup = () => {
-    // Cria um ID temporário único
     setGroups([...groups, { id: `new_${Date.now()}`, name: '', min: 0, max: 1, options: [] }]);
   };
 
@@ -80,7 +78,6 @@ export default function ProductModal({ product, existingProducts = [], categorie
   };
 
   const importGroup = (group: ComplementGroup) => {
-    // Ao importar, gera um novo ID para ser tratado como novo vínculo
     const newGroup = { 
       ...group, 
       id: `imported_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
@@ -98,7 +95,7 @@ export default function ProductModal({ product, existingProducts = [], categorie
   const addOptionToGroup = (groupId: string) => {
     setGroups(groups.map(g => g.id !== groupId ? g : { 
       ...g, 
-      options: [...g.options, { id: `new_opt_${Date.now()}`, name: '', price: 0 }] 
+      options: [...g.options, { id: `new_opt_${Date.now()}`, name: '', price: 0, active: true }] 
     }));
   };
 
@@ -109,13 +106,22 @@ export default function ProductModal({ product, existingProducts = [], categorie
     }));
   };
 
+  // 🔥 NOVA FUNÇÃO: Toggle active da opção
+  const toggleOptionActive = (groupId: string, optId: string) => {
+    setGroups(groups.map(g => g.id !== groupId ? g : {
+      ...g,
+      options: g.options.map(opt => 
+        opt.id === optId ? { ...opt, active: !opt.active } : opt
+      )
+    }));
+  };
+
   const removeOption = (groupId: string, optId: string) => {
     setGroups(groups.map(g => g.id !== groupId ? g : {
       ...g,
       options: g.options.filter(o => o.id !== optId)
     }));
   };
-  // ------------------------
 
   const handleSave = () => {
     if (!name.trim()) return alert('Nome obrigatório');
@@ -130,7 +136,7 @@ export default function ProductModal({ product, existingProducts = [], categorie
       price: rawPrice,
       image: imagePreview || undefined,
       categoryId: selectedCategory,
-      complements: groups // Envia a lista exata que está na tela (sem os excluídos)
+      complements: groups
     });
     onClose();
   };
@@ -195,9 +201,13 @@ export default function ProductModal({ product, existingProducts = [], categorie
                 <div key={group.id} className={styles.groupCard}>
                   <div className={styles.groupHeader}>
                     <GripVertical size={16} className={styles.dragHandle}/>
-                    <input className={styles.groupNameInput} placeholder="Nome do Grupo (Ex: Escolha o Molho)" value={group.name} onChange={e => updateGroup(group.id, 'name', e.target.value)} />
+                    <input 
+                      className={styles.groupNameInput} 
+                      placeholder="Nome do Grupo (Ex: Escolha o Molho)" 
+                      value={group.name} 
+                      onChange={e => updateGroup(group.id, 'name', e.target.value)} 
+                    />
                     
-                    {/* BOTÃO DE EXCLUIR GRUPO (O X QUE VOCÊ FALOU) */}
                     <button 
                       onClick={() => removeGroup(group.id)} 
                       className={`${styles.actionBtn} ${styles.deleteBtn}`}
@@ -208,19 +218,59 @@ export default function ProductModal({ product, existingProducts = [], categorie
                   </div>
                   
                   <div className={styles.rulesRow}>
-                    <div className={styles.ruleInput}><label>Min</label><input type="number" value={group.min} onChange={e => updateGroup(group.id, 'min', Number(e.target.value))} /></div>
-                    <div className={styles.ruleInput}><label>Max</label><input type="number" value={group.max} onChange={e => updateGroup(group.id, 'max', Number(e.target.value))} /></div>
+                    <div className={styles.ruleInput}>
+                      <label>Min</label>
+                      <input type="number" value={group.min} onChange={e => updateGroup(group.id, 'min', Number(e.target.value))} />
+                    </div>
+                    <div className={styles.ruleInput}>
+                      <label>Max</label>
+                      <input type="number" value={group.max} onChange={e => updateGroup(group.id, 'max', Number(e.target.value))} />
+                    </div>
                   </div>
                   
                   <div className={styles.optionsList}>
                     {group.options.map(opt => (
                       <div key={opt.id} className={styles.optionRow}>
-                        <input className={styles.optionNameInput} value={opt.name} onChange={e => updateOption(group.id, opt.id, 'name', e.target.value)} placeholder="Opção" />
-                        <input className={styles.priceInput} value={opt.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} onChange={e => { const r = Number(e.target.value.replace(/\D/g, ''))/100; updateOption(group.id, opt.id, 'price', r); }} />
-                        <button onClick={() => removeOption(group.id, opt.id)} className={styles.removeOptionBtn}><X size={14}/></button>
+                        {/* 🔥 TOGGLE DE ATIVO/INATIVO */}
+                        <button
+                          type="button"
+                          className={`${styles.optionToggle} ${(opt as any).active !== false ? styles.optionActive : styles.optionInactive}`}
+                          onClick={() => toggleOptionActive(group.id, opt.id)}
+                          title={(opt as any).active !== false ? "Desativar opção" : "Ativar opção"}
+                        >
+                          {(opt as any).active !== false ? '✓' : '×'}
+                        </button>
+
+                        <input 
+                          className={`${styles.optionNameInput} ${(opt as any).active === false ? styles.disabled : ''}`} 
+                          value={opt.name} 
+                          onChange={e => updateOption(group.id, opt.id, 'name', e.target.value)} 
+                          placeholder="Opção"
+                          disabled={(opt as any).active === false}
+                        />
+                        
+                        <input 
+                          className={`${styles.priceInput} ${(opt as any).active === false ? styles.disabled : ''}`} 
+                          value={opt.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })} 
+                          onChange={e => { 
+                            const r = Number(e.target.value.replace(/\D/g, ''))/100; 
+                            updateOption(group.id, opt.id, 'price', r); 
+                          }}
+                          disabled={(opt as any).active === false}
+                        />
+                        
+                        <button 
+                          type="button"
+                          onClick={() => removeOption(group.id, opt.id)} 
+                          className={styles.removeOptionBtn}
+                        >
+                          <X size={14}/>
+                        </button>
                       </div>
                     ))}
-                    <button onClick={() => addOptionToGroup(group.id)} className={styles.addOptionBtn}>+ Opção</button>
+                    <button type="button" onClick={() => addOptionToGroup(group.id)} className={styles.addOptionBtn}>
+                      + Opção
+                    </button>
                   </div>
                 </div>
               ))}
@@ -229,17 +279,29 @@ export default function ProductModal({ product, existingProducts = [], categorie
                 <button onClick={addGroup} className={styles.addGroupBtn}><Plus size={20} /> Novo Grupo</button>
                 
                 <div className={styles.importWrapper}>
-                  <button onClick={() => setShowImportMenu(!showImportMenu)} className={styles.importBtn}><Download size={20} /> Importar</button>
+                  <button onClick={() => setShowImportMenu(!showImportMenu)} className={styles.importBtn}>
+                    <Download size={20} /> Importar
+                  </button>
                   {showImportMenu && (
                     <div className={styles.importMenu}>
                       {!selectedProductToImport ? 
-                        existingProducts.filter(p => p.id !== product?.id && p.complements?.length).map(p => <li key={p.id} onClick={() => setSelectedProductToImport(p)}>{p.name} <ChevronRight size={14}/></li>) :
+                        existingProducts.filter(p => p.id !== product?.id && p.complements?.length).map(p => 
+                          <li key={p.id} onClick={() => setSelectedProductToImport(p)}>
+                            {p.name} <ChevronRight size={14}/>
+                          </li>
+                        ) :
                         <div>
                           <button onClick={() => setSelectedProductToImport(null)} className={styles.backBtn}>Voltar</button>
-                          {selectedProductToImport.complements.map(g => <li key={g.id} onClick={() => importGroup(g)}>{g.name} <Copy size={14}/></li>)}
+                          {selectedProductToImport.complements.map(g => 
+                            <li key={g.id} onClick={() => importGroup(g)}>
+                              {g.name} <Copy size={14}/>
+                            </li>
+                          )}
                         </div>
                       }
-                      {existingProducts.filter(p => p.complements?.length).length === 0 && <li style={{color: '#999'}}>Sem grupos para importar</li>}
+                      {existingProducts.filter(p => p.complements?.length).length === 0 && 
+                        <li style={{color: '#999'}}>Sem grupos para importar</li>
+                      }
                     </div>
                   )}
                 </div>
@@ -247,6 +309,7 @@ export default function ProductModal({ product, existingProducts = [], categorie
             </div>
           )}
         </div>
+        
         <footer className={styles.footer}>
           <button onClick={onClose} className={styles.cancelBtn}>Cancelar</button>
           <button onClick={handleSave} className={styles.saveBtn}>Salvar</button>

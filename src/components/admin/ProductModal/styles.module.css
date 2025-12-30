@@ -170,3 +170,133 @@
   background-size: 16px;
 }
 .selectInput:focus { border-color: var(--primary-color); outline: none; }
+
+.optionToggle {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 800;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.optionActive {
+  background: #dcfce7;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.optionActive:hover {
+  background: #bbf7d0;
+  transform: scale(1.05);
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.2);
+}
+
+.optionInactive {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.optionInactive:hover {
+  background: #fecaca;
+  transform: scale(1.05);
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.2);
+}
+
+/* Estado desabilitado dos inputs */
+.disabled {
+  opacity: 0.5;
+  background: #f9fafb !important;
+  cursor: not-allowed;
+  color: #9ca3af !important;
+}
+
+.optionRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.optionNameInput {
+  flex: 1;
+  background: var(--background) !important;
+  border: 1px solid var(--border-color) !important;
+  padding: 8px !important;
+  border-radius: 6px !important;
+  color: var(--text-main);
+  font-family: inherit;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+
+.optionNameInput:focus {
+  border-color: var(--primary-color) !important;
+  outline: none;
+}
+
+.priceInput {
+  width: 120px !important;
+  text-align: right;
+  color: #10b981 !important;
+  font-weight: 600;
+  background: var(--background) !important;
+  border: 1px solid var(--border-color) !important;
+  padding: 8px !important;
+  border-radius: 6px !important;
+  transition: border-color 0.2s;
+}
+
+.priceInput:focus {
+  border-color: var(--primary-color) !important;
+  outline: none;
+}
+
+.removeOptionBtn {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #ef4444;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.removeOptionBtn:hover {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+  transform: scale(1.05);
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+}
+
+.addOptionBtn {
+  background: transparent;
+  color: var(--primary-color);
+  border: 1px dashed var(--primary-color);
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  width: 100%;
+  margin-top: 8px;
+  transition: all 0.2s;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.addOptionBtn:hover {
+  background: rgba(249, 115, 22, 0.05);
+  border-style: solid;
+}

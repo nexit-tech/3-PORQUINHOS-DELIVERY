@@ -27,12 +27,5 @@ export function getEnv(key: string): string {
     }
   }
   
-  // ❌ Fallback vazio
-  console.error(`[ENV] ❌ Variável "${key}" NÃO ENCONTRADA em nenhum lugar!`);
-  console.error('[ENV] Verifique:');
-  console.error('  1. Se o arquivo .env existe na raiz do projeto');
-  console.error('  2. Se as variáveis começam com NEXT_PUBLIC_');
-  console.error('  3. Se você reiniciou o servidor após adicionar o .env');
-  
   return '';
 }

@@ -7,16 +7,19 @@ interface ProductCardProps {
   product: Product;
   onEdit: (product: Product) => void;
   onDelete: (id: string) => void;
-  onToggleActive: (id: string, currentStatus: boolean) => void; // 🔥 NOVO
+  onToggleActive: (id: string, currentStatus: boolean) => void;
 }
 
 export default function ProductCard({ product, onEdit, onDelete, onToggleActive }: ProductCardProps) {
   const hasComplements = product.complements && product.complements.length > 0;
+  
+  // 🔥 GARANTE QUE active SEMPRE EXISTE
+  const isActive = product.active !== false;
 
   return (
-    <div className={`${styles.card} ${!product.active ? styles.inactive : ''}`}>
+    <div className={`${styles.card} ${!isActive ? styles.inactive : ''}`}>
       {/* 🔥 BADGE DE STATUS */}
-      {!product.active && (
+      {!isActive && (
         <div className={styles.inactiveBadge}>PAUSADO</div>
       )}
 
@@ -26,7 +29,7 @@ export default function ProductCard({ product, onEdit, onDelete, onToggleActive 
           backgroundImage: product.image ? `url(${product.image})` : 'none', 
           backgroundSize: 'cover', 
           backgroundPosition: 'center',
-          filter: !product.active ? 'grayscale(1) opacity(0.5)' : 'none' // 🔥 Fica cinza quando pausado
+          filter: !isActive ? 'grayscale(1) opacity(0.5)' : 'none'
         }}
       />
       
@@ -51,12 +54,16 @@ export default function ProductCard({ product, onEdit, onDelete, onToggleActive 
       <div className={styles.footer}>
         {/* 🔥 BOTÃO DE ATIVAR/PAUSAR */}
         <button 
-          className={`${styles.toggleBtn} ${product.active ? styles.active : styles.paused}`}
-          onClick={() => onToggleActive(product.id, product.active)}
-          title={product.active ? "Pausar Produto" : "Ativar Produto"}
+          className={`${styles.toggleBtn} ${isActive ? styles.active : styles.paused}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            console.log('🖱️ Botão clicado:', { id: product.id, active: isActive });
+            onToggleActive(product.id, isActive);
+          }}
+          title={isActive ? "Pausar Produto" : "Ativar Produto"}
         >
           <Power size={16} />
-          {product.active ? 'Pausar' : 'Ativar'}
+          {isActive ? 'Pausar' : 'Ativar'}
         </button>
 
         <button 
