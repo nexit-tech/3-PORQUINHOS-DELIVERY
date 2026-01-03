@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "serve out -l 3000",
+    "start": "next start -p $PORT",
     "electron-dev": "electron .",
     "dist": "npm run build && electron-builder"
   },
@@ -22,8 +22,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.4.1",
-    "recharts": "^2.15.0",
-    "serve": "^14.2.5"
+    "recharts": "^2.15.0"
   },
   "devDependencies": {
     "@types/node": "^20.17.10",
@@ -31,8 +30,8 @@
     "@types/react-dom": "^18.3.5",
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
-    "eslint": "^9.39.2",
-    "eslint-config-next": "^16.1.1",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^15.1.11",
     "typescript": "^5.7.2"
   },
   "build": {
@@ -57,9 +56,7 @@
       "target": [
         {
           "target": "nsis",
-          "arch": [
-            "x64"
-          ]
+          "arch": ["x64"]
         }
       ]
     },
