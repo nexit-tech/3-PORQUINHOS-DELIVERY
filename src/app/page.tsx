@@ -30,7 +30,7 @@ export default function AdminDashboard() {
     if (firstLoad) {
       setPrevCount(orders.length);
       setFirstLoad(false);
-      return;
+      return; // 🔥 RETURN ADICIONADO AQUI
     }
 
     // Se a quantidade aumentou, toca o som!

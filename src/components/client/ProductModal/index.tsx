@@ -39,7 +39,9 @@ export default function ProductModal({ product, onClose, initialData }: ProductM
       }
     }
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
+    return () => { 
+      document.body.style.overflow = ''; 
+    };
   }, [initialData]);
 
   // MOVI OS USEMEMO PARA CÁ (ANTES DO RETURN)
@@ -81,7 +83,10 @@ export default function ProductModal({ product, onClose, initialData }: ProductM
   };
 
   const handleSave = () => {
-    if (!isValid) return alert('Verifique os itens obrigatórios!');
+    if (!isValid) {
+      alert('Verifique os itens obrigatórios!');
+      return;
+    }
     
     const allSelectedOptions = Object.values(selections).flat().map(opt => ({ name: opt.name, price: opt.price }));
     const flavors = allSelectedOptions.map(o => o.name); 
@@ -109,10 +114,32 @@ export default function ProductModal({ product, onClose, initialData }: ProductM
     }
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => { if ((e.target as HTMLElement).closest(`.${styles.body}`)) return; setIsDragging(true); startY.current = e.touches[0].clientY; };
-  const handleTouchMove = (e: React.TouchEvent) => { if (!isDragging) return; const diff = e.touches[0].clientY - startY.current; if (diff > 0) setOffsetY(diff); };
-  const handleTouchEnd = () => { setIsDragging(false); offsetY > 150 ? handleClose() : setOffsetY(0); };
-  const handleClose = () => { setIsClosing(true); setTimeout(() => { onClose(); setIsClosing(false); setOffsetY(0); setShowToast(false); }, 300); };
+  const handleTouchStart = (e: React.TouchEvent) => { 
+    if ((e.target as HTMLElement).closest(`.${styles.body}`)) return; 
+    setIsDragging(true); 
+    startY.current = e.touches[0].clientY; 
+  };
+  
+  const handleTouchMove = (e: React.TouchEvent) => { 
+    if (!isDragging) return; 
+    const diff = e.touches[0].clientY - startY.current; 
+    if (diff > 0) setOffsetY(diff); 
+  };
+  
+  const handleTouchEnd = () => { 
+    setIsDragging(false); 
+    offsetY > 150 ? handleClose() : setOffsetY(0); 
+  };
+  
+  const handleClose = () => { 
+    setIsClosing(true); 
+    setTimeout(() => { 
+      onClose(); 
+      setIsClosing(false); 
+      setOffsetY(0); 
+      setShowToast(false); 
+    }, 300); 
+  };
 
   // --- RENDERIZAÇÃO VIA PORTAL ---
   return createPortal(

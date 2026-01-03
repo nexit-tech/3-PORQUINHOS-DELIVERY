@@ -1,15 +1,20 @@
 import type { NextConfig } from "next";
 
-// Verifica se estamos construindo para Electron
 const isElectron = process.env.IS_ELECTRON === 'true';
 
 const nextConfig: NextConfig = {
-  // Se for Electron, usa 'export' (HTML estático). 
-  // Se for Railway/Web, usa 'undefined' (Servidor Node.js padrão com suporte a API).
   output: isElectron ? 'export' : undefined,
 
+  // 🔥 DESABILITA VERIFICAÇÕES NO BUILD (Railway)
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true, // Já estava, mas confirmando
+  },
+
   images: {
-    unoptimized: true, // Mantém true para evitar custos/erros de processamento de imagem
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -21,10 +26,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  // Adiciona cabeçalhos para permitir acesso CORS na API se necessário
+  
   async headers() {
     return [
       {

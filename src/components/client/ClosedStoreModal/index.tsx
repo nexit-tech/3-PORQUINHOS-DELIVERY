@@ -1,7 +1,7 @@
 // src/components/client/ClosedStoreModal/index.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Clock, XCircle } from 'lucide-react';
 import styles from './styles.module.css';
@@ -16,12 +16,8 @@ export default function ClosedStoreModal({ currentDay }: ClosedStoreModalProps) 
   const [nextOpenDay, setNextOpenDay] = useState<string>('');
   const [nextOpenTime, setNextOpenTime] = useState<string>('');
 
-  useEffect(() => {
-    setMounted(true);
-    fetchNextOpenDay();
-  }, []);
-
-  const fetchNextOpenDay = async () => {
+  // 🔥 WRAPPED IN useCallback
+  const fetchNextOpenDay = useCallback(async () => {
     try {
       // Busca todos os dias que estão abertos
       const { data, error } = await supabase
@@ -66,7 +62,12 @@ export default function ClosedStoreModal({ currentDay }: ClosedStoreModalProps) 
     } catch (error) {
       console.error('Erro ao buscar próximo dia:', error);
     }
-  };
+  }, [currentDay]); // 🔥 DEPENDE DE currentDay
+
+  useEffect(() => {
+    setMounted(true);
+    fetchNextOpenDay();
+  }, [fetchNextOpenDay]); // 🔥 AGORA ESTÁ CORRETO
 
   if (!mounted) return null;
 

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import styles from './styles.module.css';
 
 interface CategoryModalProps {
-  isOpen?: boolean; // Deixei opcional para flexibilidade
+  isOpen?: boolean; 
   onClose: () => void;
   onSave: (name: string) => Promise<void> | void;
 }
