@@ -5,11 +5,11 @@
   padding: 0 32px;
   display: flex;
   align-items: center;
-  position: relative; /* Necessário para centralizar os links */
+  position: relative;
 }
 
 .logo {
-  margin-right: auto; /* Empurra o logo pra esquerda */
+  margin-right: auto;
 }
 
 .logo h1 {
@@ -23,7 +23,7 @@
 .links {
   position: absolute;
   left: 50%;
-  transform: translateX(-50%); /* Centraliza perfeitamente no meio da tela */
+  transform: translateX(-50%);
   display: flex;
   gap: 8px;
   height: 100%;
@@ -50,7 +50,7 @@
 }
 
 .active {
-  background-color: rgba(249, 115, 22, 0.1); /* Laranja suave (Primary Color) */
+  background-color: rgba(249, 115, 22, 0.1);
   color: var(--primary-color);
 }
 
@@ -58,8 +58,34 @@
   background-color: rgba(249, 115, 22, 0.15);
 }
 
+/* 🔥 ESTILOS DO BADGE DE NOTIFICAÇÃO */
+.iconWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #ef4444; /* Vermelho vibrante */
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 800;
+  height: 16px;
+  width: 16px; /* Pode virar min-width se quiser numeros maiores */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--surface); /* Borda da cor do fundo pra destacar */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
 .logoutBtn {
-  margin-left: auto; /* Empurra o botão pra direita */
+  margin-left: auto;
   background: transparent;
   border: none;
   color: var(--text-light);
@@ -73,13 +99,12 @@
 }
 
 .logoutBtn:hover {
-  color: #ef4444; /* Vermelho alerta no hover mantido */
+  color: #ef4444;
 }
 
-/* Responsividade: Se a tela for pequena, esconde texto ou ajusta layout */
 @media (max-width: 1024px) {
   .logo h1 { font-size: 1.1rem; }
-  .link span { display: none; } /* Só ícones em telas menores */
+  .link span { display: none; }
   .link { padding: 0 12px; }
   .navbar { padding: 0 16px; }
 }

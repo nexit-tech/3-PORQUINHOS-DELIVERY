@@ -1,80 +1,84 @@
-// src/app/api/webhook/route.ts
 import { NextResponse } from 'next/server';
 import { supabase } from '@/services/supabase';
-
-const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://seu-n8n.com/webhook/whatsapp';
+import { addMessageToBuffer, sendPauseMessage } from '@/services/messageBuffer';
 
 export async function POST(request: Request) {
   try {
     const payload = await request.json();
     
-    console.log('📥 Webhook recebido:', JSON.stringify(payload, null, 2));
+    // Log apenas para debug (pode remover em produção se quiser limpar)
+    // console.log('📥 Webhook recebido:', JSON.stringify(payload, null, 2));
 
-    // Extrai dados da mensagem
     const messageData = payload.data || payload;
-    const phone = messageData.key?.remoteJid?.replace('@s.whatsapp.net', '') || '';
+    const key = messageData.key;
+
+    // 1. Ignora mensagens enviadas pelo próprio bot (fromMe)
+    if (!key || key.fromMe) {
+      return NextResponse.json({ success: true, message: 'Message from me, ignored' });
+    }
+
+    const phone = key.remoteJid?.replace('@s.whatsapp.net', '') || '';
     const messageText = messageData.message?.conversation || 
                        messageData.message?.extendedTextMessage?.text || '';
     
     if (!phone || !messageText) {
-      console.log('⚠️ Mensagem sem telefone ou texto, ignorando...');
-      return NextResponse.json({ success: true, message: 'Ignored' });
+      return NextResponse.json({ success: true, message: 'No text or phone' });
     }
 
-    console.log(`📱 Mensagem de: ${phone}`);
-    console.log(`💬 Conteúdo: ${messageText}`);
+    console.log(`📱 Mensagem de: ${phone} | Conteúdo: ${messageText}`);
 
-    // 🔥 DETECTA PALAVRAS-CHAVE PARA ATENDIMENTO HUMANO
-    const triggerWords = [
-      'atendente',
-      'humano', 
-      'pessoa',
-      'falar com',
-      'alguém',
-      'ajuda'
-    ];
+    // 🔥 0. VERIFICAÇÃO GLOBAL: O BOT ESTÁ LIGADO?
+    const { data: globalSettings } = await supabase
+      .from('bot_settings')
+      .select('value')
+      .eq('key', 'is_bot_active')
+      .single();
 
-    const needsHuman = triggerWords.some(word => 
-      messageText.toLowerCase().includes(word)
-    );
+    // Se não existir config, assume true (ligado)
+    const isBotActive = globalSettings?.value?.enabled ?? true;
+
+    if (!isBotActive) {
+       console.log('🔴 Bot está DESLIGADO globalmente. Ignorando mensagem.');
+       return NextResponse.json({ success: true, message: 'Bot globally disabled' });
+    }
+
+    // 🔥 1. DETECTA PALAVRAS-CHAVE PARA ATENDIMENTO HUMANO
+    const triggerWords = ['atendente', 'humano', 'pessoa', 'falar com', 'alguém', 'ajuda'];
+    const needsHuman = triggerWords.some(word => messageText.toLowerCase().includes(word));
 
     if (needsHuman) {
       console.log('🚨 Cliente solicitou atendimento humano!');
       
-      // Pausa o bot automaticamente
-      await supabase
-        .from('bot_paused_numbers')
-        .upsert({
-          phone: phone,
-          is_paused: true,
-          paused_at: new Date().toISOString(),
-          notes: `Solicitou atendimento: "${messageText}"`,
-          auto_paused: true
-        }, {
-          onConflict: 'phone'
-        });
+      // Pausa o bot automaticamente por 24h
+      const unpauseAt = new Date();
+      unpauseAt.setHours(unpauseAt.getHours() + 24);
+      
+      // Registra pausa no banco
+      await supabase.from('bot_paused_numbers').upsert({
+        phone: phone,
+        is_paused: true,
+        paused_at: new Date().toISOString(),
+        notes: `Solicitou atendimento: "${messageText}"`,
+        auto_paused: true,
+        auto_unpause_at: unpauseAt.toISOString()
+      }, { onConflict: 'phone' });
 
-      // Cria notificação para o painel
-      await supabase
-        .from('bot_notifications')
-        .insert({
-          phone: phone,
-          message: messageText,
-          type: 'HUMAN_REQUEST',
-          is_read: false,
-          created_at: new Date().toISOString()
-        });
-
-      console.log('✅ Bot pausado e notificação criada!');
-
-      // Retorna sucesso sem enviar para N8N
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Human assistance requested, bot paused' 
+      // Cria notificação para o painel (Navbar)
+      await supabase.from('bot_notifications').insert({
+        phone: phone,
+        message: messageText,
+        type: 'HUMAN_REQUEST',
+        is_read: false,
+        created_at: new Date().toISOString()
       });
+
+      // Envia mensagem avisando que pausou
+      await sendPauseMessage(phone);
+
+      return NextResponse.json({ success: true, message: 'Human assistance requested, bot paused' });
     }
 
-    // 🔥 VERIFICA SE O BOT ESTÁ PAUSADO PARA ESSE NÚMERO
+    // 🔥 2. VERIFICA SE O BOT ESTÁ PAUSADO PARA ESSE NÚMERO ESPECÍFICO
     const { data: botStatus } = await supabase
       .from('bot_paused_numbers')
       .select('*')
@@ -83,61 +87,17 @@ export async function POST(request: Request) {
       .single();
 
     if (botStatus) {
-      console.log(`⏸️ Bot pausado para ${phone}, não enviando para N8N`);
-      
-      // Registra mensagem mesmo com bot pausado (para histórico)
-      await supabase
-        .from('bot_notifications')
-        .insert({
-          phone: phone,
-          message: messageText,
-          type: 'MESSAGE_WHILE_PAUSED',
-          is_read: false,
-          created_at: new Date().toISOString()
-        });
-
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Bot paused for this number' 
-      });
+      console.log(`⏸️ Bot pausado para ${phone}, ignorando...`);
+      return NextResponse.json({ success: true, message: 'Bot paused for this number' });
     }
 
-    // 🔥 ENVIA PARA O N8N
-    console.log(`🚀 Enviando para N8N: ${N8N_WEBHOOK_URL}`);
-    
-    const n8nPayload = {
-      phone: phone,
-      message: messageText,
-      timestamp: new Date().toISOString(),
-      rawData: payload
-    };
+    // 🔥 3. ADICIONA AO BUFFER (Se não estiver pausado, processa a IA)
+    addMessageToBuffer(phone, messageText);
 
-    const n8nResponse = await fetch(N8N_WEBHOOK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(n8nPayload)
-    });
-
-    if (!n8nResponse.ok) {
-      throw new Error(`N8N respondeu com status ${n8nResponse.status}`);
-    }
-
-    console.log('✅ Mensagem enviada para N8N com sucesso!');
-
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Forwarded to N8N' 
-    });
+    return NextResponse.json({ success: true, message: 'Message buffered' });
 
   } catch (error: any) {
     console.error('❌ Erro no webhook:', error);
-    
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: error.message 
-      }, 
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
