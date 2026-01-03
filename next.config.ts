@@ -1,7 +1,15 @@
-const nextConfig = {
-  output: 'export', // Gera a pasta "out" com HTML estático
+import type { NextConfig } from "next";
+
+// Verifica se estamos construindo para Electron
+const isElectron = process.env.IS_ELECTRON === 'true';
+
+const nextConfig: NextConfig = {
+  // Se for Electron, usa 'export' (HTML estático). 
+  // Se for Railway/Web, usa 'undefined' (Servidor Node.js padrão com suporte a API).
+  output: isElectron ? 'export' : undefined,
+
   images: {
-    unoptimized: true, // Obrigatório: desliga a otimização de imagem do Next.js
+    unoptimized: true, // Mantém true para evitar custos/erros de processamento de imagem
     remotePatterns: [
       {
         protocol: 'https',
@@ -13,9 +21,20 @@ const nextConfig = {
       },
     ],
   },
-  // ❌ REMOVIDO: eslint (não é mais suportado aqui)
   typescript: {
-    ignoreBuildErrors: true, // Mantido para acelerar o build
+    ignoreBuildErrors: true,
+  },
+  // Adiciona cabeçalhos para permitir acesso CORS na API se necessário
+  async headers() {
+    return [
+      {
+        source: "/api/:path*",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET,POST,OPTIONS" },
+        ],
+      },
+    ];
   },
 };
 
