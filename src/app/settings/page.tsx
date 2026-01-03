@@ -1,3 +1,4 @@
+// src/app/settings/page.tsx
 'use client';
 
 import { useState } from 'react';
@@ -6,12 +7,13 @@ import Modal from '@/components/common/Modal';
 import OpeningHours from '@/components/admin/OpeningHours';
 import DeliveryFees from '@/components/admin/DeliveryFees';
 import PaymentSettings from '@/components/admin/PaymentSettings';
-import WhatsappConnect from '@/components/admin/WhatsappConnect'; 
-import { Clock, Bike, Printer, CreditCard, MessageCircle } from 'lucide-react';
+import WhatsappConnect from '@/components/admin/WhatsappConnect';
+import BotManagement from '@/components/admin/BotManagement';
+import { Clock, Bike, Printer, CreditCard, MessageCircle, Bot } from 'lucide-react';
 import styles from './page.module.css';
 import { PrinterSettings } from '@/components/admin/PrinterSettings';
 
-type SettingType = 'HOURS' | 'FEES' | 'PRINTER' | 'PAYMENTS' | 'WHATSAPP' | null;
+type SettingType = 'HOURS' | 'FEES' | 'PRINTER' | 'PAYMENTS' | 'WHATSAPP' | 'BOT' | null;
 
 export default function SettingsPage() {
   const [activeSetting, setActiveSetting] = useState<SettingType>(null);
@@ -23,6 +25,7 @@ export default function SettingsPage() {
       case 'PAYMENTS': return <PaymentSettings />;
       case 'WHATSAPP': return <WhatsappConnect />;
       case 'PRINTER': return <PrinterSettings />;
+      case 'BOT': return <BotManagement />;
     }
   };
 
@@ -33,6 +36,7 @@ export default function SettingsPage() {
       case 'PAYMENTS': return 'Formas de Pagamento';
       case 'WHATSAPP': return 'Conexão WhatsApp';
       case 'PRINTER': return 'Impressoras';
+      case 'BOT': return 'Controle de Bot';
       default: return '';
     }
   };
@@ -51,6 +55,14 @@ export default function SettingsPage() {
           icon={MessageCircle}
           statusColor="green"
           onClick={() => setActiveSetting('WHATSAPP')}
+        />
+
+        <SettingsCard 
+          title="Controle de Bot" 
+          description="Pause o bot para números específicos e veja solicitações de atendimento."
+          icon={Bot}
+          statusColor="blue"
+          onClick={() => setActiveSetting('BOT')}
         />
 
         <SettingsCard 
@@ -85,4 +97,4 @@ export default function SettingsPage() {
       )}
     </div>
   );
-} 
+}

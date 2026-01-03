@@ -1,0 +1,354 @@
+/* src/components/admin/BotManagement/styles.module.css */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 20px;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.header h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.header p {
+  color: var(--text-light);
+  font-size: 0.85rem;
+}
+
+/* 🔥 NOTIFICAÇÕES */
+.notificationsSection {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border: 2px solid #fbbf24;
+  border-radius: 16px;
+  padding: 20px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4); }
+  50% { box-shadow: 0 0 0 10px rgba(251, 191, 36, 0); }
+}
+
+.notifHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  color: #92400e;
+}
+
+.notifHeader h4 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.notifList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notifCard {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border: 1px solid #fbbf24;
+}
+
+.notifInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.notifPhone {
+  font-weight: 700;
+  color: #18181b;
+  font-size: 1rem;
+}
+
+.notifMessage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #71717a;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.notifTime {
+  color: #a1a1aa;
+  font-size: 0.75rem;
+}
+
+.notifActions {
+  display: flex;
+  gap: 8px;
+}
+
+.openWhatsAppBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #25D366;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.openWhatsAppBtn:hover {
+  background: #128C7E;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
+}
+
+/* ADICIONAR */
+.addSection {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: var(--surface-hover);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.inputGroup {
+  flex: 1;
+  display: flex;
+  gap: 12px;
+}
+
+.inputWithIcon {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.inputWithIcon svg {
+  color: var(--text-light);
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: white;
+  border: 1px solid var(--border-color);
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.input:focus {
+  border-color: var(--primary-color);
+}
+
+.addBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.addBtn:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.addBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* LISTA */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.empty {
+  text-align: center;
+  color: var(--text-light);
+  padding: 40px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.row:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.1);
+}
+
+.info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.phoneRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.phone {
+  font-weight: 700;
+  color: var(--text-main);
+  font-size: 1rem;
+}
+
+.autoBadge {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.notes {
+  color: var(--text-light);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.date {
+  color: var(--text-light);
+  font-size: 0.8rem;
+}
+
+/* AÇÕES */
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.whatsappBtn {
+  padding: 8px 12px;
+  background: #25D366;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.whatsappBtn:hover {
+  background: #128C7E;
+  transform: translateY(-1px);
+}
+
+.toggleBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toggleBtn.paused {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.toggleBtn.paused:hover {
+  background: #fecaca;
+  transform: translateY(-1px);
+}
+
+.toggleBtn.active {
+  background: #dcfce7;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.toggleBtn.active:hover {
+  background: #bbf7d0;
+  transform: translateY(-1px);
+}
+
+.deleteBtn {
+  padding: 8px 12px;
+  background: #fee2e2;
+  color: #ef4444;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.deleteBtn:hover {
+  background: #ef4444;
+  color: white;
+  border-color: #ef4444;
+}
