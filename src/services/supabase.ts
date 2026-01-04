@@ -1,33 +1,30 @@
 import { createClient } from '@supabase/supabase-js';
-import { getEnv } from '@/lib/env';
 
-// 🔥 BUSCA AS VARIÁVEIS
-const supabaseUrl = getEnv('NEXT_PUBLIC_SUPABASE_URL');
-const supabaseKey = getEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+// 1. Tenta pegar do ambiente padrão (Web/Local)
+// IMPORTANTE: O Next.js precisa ler "process.env.NEXT_PUBLIC_..." escrito exatamente assim para substituir no build.
+const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const envKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-// 🚨 DEBUG: Mostra no console se as variáveis foram carregadas
-console.log('[Supabase] URL:', supabaseUrl ? '✅ OK' : '❌ VAZIO');
-console.log('[Supabase] Key:', supabaseKey ? '✅ OK' : '❌ VAZIO');
+// 2. Tenta pegar do Electron (se existir injetado no window)
+const runtimeUrl = typeof window !== 'undefined' ? (window as any).__RUNTIME_CONFIG__?.NEXT_PUBLIC_SUPABASE_URL : null;
+const runtimeKey = typeof window !== 'undefined' ? (window as any).__RUNTIME_CONFIG__?.NEXT_PUBLIC_SUPABASE_ANON_KEY : null;
 
-// ⚠️ VALIDAÇÃO: Se estiver vazio, tenta pegar direto do process.env
-let finalUrl = supabaseUrl;
-let finalKey = supabaseKey;
+// 3. Define a final (Electron ganha prioridade se estiver rodando lá)
+const supabaseUrl = runtimeUrl || envUrl || '';
+const supabaseKey = runtimeKey || envKey || '';
 
-if (!finalUrl && typeof process !== 'undefined') {
-  console.warn('[Supabase] Tentando fallback para process.env...');
-  finalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  finalKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+// Logs para debug (pode remover depois que funcionar)
+console.log('🔧 [Supabase Config] URL:', supabaseUrl ? 'OK (Carregado)' : '❌ VAZIO');
+// console.log('🔧 [Supabase Config] KEY:', supabaseKey ? 'OK (Carregado)' : '❌ VAZIO'); // Evite logar a chave em produção
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('🚨 ERRO CRÍTICO: Variáveis do Supabase não encontradas.');
+  console.error('Verifique seu arquivo .env.local e se as chaves começam com NEXT_PUBLIC_');
 }
 
-// 🔥 ÚLTIMO RECURSO: Se ainda estiver vazio, usa valores hardcoded temporários
-if (!finalUrl || !finalKey) {
-  console.error('❌ [Supabase] ERRO CRÍTICO: Variáveis de ambiente não encontradas!');
-  console.error('Verifique se o arquivo .env existe e está correto.');
-  
-  // ⚠️ TEMPORÁRIO: Substitua pelos seus valores reais para testar
-  // finalUrl = 'https://seu-projeto.supabase.co';
-  // finalKey = 'sua-anon-key-aqui';
-}
-
-// ✅ Cria o cliente Supabase
-export const supabase = createClient(finalUrl, finalKey);
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  }
+});
