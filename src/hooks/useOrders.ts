@@ -1,3 +1,4 @@
+// src/hooks/useOrders.ts
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/services/supabase';
 import { Order, OrderStatus } from '@/types/order';
@@ -24,10 +25,28 @@ export function useOrders(onlyActive = true) {
         `)
         .order('created_at', { ascending: false });
 
-      // Filtro por ID (se existir no localStorage do cliente)
-      const storedIds = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('my_orders') || '[]') : [];
-      if (storedIds.length > 0) {
-         query = query.in('id', storedIds);
+      // 🔥 CORREÇÃO: Busca por telefone OU por IDs salvos
+      const storedIds = typeof window !== 'undefined' 
+        ? JSON.parse(localStorage.getItem('my_orders') || '[]') 
+        : [];
+      
+      const storedPhone = typeof window !== 'undefined'
+        ? localStorage.getItem('customer_phone')
+        : null;
+
+      // Se tem telefone salvo, busca por telefone (mais confiável)
+      if (storedPhone) {
+        query = query.eq('customer_phone', storedPhone);
+      } 
+      // Se não tem telefone mas tem IDs, busca por IDs
+      else if (storedIds.length > 0) {
+        query = query.in('id', storedIds);
+      }
+      // Se não tem nada, retorna vazio
+      else {
+        setOrders([]);
+        setLoading(false);
+        return;
       }
 
       // Filtro de status ativos
@@ -39,7 +58,7 @@ export function useOrders(onlyActive = true) {
 
       if (error) throw error;
 
-      // 🔥 MAPEAMENTO CORRIGIDO: Banco (snake_case) -> Front (camelCase)
+      // Mapeamento dos pedidos
       const formattedOrders: Order[] = (data || []).map((order: any) => ({
         id: order.id,
         displayId: `#${order.id}`,
@@ -58,7 +77,6 @@ export function useOrders(onlyActive = true) {
           quantity: item.quantity,
           unitPrice: item.unit_price,
           totalPrice: item.total_price,
-          // 🎯 OBSERVATION JÁ VEM FORMATADO DO BANCO
           observation: item.observation || '',
           customizations: item.customizations
         }))

@@ -100,11 +100,15 @@ export default function PagamentoPage() {
 
       const orderId = orderData.id;
 
+      // Salva ID do pedido no localStorage
       const savedOrders = JSON.parse(localStorage.getItem('my_orders') || '[]');
       if (!savedOrders.includes(orderId)) {
         savedOrders.push(orderId);
         localStorage.setItem('my_orders', JSON.stringify(savedOrders));
       }
+
+      // 🔥 NOVO: Salva o telefone do cliente para buscar pedidos futuros
+      localStorage.setItem('customer_phone', customerPhone);
 
       // 🔥 FORMATAÇÃO CORRIGIDA COM "Pizza 1", "Pizza 2", etc
       const orderItems = items.map((item: any) => {
