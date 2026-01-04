@@ -26,20 +26,23 @@ function startServer() {
       throw new Error('Pasta "out" não encontrada!');
     }
 
-    const configPath = path.join(outPath, 'runtime-config.js');
-    console.log('[Server] Gerando runtime-config em:', configPath);
-    
-    const configContent = `
-      window.__RUNTIME_CONFIG__ = {
-        NEXT_PUBLIC_SUPABASE_URL: "${process.env.NEXT_PUBLIC_SUPABASE_URL || ''}",
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: "${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}",
-        ADMIN_USERNAME: "${process.env.ADMIN_USERNAME || ''}",
-        ADMIN_PASSWORD: "${process.env.ADMIN_PASSWORD || ''}"
-      };
-    `;
-    
-    fs.writeFileSync(configPath, configContent);
-    console.log('[Server] ✅ Runtime config gerado!');
+    // ========================================
+    // 🔥 CORREÇÃO DO ERRO EPERM (PERMISSÃO)
+    // Em vez de salvar o arquivo no disco (que o Windows bloqueia),
+    // servimos ele diretamente da memória quando o site pede.
+    // ========================================
+    expressApp.get('/runtime-config.js', (req, res) => {
+      console.log('[Server] 🧠 Servindo runtime-config da memória...');
+      res.type('application/javascript'); // Avisa pro navegador que é um JS
+      res.send(`
+        window.__RUNTIME_CONFIG__ = {
+          NEXT_PUBLIC_SUPABASE_URL: "${process.env.NEXT_PUBLIC_SUPABASE_URL || ''}",
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}",
+          ADMIN_USERNAME: "${process.env.ADMIN_USERNAME || ''}",
+          ADMIN_PASSWORD: "${process.env.ADMIN_PASSWORD || ''}"
+        };
+      `);
+    });
 
     // ========================================
     // 🔥 ROTAS DA API (Substituem as API Routes do Next.js)
@@ -166,6 +169,7 @@ function startServer() {
     const server = expressApp.listen(port, '127.0.0.1', () => {
       console.log(`[Server] ✅ Servidor rodando em http://127.0.0.1:${port}`);
       console.log('[Server] Rotas da API ativas:');
+      console.log('  - GET  /runtime-config.js (Memória)');
       console.log('  - POST /api/evolution');
       console.log('  - POST /api/auth/login');
     });
