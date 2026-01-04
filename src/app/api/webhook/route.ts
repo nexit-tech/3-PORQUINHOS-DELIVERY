@@ -6,9 +6,6 @@ export async function POST(request: Request) {
   try {
     const payload = await request.json();
     
-    // Log apenas para debug (pode remover em produção se quiser limpar)
-    // console.log('📥 Webhook recebido:', JSON.stringify(payload, null, 2));
-
     const messageData = payload.data || payload;
     const key = messageData.key;
 
@@ -18,6 +15,14 @@ export async function POST(request: Request) {
     }
 
     const phone = key.remoteJid?.replace('@s.whatsapp.net', '') || '';
+    
+    // 🔥 2. IGNORA MENSAGENS DE GRUPO
+    // Grupos terminam com '@g.us' ao invés de '@s.whatsapp.net'
+    if (key.remoteJid?.includes('@g.us')) {
+      console.log('🚫 Mensagem de GRUPO ignorada:', key.remoteJid);
+      return NextResponse.json({ success: true, message: 'Group message ignored' });
+    }
+    
     const messageText = messageData.message?.conversation || 
                        messageData.message?.extendedTextMessage?.text || '';
     

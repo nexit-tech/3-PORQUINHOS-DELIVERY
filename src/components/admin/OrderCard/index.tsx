@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { 
   Clock, MapPin, User, CheckCircle, XCircle, Printer, 
-  CreditCard, DollarSign 
+  CreditCard, DollarSign, Phone 
 } from 'lucide-react';
 import { supabase } from '@/services/supabase';
 import toast from 'react-hot-toast';
@@ -477,6 +477,15 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
             <User size={16} className={styles.icon} />
             <span>{order.customerName}</span>
           </div>
+
+          {/* 🔥 EXIBE O TELEFONE (NÚMERO DO LEAD) SE HOUVER */}
+          {order.customerPhone && (
+            <div className={styles.infoRow}>
+              <Phone size={16} className={styles.icon} />
+              <span>{order.customerPhone}</span>
+            </div>
+          )}
+
           {order.customerAddress && (
             <div className={styles.infoRow}>
               <MapPin size={16} className={styles.icon} />
