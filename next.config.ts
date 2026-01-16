@@ -1,10 +1,12 @@
-
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'export',
-  distDir: 'out',
+  // 🔥 MUDANÇA PRINCIPAL: De 'export' para 'standalone'
+  // Isso permite que APIs e Cron Jobs funcionem no Railway
+  output: 'standalone',
   
+  // ❌ REMOVIDO: distDir: 'out' (não é usado no modo standalone)
+
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
   
