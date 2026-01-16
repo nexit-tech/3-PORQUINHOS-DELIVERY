@@ -1,12 +1,10 @@
+
 import type { NextConfig } from "next";
 
-// ✅ A variável decide sozinha se é App ou Site
-const isElectron = process.env.IS_ELECTRON === 'true';
-
 const nextConfig: NextConfig = {
-  // Se for Electron, gera estático (pasta out). Se for Site, gera dinâmico.
-  output: isElectron ? 'export' : undefined,
-
+  output: 'export',
+  distDir: 'out',
+  
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
   

@@ -255,3 +255,42 @@
   transition: transform 0.1s;
 }
 .finishBtn:active { transform: scale(0.98); background: var(--primary-dark); }
+
+.deliverySelector {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.typeBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 2px solid #e4e4e7;
+  background: white;
+  color: #71717a;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.activeType {
+  border-color: #e11d48;
+  color: #e11d48;
+  background: #fff1f2;
+}
+
+.pickupInfo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px dashed #cbd5e1;
+  margin-top: 20px;
+  color: #475569;
+}

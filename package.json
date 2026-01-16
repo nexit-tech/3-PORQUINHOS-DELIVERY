@@ -1,16 +1,19 @@
 {
   "name": "anota-delivery",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Sistema de Gestão de Delivery - 3 Porquinhos",
   "author": "3 Porquinhos <contato@3porquinhos.com.br>",
   "private": true,
   "main": "main.js",
   "scripts": {
-      "dev": "next dev",
-      "build": "next build",
-      "start": "next start -p ${PORT:-3000}",
-      "electron-dev": "electron .",
-      "gerar-exe": "node scripts/build-desktop.js"
+    "dev": "next dev",
+    "build": "next build",
+    "build:electron": "node build-electron.js",
+    "start": "next start",
+    "electron": "electron .",
+    "electron:build": "npm run build:electron && electron-builder",
+    "pack": "npm run build:electron && electron-builder --dir",
+    "dist": "npm run build:electron && electron-builder --win"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
@@ -31,6 +34,7 @@
     "cross-env": "^10.1.0",
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
+    "electron-is-dev": "^2.0.0",
     "eslint": "^8.57.0",
     "eslint-config-next": "^15.1.11",
     "typescript": "^5.7.2"
@@ -39,29 +43,25 @@
     "appId": "com.3porquinhos.delivery",
     "productName": "3 Porquinhos Delivery",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "public"
     },
     "files": [
       "main.js",
       "server.js",
       "out/**/*",
-      "package.json"
+      "public/**/*",
+      "node_modules/**/*",
+      "package.json",
+      ".env"
     ],
     "extraResources": [
-      {
-        "from": ".env",
-        "to": ".env"
-      }
+      { "from": ".env", "to": ".env" }
     ],
+    "asarUnpack": ["out/**/*"],
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ]
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "public/favicon.ico"
     },
     "nsis": {
       "oneClick": false,
@@ -69,10 +69,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     },
-    "asar": true,
-    "asarUnpack": [
-      "**/*.node",
-      "out/**/*"
-    ]
+    "extraMetadata": {
+      "main": "main.js"
+    }
   }
 }

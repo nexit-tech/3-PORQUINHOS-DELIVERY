@@ -10,30 +10,34 @@ function startServer() {
   const expressApp = express();
   const port = 3001;
 
-  // 🔥 MIDDLEWARE PARA ACEITAR JSON
   expressApp.use(express.json());
 
   try {
-    // Caminho correto pro ASAR desempacotado
+    // 🔥 CORREÇÃO: Caminho absoluto para a pasta out
     const outPath = app.isPackaged
       ? path.join(process.resourcesPath, 'app.asar.unpacked', 'out')
       : path.join(__dirname, 'out');
     
-    console.log('[Server] Verificando pasta out:', outPath);
+    console.log('[Server] 📂 Caminho da pasta out:', outPath);
+    console.log('[Server] 📂 Existe?', fs.existsSync(outPath));
     
     if (!fs.existsSync(outPath)) {
-      console.error('[Server] ❌ ERRO: Pasta "out" não existe!');
-      throw new Error('Pasta "out" não encontrada!');
+      console.error('[Server] ❌ ERRO CRÍTICO: Pasta "out" não encontrada!');
+      console.error('[Server] 📂 Caminho esperado:', outPath);
+      
+      // Lista o conteúdo do diretório pai para debug
+      const parentDir = path.dirname(outPath);
+      console.log('[Server] 📂 Conteúdo do diretório pai:', fs.readdirSync(parentDir));
+      
+      throw new Error('Pasta "out" não encontrada! Execute "npm run build" antes de compilar o Electron.');
     }
 
     // ========================================
-    // 🔥 CORREÇÃO DO ERRO EPERM (PERMISSÃO)
-    // Em vez de salvar o arquivo no disco (que o Windows bloqueia),
-    // servimos ele diretamente da memória quando o site pede.
+    // 🔥 ROTA: /runtime-config.js (Memória)
     // ========================================
     expressApp.get('/runtime-config.js', (req, res) => {
       console.log('[Server] 🧠 Servindo runtime-config da memória...');
-      res.type('application/javascript'); // Avisa pro navegador que é um JS
+      res.type('application/javascript');
       res.send(`
         window.__RUNTIME_CONFIG__ = {
           NEXT_PUBLIC_SUPABASE_URL: "${process.env.NEXT_PUBLIC_SUPABASE_URL || ''}",
@@ -45,10 +49,8 @@ function startServer() {
     });
 
     // ========================================
-    // 🔥 ROTAS DA API (Substituem as API Routes do Next.js)
-    // ========================================
-
     // 🔥 ROTA: /api/evolution
+    // ========================================
     expressApp.post('/api/evolution', async (req, res) => {
       const EVOLUTION_URL = 'https://n8n-nexit-evolution-api.7rdajt.easypanel.host';
       const API_KEY = '58F6417D7252-4BB0-8A52-CCA170427CB7';
@@ -150,14 +152,14 @@ function startServer() {
     // Serve arquivos estáticos (DEPOIS das rotas da API)
     // ========================================
     expressApp.use(express.static(outPath));
-    console.log('[Server] Servindo arquivos de:', outPath);
+    console.log('[Server] ✅ Servindo arquivos de:', outPath);
 
     // Fallback para index.html
     expressApp.get('*', (req, res) => {
       const indexPath = path.join(outPath, 'index.html');
       
       if (!fs.existsSync(indexPath)) {
-        console.error('[Server] ❌ index.html não encontrado!');
+        console.error('[Server] ❌ index.html não encontrado em:', indexPath);
         res.status(404).send('index.html não encontrado');
         return;
       }
@@ -168,8 +170,8 @@ function startServer() {
     // Inicia o servidor
     const server = expressApp.listen(port, '127.0.0.1', () => {
       console.log(`[Server] ✅ Servidor rodando em http://127.0.0.1:${port}`);
-      console.log('[Server] Rotas da API ativas:');
-      console.log('  - GET  /runtime-config.js (Memória)');
+      console.log('[Server] 📋 Rotas ativas:');
+      console.log('  - GET  /runtime-config.js');
       console.log('  - POST /api/evolution');
       console.log('  - POST /api/auth/login');
     });
