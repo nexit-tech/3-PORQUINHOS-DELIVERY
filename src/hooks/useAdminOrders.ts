@@ -3,13 +3,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/services/supabase';
 import { Order, OrderStatus } from '@/types/order';
 
-export function useAdminOrders(autoRefresh = true) {
+export function useAdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchOrders = useCallback(async () => {
     try {
-      // 🔥 BUSCA TODOS OS PEDIDOS (sem filtro de cliente)
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -24,7 +23,6 @@ export function useAdminOrders(autoRefresh = true) {
             customizations
           )
         `)
-        // 🔥 EXCLUI APENAS COMPLETED E CANCELED
         .not('status', 'in', '("COMPLETED","CANCELED")')
         .order('created_at', { ascending: false });
 
@@ -72,8 +70,8 @@ export function useAdminOrders(autoRefresh = true) {
         .eq('id', id);
 
       if (error) throw error;
-
-      // Atualiza localmente
+      // Não precisamos atualizar 'setOrders' aqui manualmente se o Realtime for rápido,
+      // mas manter localmente garante UI responsiva instantânea (Optimistic Update)
       setOrders(prev => 
         prev.map(order => 
           order.id === id 
@@ -81,9 +79,6 @@ export function useAdminOrders(autoRefresh = true) {
             : order
         )
       );
-
-      // Recarrega do banco
-      await fetchOrders();
     } catch (error) {
       console.error('❌ Erro ao atualizar status:', error);
       throw error;
@@ -93,11 +88,24 @@ export function useAdminOrders(autoRefresh = true) {
   useEffect(() => {
     fetchOrders();
 
-    if (autoRefresh) {
-      const interval = setInterval(fetchOrders, 5000); // Atualiza a cada 5s
-      return () => clearInterval(interval);
-    }
-  }, [fetchOrders, autoRefresh]);
+    // 🔥 REALTIME: Escuta mudanças na tabela 'orders'
+    const channel = supabase
+      .channel('admin-orders-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => {
+          console.log('🔔 Mudança detectada nos pedidos:', payload);
+          // Pequeno delay para garantir que relações (items) foram gravadas
+          setTimeout(() => fetchOrders(), 500); 
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchOrders]);
 
   return { orders, loading, refreshOrders: fetchOrders, updateStatus };
 }

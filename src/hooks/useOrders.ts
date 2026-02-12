@@ -25,7 +25,6 @@ export function useOrders(onlyActive = true) {
         `)
         .order('created_at', { ascending: false });
 
-      // 🔥 CORREÇÃO: Busca por telefone OU por IDs salvos
       const storedIds = typeof window !== 'undefined' 
         ? JSON.parse(localStorage.getItem('my_orders') || '[]') 
         : [];
@@ -34,31 +33,25 @@ export function useOrders(onlyActive = true) {
         ? localStorage.getItem('customer_phone')
         : null;
 
-      // Se tem telefone salvo, busca por telefone (mais confiável)
       if (storedPhone) {
         query = query.eq('customer_phone', storedPhone);
       } 
-      // Se não tem telefone mas tem IDs, busca por IDs
       else if (storedIds.length > 0) {
         query = query.in('id', storedIds);
       }
-      // Se não tem nada, retorna vazio
       else {
         setOrders([]);
         setLoading(false);
         return;
       }
 
-      // Filtro de status ativos
       if (onlyActive) {
         query = query.not('status', 'in', '("COMPLETED","CANCELED")');
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
 
-      // Mapeamento dos pedidos
       const formattedOrders: Order[] = (data || []).map((order: any) => ({
         id: order.id,
         displayId: `#${order.id}`,
@@ -101,19 +94,33 @@ export function useOrders(onlyActive = true) {
         .eq('id', id);
 
       if (error) throw error;
-      
       await fetchMyOrders();
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
-      alert('Erro ao atualizar o status do pedido.');
     }
   }
 
   useEffect(() => {
     setLoading(true);
     fetchMyOrders();
-    const interval = setInterval(fetchMyOrders, 5000); 
-    return () => clearInterval(interval);
+
+    // 🔥 REALTIME: O cliente escuta mudanças no SEU pedido
+    const channel = supabase
+      .channel('client-orders-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => {
+          // Otimização: Só recarrega se o ID do pedido alterado estiver na nossa lista atual
+          // ou se for um INSERT novo (que pode ser do cliente)
+          fetchMyOrders(); 
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchMyOrders]);
 
   return { orders, loading, refreshOrders: fetchMyOrders, updateStatus };
