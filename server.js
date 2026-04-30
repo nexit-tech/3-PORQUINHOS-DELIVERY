@@ -52,9 +52,9 @@ function startServer() {
     // 🔥 ROTA: /api/evolution
     // ========================================
     expressApp.post('/api/evolution', async (req, res) => {
-      const EVOLUTION_URL = 'https://n8n-nexit-evolution-api.7rdajt.easypanel.host';
-      const API_KEY = '58F6417D7252-4BB0-8A52-CCA170427CB7';
-      const INSTANCE_NAME = '3 Porquinhos';
+      const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
+      const API_KEY = process.env.EVOLUTION_API_KEY || '';
+      const INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || '';
 
       const api = axios.create({
         baseURL: EVOLUTION_URL,

@@ -34,6 +34,7 @@ export default function EnderecoPage() {
   const [complement, setComplement] = useState('');
   
   const [neighborhoods, setNeighborhoods] = useState<DeliveryZone[]>([]);
+  // Inicia como nulo para forçar o usuário a escolher
   const [selectedHood, setSelectedHood] = useState<DeliveryZone | null>(null);
   const [loadingZones, setLoadingZones] = useState(true);
 
@@ -54,9 +55,8 @@ export default function EnderecoPage() {
 
         if (data) {
           setNeighborhoods(data);
-          if (data.length > 0) {
-            setSelectedHood(data[0]);
-          }
+          // 🔥 Ajuste: Removida a seleção automática do primeiro item (data[0]).
+          // Agora ele obriga a mostrar "Selecione um bairro"
         }
       } catch (error) {
         console.error('Erro ao buscar bairros:', error);
@@ -74,6 +74,9 @@ export default function EnderecoPage() {
       setDeliveryFee(0);
     } else if (selectedHood) {
       setDeliveryFee(selectedHood.fee);
+    } else {
+      // 🔥 Ajuste: Garante que a taxa é 0 se o bairro ainda não foi selecionado
+      setDeliveryFee(0);
     }
   }, [selectedHood, deliveryType, setDeliveryFee]);
 
@@ -97,14 +100,14 @@ export default function EnderecoPage() {
     }
 
     if (deliveryType === 'delivery' && (!street || !number || !selectedHood)) {
-      alert('Preencha os campos de endereço para entrega!');
+      alert('Preencha os campos de endereço e selecione um bairro para entrega!');
       return;
     }
     
     setCustomerName(name);
     setCustomerPhone(phone);
 
-    // 🔥 LÓGICA DE PREENCHIMENTO AUTOMÁTICO PARA RETIRADA
+    // LÓGICA DE PREENCHIMENTO AUTOMÁTICO PARA RETIRADA
     if (deliveryType === 'pickup') {
       setAddress({ 
         street: 'RETIRAR NO LOCAL', 

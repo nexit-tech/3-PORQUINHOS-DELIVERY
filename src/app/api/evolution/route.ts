@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import axios from 'axios';
 
-const EVOLUTION_URL = 'https://n8n-nexit-evolution-api.7rdajt.easypanel.host';
-const API_KEY = '58F6417D7252-4BB0-8A52-CCA170427CB7';
-const INSTANCE_NAME = '3 Porquinhos'; 
+// 🔥 Puxando as credenciais do .env de forma segura
+const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
+const API_KEY = process.env.EVOLUTION_API_KEY || '';
+const INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || '';
 
 const api = axios.create({
   baseURL: EVOLUTION_URL,
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
         responseData = { success: true };
         break;
 
-      // 🔥 NOVA AÇÃO: ENVIAR MENSAGEM
+      // 🔥 AÇÃO: ENVIAR MENSAGEM (Já configurada para envio direto)
       case 'send':
         if (!phone || !message) {
           return NextResponse.json({ error: 'Phone e message são obrigatórios' }, { status: 400 });
