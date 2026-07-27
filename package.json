@@ -10,6 +10,7 @@
     "build": "next build",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
+    "test:horarios": "tsc src/lib/storeHours.ts --outDir .tmp-test --module commonjs --target es2020 --skipLibCheck && node tests/storeHours.test.js",
     "build:electron": "node build-electron.js",
     "start": "next start",
     "electron": "electron .",

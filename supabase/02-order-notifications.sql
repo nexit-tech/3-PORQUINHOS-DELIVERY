@@ -29,14 +29,15 @@ CREATE INDEX IF NOT EXISTS order_notifications_created_at_idx
 -- =====================================================================
 ALTER TABLE order_notifications ENABLE ROW LEVEL SECURITY;
 
+-- Só o admin logado. Se ficasse aberta para `anon`, qualquer pessoa poderia
+-- inserir (pedido, 'PREPARING') antes da loja aceitar e assim IMPEDIR que o
+-- cliente recebesse a mensagem de confirmação — a trava viraria uma arma.
 DROP POLICY IF EXISTS order_notifications_insert ON order_notifications;
-CREATE POLICY order_notifications_insert
-  ON order_notifications FOR INSERT
-  TO anon, authenticated
-  WITH CHECK (true);
-
 DROP POLICY IF EXISTS order_notifications_select ON order_notifications;
-CREATE POLICY order_notifications_select
-  ON order_notifications FOR SELECT
-  TO anon, authenticated
-  USING (true);
+
+DROP POLICY IF EXISTS order_notifications_admin ON order_notifications;
+CREATE POLICY order_notifications_admin
+  ON order_notifications FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);

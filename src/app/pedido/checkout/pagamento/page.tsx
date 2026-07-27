@@ -29,12 +29,22 @@ export default function PagamentoPage() {
   const total = cartSubtotal + deliveryFee;
 
   useEffect(() => {
-    if (items.length === 0 && !isSubmitting) {
-      router.replace('/pedido');
-    }
-  }, [items, router, isSubmitting]);
+    if (isSubmitting) return;
 
-  if (items.length === 0) {
+    if (items.length === 0) {
+      router.replace('/pedido');
+      return;
+    }
+
+    // O carrinho é persistido no localStorage, mas nome/telefone/endereço não.
+    // Num F5 nesta página eles voltam vazios: antes isso gerava um pedido sem
+    // cliente, e agora faria a RPC recusar com um erro que não ajuda ninguém.
+    if (!customerName || !customerPhone) {
+      router.replace('/pedido/checkout/endereco');
+    }
+  }, [items, router, isSubmitting, customerName, customerPhone]);
+
+  if (items.length === 0 || !customerName || !customerPhone) {
     return null;
   }
 

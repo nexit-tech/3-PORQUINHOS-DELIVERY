@@ -32,14 +32,18 @@ function getInstanceName(): string {
   return instance;
 }
 
-/** Normaliza para o formato que a Evolution espera: 55DDDNUMERO@s.whatsapp.net */
+/**
+ * Normaliza para o formato que a Evolution espera: 55DDDNUMERO@s.whatsapp.net
+ *
+ * A decisão de já ter DDI é pelo TAMANHO, não pelo prefixo "55": o DDD 55
+ * existe (Santa Maria/RS), então um número como (55) 99988-7766 começa com 55
+ * sem ser DDI. Local tem 10 ou 11 dígitos; com o DDI, 12 ou 13.
+ */
 export function toWhatsappJid(phone: string): string {
-  let digits = phone.replace(/\D/g, '');
+  const digits = phone.replace(/\D/g, '');
+  const withCountryCode = digits.length >= 12 ? digits : `55${digits}`;
 
-  // Evita virar 5555... quando o número já vem com o DDI
-  if (!digits.startsWith('55')) digits = `55${digits}`;
-
-  return `${digits}@s.whatsapp.net`;
+  return `${withCountryCode}@s.whatsapp.net`;
 }
 
 export async function sendTextMessage(phone: string, message: string) {

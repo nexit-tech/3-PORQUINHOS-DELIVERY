@@ -21,6 +21,9 @@
 /.electron-build-backup/
 /next.config.ts.backup
 
+# saida de compilacao do npm run test:horarios
+/.tmp-test/
+
 # production
 /build
 

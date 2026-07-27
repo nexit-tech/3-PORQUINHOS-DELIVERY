@@ -10,11 +10,21 @@ import { createServerClient } from '@supabase/ssr';
 // máquina do balcão e faz login sozinho com as credenciais do .env.
 
 export async function middleware(request: NextRequest) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // Sem as variáveis, createServerClient lança e TODA página vira erro 500 —
+  // inclusive a de login, deixando o painel inacessível sem explicação.
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('🚨 Middleware: variáveis do Supabase ausentes. Painel liberado sem checagem.');
+    return NextResponse.next();
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseKey,
     {
       cookies: {
         getAll() {

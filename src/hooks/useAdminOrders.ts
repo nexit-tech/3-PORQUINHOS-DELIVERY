@@ -92,7 +92,9 @@ export function useAdminOrders() {
     }
   }, []);
 
-  const updateStatus = async (orderId: number | string, newStatus: OrderStatus) => {
+  // useCallback para a identidade da função ser estável: ela entra nas
+  // dependências do efeito de aceite automático lá no dashboard
+  const updateStatus = useCallback(async (orderId: number | string, newStatus: OrderStatus) => {
     try {
       const id = parseInt(String(orderId).replace('#', ''), 10);
 
@@ -114,7 +116,7 @@ export function useAdminOrders() {
       console.error('❌ Erro ao atualizar status:', error);
       throw error;
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchOrders();

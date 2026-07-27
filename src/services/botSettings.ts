@@ -20,11 +20,31 @@ export const BOT_SETTING_KEYS = {
 // recebem o cliente com service_role — sem ele a RLS bloqueia o bot.
 type Client = SupabaseClient;
 
+/**
+ * Guarda contra o pior modo de falha aqui: se uma rota de servidor esquecer de
+ * passar o cliente com service_role, o padrão (cliente do navegador, anônimo)
+ * NÃO dá erro — a RLS simplesmente devolve vazio, e o bot passa a se comportar
+ * como se toda configuração estivesse desligada, sem nada no log.
+ * Melhor estourar na cara.
+ */
+function assertClient(client: Client | undefined): Client {
+  if (client) return client;
+
+  if (typeof window === 'undefined') {
+    throw new Error(
+      'botSettings: no servidor é obrigatório passar o cliente com service_role ' +
+        '(getSupabaseAdmin()). Sem ele a RLS devolve vazio silenciosamente.'
+    );
+  }
+
+  return supabase;
+}
+
 export async function getBotSetting<T = any>(
   key: string,
-  client: Client = supabase
+  client?: Client
 ): Promise<T | null> {
-  const { data, error } = await client
+  const { data, error } = await assertClient(client)
     .from('bot_settings')
     .select('value')
     .eq('key', key)
@@ -38,9 +58,11 @@ export async function getBotSetting<T = any>(
 export async function setBotSetting(
   key: string,
   value: unknown,
-  client: Client = supabase
+  client?: Client
 ): Promise<void> {
-  const { data, error } = await client
+  const db = assertClient(client);
+
+  const { data, error } = await db
     .from('bot_settings')
     .update({ value })
     .eq('key', key)
@@ -50,7 +72,7 @@ export async function setBotSetting(
 
   // Nenhuma linha atualizada = a chave ainda não existe
   if (!data || data.length === 0) {
-    const { error: insertError } = await client.from('bot_settings').insert({ key, value });
+    const { error: insertError } = await db.from('bot_settings').insert({ key, value });
     if (insertError) throw insertError;
   }
 }
@@ -59,7 +81,7 @@ export async function setBotSetting(
 export async function getBotFlag(
   key: string,
   fallback: boolean,
-  client: Client = supabase
+  client?: Client
 ): Promise<boolean> {
   const value = await getBotSetting<{ enabled?: boolean }>(key, client);
   return value?.enabled ?? fallback;
@@ -68,7 +90,7 @@ export async function getBotFlag(
 export async function setBotFlag(
   key: string,
   enabled: boolean,
-  client: Client = supabase
+  client?: Client
 ): Promise<void> {
   await setBotSetting(key, { enabled }, client);
 }

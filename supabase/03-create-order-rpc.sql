@@ -168,9 +168,12 @@ BEGIN
       RAISE EXCEPTION 'Quantidade inválida: %', v_qty;
     END IF;
 
+    -- Comparação por TEXTO de propósito: assim a função funciona com `id`
+    -- sendo uuid, text ou bigint. Com `= (...)::uuid` bastava a coluna ter
+    -- outro tipo para tudo estourar.
     SELECT id, name, price INTO v_product
       FROM products
-     WHERE id = (v_item->>'product_id')::uuid
+     WHERE id::text = v_item->>'product_id'
        AND active IS DISTINCT FROM false;
 
     IF NOT FOUND THEN
@@ -182,10 +185,10 @@ BEGIN
     SELECT COALESCE(sum(co.price), 0) INTO v_extras
       FROM complement_options co
       JOIN product_complements pc ON pc.group_id = co.group_id
-     WHERE pc.product_id = v_product.id
+     WHERE pc.product_id::text = v_product.id::text
        AND co.is_active IS DISTINCT FROM false
-       AND co.id IN (
-         SELECT value::uuid
+       AND co.id::text IN (
+         SELECT value
            FROM jsonb_array_elements_text(COALESCE(v_item->'option_ids', '[]'::jsonb))
        );
 

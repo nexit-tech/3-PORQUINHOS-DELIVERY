@@ -149,17 +149,21 @@ SECURITY DEFINER
 SET search_path = public
 STABLE
 AS $$
+  -- Casts explícitos: RETURNS TABLE exige que o tipo bata EXATAMENTE.
+  -- Se alguma coluna for varchar (e não text), ou o status for um enum,
+  -- o Postgres recusa com "structure of query does not match function
+  -- result type". Os casts deixam a função funcionar de qualquer jeito.
   SELECT
-    o.id,
-    o.customer_name,
-    o.customer_phone,
-    o.customer_address,
-    o.payment_method,
-    o.status,
-    o.total,
-    o.delivery_fee,
-    o.created_at,
-    o.updated_at,
+    o.id::bigint,
+    o.customer_name::text,
+    o.customer_phone::text,
+    o.customer_address::text,
+    o.payment_method::text,
+    o.status::text,
+    o.total::numeric,
+    o.delivery_fee::numeric,
+    o.created_at::timestamptz,
+    o.updated_at::timestamptz,
     COALESCE(
       (
         SELECT jsonb_agg(
