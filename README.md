@@ -1,36 +1,177 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 3 Porquinhos Delivery
 
-## Getting Started
+Sistema de gestão de delivery: painel administrativo, loja para o cliente e bot de WhatsApp.
+Next.js 15 (App Router) + Supabase, com uma versão desktop empacotada em Electron.
 
-First, run the development server:
+---
+
+## Como rodar
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env   # (ou edite o .env direto)
+npm run dev            # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Sem `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY` preenchidos, o app sobe
+mas não carrega dado nenhum.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Estrutura
 
-## Learn More
+| Área | Rotas | Quem usa |
+|---|---|---|
+| Painel | `/`, `/products`, `/finance`, `/settings`, `/notifications` | Loja (protegido por login) |
+| Cliente | `/pedido/*` | Público |
+| API | `/api/auth/*`, `/api/webhook`, `/api/evolution`, `/api/cron/*` | Navegador e Evolution API |
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+├── app/            páginas e rotas de API
+├── components/     admin/, client/, common/, layout/
+├── config/store.ts nome, telefone e números VIP da loja
+├── context/        AuthContext, CartContext
+├── hooks/          useProducts, useAdminOrders, useOrders, useFinance, useStoreStatus
+├── lib/            storeHours, session, printerSettings, apiAuth, env, isElectron
+├── services/       supabase, evolution, notifications, messageBuffer, botSettings
+├── utils/          printReceipt
+└── middleware.ts   protege as rotas do painel
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Banco de dados
 
-## Deploy on Vercel
+Os arquivos em [`supabase/`](supabase/) precisam ser rodados **à mão no SQL Editor**, na ordem:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Ordem | Arquivo | O que faz |
+|---|---|---|
+| 1 | `01-bot-settings-unique.sql` | Limpa duplicatas em `bot_settings` e cria a constraint de unicidade |
+| 2 | `02-order-notifications.sql` | Trava que impede notificação de WhatsApp duplicada |
+| 3 | `03-create-order-rpc.sql` | Cria `is_store_open()` e `create_order()` |
+| 4 | `05-admin-user.sql` | Cria o usuário admin no Supabase Auth |
+| 5 | `04-rls-pedidos.sql` | Liga a RLS em todas as tabelas |
+| 6 | `06-service-role.sql` | Só conferência: mostra RLS e políticas aplicadas |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+> **O `03` é obrigatório** — sem ele o checkout quebra, porque o cliente não insere
+> mais direto na tabela `orders`.
+>
+> **O `05` vem antes do `04`.** As políticas do `04` exigem um admin autenticado;
+> se você ligar a RLS antes de criar o usuário e conseguir entrar no painel, ele
+> para de gravar até você criar.
+>
+> Depois do `04`, preencha `SUPABASE_SERVICE_ROLE_KEY` no `.env` — senão o bot do
+> WhatsApp para de funcionar.
+
+### Tabelas
+
+`orders`, `order_items`, `products`, `categories`, `complement_groups`, `complement_options`,
+`product_complements`, `delivery_zones`, `store_settings`, `bot_settings`,
+`bot_paused_numbers`, `bot_notifications`, `order_notifications`.
+
+---
+
+## Variáveis de ambiente
+
+| Variável | Obrigatória | Para quê |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | sim | Conexão com o Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | sim | idem |
+| `SUPABASE_SERVICE_ROLE_KEY` | sim, após a RLS | Usada pelo webhook e pelo cron, que rodam sem usuário logado |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | só no desktop | Credenciais do Supabase Auth com que o app Electron entra sozinho |
+| `WEBHOOK_SECRET` | recomendado | Protege `/api/webhook`. Vazio = endpoint aberto |
+| `CRON_SECRET` | recomendado | Protege `/api/cron/*`. Vazio = endpoint aberto |
+| `EVOLUTION_API_URL` / `_KEY` / `_INSTANCE_NAME` | opcional | Envio de WhatsApp |
+| `N8N_WEBHOOK_URL` | opcional | Destino das mensagens agrupadas pelo bot |
+| `NEXT_PUBLIC_STORE_*` | opcional | Nome, telefone e site da loja no cupom e nas mensagens |
+| `VIP_NUMBERS` | opcional | Números que o bot responde mesmo fora do horário |
+
+### Webhook da Evolution API
+
+Configure a URL com o segredo, de qualquer uma destas formas:
+
+```
+Authorization: Bearer <WEBHOOK_SECRET>
+x-webhook-secret: <WEBHOOK_SECRET>
+https://SEU-DOMINIO/api/webhook?secret=<WEBHOOK_SECRET>
+```
+
+---
+
+## Horário de funcionamento
+
+A grade fica em `store_settings` (uma linha por dia). A regra de "está aberto?" mora em
+[`src/lib/storeHours.ts`](src/lib/storeHours.ts) e é espelhada no banco por `is_store_open()`.
+
+Horário que vira a meia-noite é suportado: `17:30 → 01:00` deixa a loja aberta das 17:30
+até 01:00 do dia seguinte. Toda a checagem usa o fuso `America/Sao_Paulo`, não o do servidor.
+
+---
+
+## Impressão
+
+A impressora é configurada **por máquina** (fica no `localStorage`, não no banco).
+Em Configurações → Impressão, ligue *"Imprimir automaticamente ao aceitar um pedido"*
+apenas no computador que está ligado à impressora — se ligar em dois, o cupom sai nos dois.
+
+A impressão silenciosa só existe na versão Electron. No navegador, abre a janela de impressão.
+
+---
+
+## Build
+
+### Web (Railway / Vercel)
+
+```bash
+npm run build
+npm start
+```
+
+Usa `output: 'standalone'`, com as rotas de API e o middleware ativos.
+
+### Desktop (Electron)
+
+```bash
+npm run build:electron   # gera a pasta out/
+npm run dist             # gera o instalador Windows em dist/
+```
+
+O [`build-electron.js`](build-electron.js) troca temporariamente o `next.config.ts` para
+`output: 'export'` e esconde `src/app/api` e `src/middleware.ts` em `.electron-build-backup/`
+(nenhum dos dois é compatível com export estático). Tudo é restaurado no final — inclusive
+se você der Ctrl+C ou o build falhar.
+
+No Electron o [`server.js`](server.js) sobe um Express na porta 3001 que serve a pasta `out`,
+injeta as variáveis de ambiente via `/runtime-config.js` e reimplementa as rotas que o
+desktop precisa. Não há login: o app roda na máquina do balcão.
+
+---
+
+## Autenticação
+
+O painel usa **Supabase Auth** (e-mail + senha). É isso que dá ao banco a informação de
+"esta pessoa é o admin" e permite a RLS distinguir dois papéis:
+
+| Papel | Pode |
+|---|---|
+| `anon` (visitante de `/pedido`) | Ler o cardápio, taxas e horários. Criar pedido só via `create_order()`. Ver os próprios pedidos via `get_orders_by_phone()` |
+| `authenticated` (admin logado) | Tudo |
+
+A sessão fica num cookie (`@supabase/ssr`), lido pelo [`middleware.ts`](src/middleware.ts).
+Diferente do esquema antigo, não dá para entrar escrevendo nada no console.
+
+> Em **Authentication → Providers → Email**, desligue **"Enable Sign Ups"**. Senão qualquer
+> pessoa cria conta, vira `authenticated` e ganha acesso total ao painel.
+
+No **Electron não há tela de login**: o app roda na máquina do balcão e entra sozinho com
+`ADMIN_EMAIL`/`ADMIN_PASSWORD` do `.env` empacotado. Quem tiver o instalador consegue
+extrair essas credenciais — se isso for um problema, crie um usuário separado só para o
+desktop.
+
+## Pendência conhecida
+
+O buffer de mensagens do bot ([`messageBuffer.ts`](src/services/messageBuffer.ts)) guarda
+as mensagens em memória com `setTimeout` de 30s. No Railway funciona, mas o buffer se perde
+a cada redeploy ou restart, e não sobrevive a múltiplas instâncias. Se for escalar, precisa
+sair para Redis ou uma tabela.

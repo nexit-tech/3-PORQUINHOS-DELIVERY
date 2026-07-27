@@ -1,6 +1,11 @@
 // src/services/messageBuffer.ts
-import { supabase } from './supabase';
-import { evolutionService } from './evolution';
+// Este arquivo roda SÓ NO SERVIDOR (chamado por /api/webhook), por isso usa o
+// cliente com service_role e fala com a Evolution API direto.
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { sendTextMessage } from './evolutionApi';
+import { BOT_SETTING_KEYS, getBotSetting } from './botSettings';
+import { isStoreOpen, getStoreParts, type DayHours } from '@/lib/storeHours';
+import { VIP_NUMBERS } from '@/config/store';
 
 interface BufferedMessage {
   phone: string;
@@ -14,14 +19,9 @@ const messageBuffers = new Map<string, BufferedMessage>();
 // Tempo de espera (30 segundos)
 const BUFFER_TIME = 30000;
 
-// 🔥 NÚMEROS VIP (sempre respondem, mesmo fora do horário)
-const VIP_NUMBERS = [
-  '5522998151575', // Seu número
-  // Adicione mais números aqui se necessário
-];
-
 /**
- * Verifica se o número é VIP
+ * Verifica se o número é VIP (responde mesmo fora do horário).
+ * A lista vem de src/config/store.ts / variável VIP_NUMBERS.
  */
 function isVIPNumber(phone: string): boolean {
   const cleanPhone = phone.replace(/\D/g, '');
@@ -128,31 +128,28 @@ async function processBuffer(phone: string) {
 }
 
 /**
- * Verifica se a loja está aberta agora
- * Horário fixo: 17:30 às 01:00 todos os dias
+ * Verifica se a loja está aberta agora.
+ * Lê a grade cadastrada em store_settings (mesma fonte do painel e do cardápio)
+ * em vez de horário chumbado no código.
  */
 async function checkStoreOpen(): Promise<boolean> {
   try {
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinutes = now.getMinutes();
-    const currentTime = currentHour * 60 + currentMinutes;
-    
-    // 🔥 HORÁRIO FIXO: 17:30 (1050 min) às 01:00 (60 min do dia seguinte)
-    const openTime = 17 * 60 + 30; // 17:30 = 1050 minutos
-    const closeTime = 1 * 60; // 01:00 = 60 minutos
-    
-    // Lógica especial porque fecha depois da meia-noite
-    // Se for depois das 17:30 OU antes da 01:00, está aberto
-    const isOpen = currentTime >= openTime || currentTime < closeTime;
-    
-    if (isOpen) {
-      console.log(`✅ Loja ABERTA - Horário atual: ${currentHour.toString().padStart(2, '0')}:${currentMinutes.toString().padStart(2, '0')}`);
-    } else {
-      console.log(`🔒 Loja FECHADA - Horário atual: ${currentHour.toString().padStart(2, '0')}:${currentMinutes.toString().padStart(2, '0')} (Abre às 17:30)`);
+    const { data, error } = await getSupabaseAdmin().from('store_settings').select('*');
+
+    if (error) throw error;
+
+    const schedule = (data as DayHours[]) || [];
+    const { hour, minute } = getStoreParts();
+    const clock = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+
+    if (schedule.length === 0) {
+      console.warn(`⚠️ store_settings vazio - assumindo FECHADA (${clock})`);
+      return false;
     }
-    
-    return isOpen;
+
+    const open = isStoreOpen(schedule);
+    console.log(`${open ? '✅ Loja ABERTA' : '🔒 Loja FECHADA'} - Horário atual: ${clock}`);
+    return open;
   } catch (error) {
     console.error('Erro ao verificar horário:', error);
     return false; // Em caso de erro, assume que está fechado
@@ -164,15 +161,17 @@ async function checkStoreOpen(): Promise<boolean> {
  */
 export async function sendPauseMessage(phone: string) {
   try {
-    const { data: settingData } = await supabase
-      .from('bot_settings')
-      .select('value')
-      .eq('key', 'pause_message')
-      .single();
-    
-    const message = settingData?.value?.text || '⏸️ Atendimento humano ativado. Aguarde, em breve te responderemos!';
-    
-    await evolutionService.sendMessage(phone, message);
+    const setting = await getBotSetting<{ text?: string }>(
+      BOT_SETTING_KEYS.PAUSE_MESSAGE,
+      getSupabaseAdmin()
+    );
+
+    const message =
+      setting?.text || '⏸️ Atendimento humano ativado. Aguarde, em breve te responderemos!';
+
+    // Direto na Evolution: o evolutionService usa baseURL relativa e não
+    // funciona fora do navegador
+    await sendTextMessage(phone, message);
     console.log('✅ Mensagem de pausa enviada!');
   } catch (error) {
     console.error('❌ Erro ao enviar mensagem de pausa:', error);

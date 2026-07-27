@@ -1,42 +1,54 @@
 'use client';
 
 import { useState } from 'react';
-import { 
-  ShoppingBag, ClipboardList, Package, User, CreditCard, 
-  Calendar, MapPin, Receipt, CheckCircle, Clock 
+import {
+  ShoppingBag, ClipboardList, Package, User, CreditCard,
+  MapPin, CheckCircle
 } from 'lucide-react';
 import Modal from '@/components/common/Modal';
+import type { FinanceOrder, ProductStat } from '@/hooks/useFinance';
+import { STORE_TZ } from '@/lib/storeHours';
 import styles from './styles.module.css';
 
 interface DetailedStatsProps {
-  products: any[];
-  orders: any[];
+  products: ProductStat[];
+  orders: FinanceOrder[];
 }
 
-const MOCK_ORDER_ITEMS = [
-  { qtd: 1, name: 'Pizza Grande Calabresa', obs: 'Sem cebola', total: 49.90 },
-  { qtd: 2, name: 'Coca Cola 2L', obs: '', total: 24.00 },
-];
+const formatMoney = (value: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+
+const formatDate = (key: string) => key.split('-').reverse().join('/');
+
+const formatTime = (iso: string) => {
+  if (!iso) return '';
+  return new Date(iso).toLocaleTimeString('pt-BR', {
+    timeZone: STORE_TZ,
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
 
 export default function DetailedStats({ products, orders }: DetailedStatsProps) {
   const [activeTab, setActiveTab] = useState<'ORDERS' | 'PRODUCTS'>('ORDERS');
-  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<FinanceOrder | null>(null);
 
-  const handleOrderClick = (order: any) => {
-    setSelectedOrder(order);
-  };
+  const items = selectedOrder?.items ?? [];
+  const deliveryFee = selectedOrder?.deliveryFee ?? 0;
+  const subtotal = (selectedOrder?.total ?? 0) - deliveryFee;
+  const isPickup = !selectedOrder?.address || selectedOrder.address.includes('RETIRADA');
 
   return (
     <div className={styles.container}>
       {/* ABAS */}
       <div className={styles.tabs}>
-        <button 
+        <button
           className={`${styles.tab} ${activeTab === 'ORDERS' ? styles.active : ''}`}
           onClick={() => setActiveTab('ORDERS')}
         >
           <ClipboardList size={18} /> Histórico de Pedidos
         </button>
-        <button 
+        <button
           className={`${styles.tab} ${activeTab === 'PRODUCTS' ? styles.active : ''}`}
           onClick={() => setActiveTab('PRODUCTS')}
         >
@@ -60,17 +72,17 @@ export default function DetailedStats({ products, orders }: DetailedStatsProps) 
             </thead>
             <tbody>
               {orders.map(t => (
-                <tr 
-                  key={t.id} 
-                  onClick={() => handleOrderClick(t)} 
+                <tr
+                  key={t.id}
+                  onClick={() => setSelectedOrder(t)}
                   className={styles.clickableRow}
                   title="Ver detalhes"
                 >
                   <td className={styles.idCell}>{t.id}</td>
-                  <td>{t.date.split('-').reverse().join('/')}</td>
-                  <td style={{fontWeight: 600}}>{t.customer}</td>
+                  <td>{formatDate(t.date)}</td>
+                  <td style={{ fontWeight: 600 }}>{t.customer}</td>
                   <td>{t.method}</td>
-                  <td className={styles.valueCell}>R$ {t.total.toFixed(2)}</td>
+                  <td className={styles.valueCell}>{formatMoney(t.total)}</td>
                   <td><span className={styles.statusBadge}>{t.status}</span></td>
                 </tr>
               ))}
@@ -94,7 +106,7 @@ export default function DetailedStats({ products, orders }: DetailedStatsProps) 
                   <td><span className={styles.rankBadge}>#{index + 1}</span></td>
                   <td style={{ fontWeight: 600 }}>{prod.name}</td>
                   <td>{prod.qtd} un.</td>
-                  <td className={styles.valueCell}>R$ {prod.total.toFixed(2)}</td>
+                  <td className={styles.valueCell}>{formatMoney(prod.total)}</td>
                 </tr>
               ))}
             </tbody>
@@ -102,81 +114,87 @@ export default function DetailedStats({ products, orders }: DetailedStatsProps) 
         )}
       </div>
 
-      {/* --- MODAL REFORMULADO --- */}
+      {/* DETALHE DO PEDIDO */}
       {selectedOrder && (
-        <Modal 
-          title={`Pedido ${selectedOrder.id}`} 
+        <Modal
+          title={`Pedido ${selectedOrder.id}`}
           onClose={() => setSelectedOrder(null)}
         >
           <div className={styles.modalBody}>
-            
-            {/* TOPO: STATUS E DADOS PRINCIPAIS */}
+
             <div className={styles.receiptHeader}>
               <div className={styles.statusRow}>
                 <span className={styles.bigStatusBadge}>
                   <CheckCircle size={16} /> {selectedOrder.status}
                 </span>
                 <span className={styles.dateLabel}>
-                  {selectedOrder.date.split('-').reverse().join('/')} às 19:30
+                  {formatDate(selectedOrder.date)} às {formatTime(selectedOrder.createdAt)}
                 </span>
               </div>
-              
+
               <div className={styles.infoGrid}>
                 <div className={styles.infoItem}>
-                  <span className={styles.label}><User size={14}/> Cliente</span>
+                  <span className={styles.label}><User size={14} /> Cliente</span>
                   <p>{selectedOrder.customer}</p>
                 </div>
                 <div className={styles.infoItem}>
-                  <span className={styles.label}><CreditCard size={14}/> Pagamento</span>
+                  <span className={styles.label}><CreditCard size={14} /> Pagamento</span>
                   <p>{selectedOrder.method}</p>
                 </div>
                 <div className={styles.infoItem}>
-                  <span className={styles.label}><MapPin size={14}/> Tipo</span>
-                  <p>Entrega</p>
+                  <span className={styles.label}><MapPin size={14} /> {isPickup ? 'Retirada' : 'Entrega'}</span>
+                  <p>{isPickup ? 'Cliente retirou na loja' : selectedOrder.address}</p>
                 </div>
               </div>
             </div>
 
-            {/* LISTA DE ITENS ESTILO CUPOM */}
+            {/* ITENS REAIS DO PEDIDO */}
             <div className={styles.itemsSection}>
               <div className={styles.sectionTitle}>
-                <Package size={16}/> Resumo do Pedido
+                <Package size={16} /> Resumo do Pedido
               </div>
               <div className={styles.itemsList}>
-                {MOCK_ORDER_ITEMS.map((item, i) => (
-                  <div key={i} className={styles.itemRow}>
-                    <div className={styles.qtdBox}>{item.qtd}x</div>
-                    <div className={styles.itemDetails}>
-                      <span className={styles.itemName}>{item.name}</span>
-                      {item.obs && <span className={styles.itemObs}>{item.obs}</span>}
+                {items.length === 0 ? (
+                  <p style={{ padding: '12px', color: 'var(--text-light)' }}>
+                    Este pedido não tem itens registrados.
+                  </p>
+                ) : (
+                  items.map((item: any, i: number) => (
+                    <div key={item.id || i} className={styles.itemRow}>
+                      <div className={styles.qtdBox}>{item.quantity}x</div>
+                      <div className={styles.itemDetails}>
+                        <span className={styles.itemName}>{item.product_name}</span>
+                        {item.observation && (
+                          <span className={styles.itemObs} style={{ whiteSpace: 'pre-line' }}>
+                            {item.observation}
+                          </span>
+                        )}
+                      </div>
+                      <span className={styles.itemPrice}>{formatMoney(Number(item.total_price))}</span>
                     </div>
-                    <span className={styles.itemPrice}>R$ {item.total.toFixed(2)}</span>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
 
-            {/* RODAPÉ DE TOTAIS */}
+            {/* TOTAIS REAIS */}
             <div className={styles.summarySection}>
               <div className={styles.summaryRow}>
                 <span>Subtotal</span>
-                <span>R$ {(selectedOrder.total - 5).toFixed(2)}</span>
+                <span>{formatMoney(subtotal)}</span>
               </div>
-              <div className={styles.summaryRow}>
-                <span>Taxa de Entrega</span>
-                <span>R$ 5,00</span>
-              </div>
+              {deliveryFee > 0 && (
+                <div className={styles.summaryRow}>
+                  <span>Taxa de Entrega</span>
+                  <span>{formatMoney(deliveryFee)}</span>
+                </div>
+              )}
               <div className={styles.dividerDotted} />
               <div className={styles.totalRow}>
                 <span>Total</span>
-                <span className={styles.totalValue}>R$ {selectedOrder.total.toFixed(2)}</span>
+                <span className={styles.totalValue}>{formatMoney(selectedOrder.total)}</span>
               </div>
             </div>
-
-            {/* BOTÃO DE IMPRIMIR (OPCIONAL/DECORATIVO) */}
-            <button className={styles.printBtn}>
-              <Receipt size={18} /> Imprimir Comprovante
-            </button>
 
           </div>
         </Modal>

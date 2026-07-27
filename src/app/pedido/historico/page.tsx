@@ -3,6 +3,7 @@
 import { ArrowLeft, ShoppingBag, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useOrders } from '@/hooks/useOrders';
+import { whatsappLink } from '@/config/store';
 import styles from './page.module.css';
 
 function getStatusInfo(status: string) {
@@ -22,9 +23,7 @@ export default function HistoricoPage() {
   const handleHelpClick = (orderId: string | number) => {
     // Converte para string e remove o '#' se tiver
     const cleanId = String(orderId).replace('#', '');
-    const message = `Oi! Preciso de ajuda com o pedido ${cleanId}`;
-    const url = `https://wa.me/5521973896869?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+    window.open(whatsappLink(`Oi! Preciso de ajuda com o pedido ${cleanId}`), '_blank');
   };
 
   return (

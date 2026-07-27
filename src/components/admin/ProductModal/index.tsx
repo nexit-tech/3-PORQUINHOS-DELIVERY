@@ -1,9 +1,9 @@
 // src/components/admin/ProductModal/index.tsx (VERSÃO COMPLETA)
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { Product, ComplementGroup } from '@/types/product';
-import { X, Plus, Trash2, GripVertical, Upload, Save, Download, Copy, ChevronRight, Loader2 } from 'lucide-react';
+import { X, Plus, Trash2, GripVertical, Upload, Download, Copy, ChevronRight, Loader2 } from 'lucide-react';
 import { supabase } from '@/services/supabase';
 import styles from './styles.module.css';
 

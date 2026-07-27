@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Montserrat } from 'next/font/google';
 import Navbar from '@/components/layout/Navbar';
 import { AuthProvider } from '@/context/AuthContext';
-import Script from 'next/script';
+import { Toaster } from 'react-hot-toast';
 import './globals.css';
 
 const montserrat = Montserrat({ 
@@ -24,7 +24,10 @@ export default function RootLayout({
   return (
     <html lang="pt-br">
       <head>
-        {/* 🔥 CARREGA CONFIG ANTES DE TUDO */}
+        {/* Precisa ser síncrono mesmo: no Electron o server.js gera este arquivo
+            em memória e o Supabase lê window.__RUNTIME_CONFIG__ na primeira
+            renderização. Com defer/async, a config chegaria tarde demais. */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
         <script src="/runtime-config.js" />
       </head>
       <body className={montserrat.className}>
@@ -32,6 +35,14 @@ export default function RootLayout({
           <Navbar />
           {children}
         </AuthProvider>
+        {/* Sem isso os toast.success/error do painel não renderizam em lugar nenhum */}
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 3000,
+            style: { fontFamily: 'inherit', fontSize: '0.9rem' },
+          }}
+        />
       </body>
     </html>
   );

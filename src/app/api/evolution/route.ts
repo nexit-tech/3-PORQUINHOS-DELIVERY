@@ -1,87 +1,48 @@
 import { NextResponse } from 'next/server';
-import axios from 'axios';
+import {
+  connectInstance,
+  createInstance,
+  getConnectionState,
+  logoutInstance,
+  sendTextMessage,
+} from '@/services/evolutionApi';
 
-// 🔥 Puxando as credenciais do .env de forma segura
-const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
-const API_KEY = process.env.EVOLUTION_API_KEY || '';
-const INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || '';
-
-const api = axios.create({
-  baseURL: EVOLUTION_URL,
-  headers: {
-    'apikey': API_KEY,
-    'Content-Type': 'application/json',
-  },
-});
-
+// Proxy usado pelo painel (o navegador não pode ver a EVOLUTION_API_KEY).
+// Protegido pelo middleware: antes esta rota estava aberta para a internet
+// inteira, ou seja, qualquer um mandava WhatsApp em nome da loja.
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { action, phone, message } = body;
-
-    let responseData;
+    const { action, phone, message } = await request.json();
 
     switch (action) {
       case 'check':
-        try {
-          const { data } = await api.get(`/instance/connectionState/${INSTANCE_NAME}`);
-          responseData = data;
-        } catch (error: any) {
-          if (error.response?.status === 404) {
-            responseData = { state: 'not_found' };
-          } else {
-            throw error;
-          }
-        }
-        break;
+        return NextResponse.json(await getConnectionState());
 
       case 'create':
-        const { data: createData } = await api.post('/instance/create', {
-          instanceName: INSTANCE_NAME,
-          qrcode: true,
-          integration: 'WHATSAPP-BAILEYS',
-        });
-        responseData = createData;
-        break;
+        return NextResponse.json(await createInstance());
 
       case 'connect':
-        const { data: connectData } = await api.get(`/instance/connect/${INSTANCE_NAME}`);
-        responseData = connectData;
-        break;
+        return NextResponse.json(await connectInstance());
 
       case 'logout':
-        await api.delete(`/instance/logout/${INSTANCE_NAME}`);
-        responseData = { success: true };
-        break;
+        return NextResponse.json(await logoutInstance());
 
-      // 🔥 AÇÃO: ENVIAR MENSAGEM (Já configurada para envio direto)
       case 'send':
         if (!phone || !message) {
-          return NextResponse.json({ error: 'Phone e message são obrigatórios' }, { status: 400 });
+          return NextResponse.json(
+            { error: 'Phone e message são obrigatórios' },
+            { status: 400 }
+          );
         }
-
-        // Limpa o telefone (remove caracteres especiais)
-        const cleanPhone = phone.replace(/\D/g, '');
-        
-        // Envia a mensagem
-        const { data: sendData } = await api.post(`/message/sendText/${INSTANCE_NAME}`, {
-          number: `55${cleanPhone}@s.whatsapp.net`, // Formato: 55XXXXXXXXXXX@s.whatsapp.net
-          text: message
-        });
-        
-        responseData = sendData;
-        break;
+        return NextResponse.json(await sendTextMessage(phone, message));
 
       default:
         return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
     }
-
-    return NextResponse.json(responseData);
-
   } catch (error: any) {
     console.error('Erro no Proxy Evolution:', error.response?.data || error.message);
     return NextResponse.json(
-      { error: 'Erro ao comunicar com a Evolution API' }, 
+      { error: 'Erro ao comunicar com a Evolution API' },
       { status: 500 }
     );
   }

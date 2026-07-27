@@ -13,7 +13,7 @@ import { Product } from '@/types/product';
 
 export default function PedidoHome() {
   const { products, categories, isLoading } = useProducts();
-  const { isOpen, currentDay, loading: storeLoading } = useStoreStatus();
+  const { isOpen, loading: storeLoading } = useStoreStatus();
   
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [searchTerm, setSearchTerm] = useState('');

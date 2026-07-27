@@ -1,21 +1,25 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { useAdminOrders } from '@/hooks/useAdminOrders';
 import OrderCard from '@/components/admin/OrderCard';
-import { supabase } from '@/services/supabase';
+import { BOT_SETTING_KEYS, getBotFlag, setBotFlag } from '@/services/botSettings';
 import styles from './page.module.css';
 import { ClipboardList, ChefHat, Bike, Volume2, Zap, ZapOff, Loader2 } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const { orders, updateStatus } = useAdminOrders(true);
+  const { orders, loading, updateStatus } = useAdminOrders();
 
-  // Estados de Configuração e Som
+  // Som de pedido novo. Em refs, não em state: como state, cada atualização
+  // re-disparava o próprio efeito que dispara o aceite automático.
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [prevCount, setPrevCount] = useState(0);
-  const [firstLoad, setFirstLoad] = useState(true);
-  
-  // 🔥 NOVO: Estado do Aceite Automático
+  const prevCountRef = useRef(0);
+  const firstLoadRef = useRef(true);
+
+  // Pedidos já enviados para aceite automático, para não reenviar o mesmo update
+  const autoAcceptedRef = useRef<Set<number>>(new Set());
+
   const [autoAccept, setAutoAccept] = useState(false);
   const [loadingAutoAccept, setLoadingAutoAccept] = useState(true);
 
@@ -24,74 +28,69 @@ export default function AdminDashboard() {
     audioRef.current = new Audio('/notification.mp3');
     audioRef.current.load();
 
-    // Busca status inicial do aceite automático
-    async function loadAutoAcceptStatus() {
-      try {
-        const { data } = await supabase
-          .from('bot_settings')
-          .select('value')
-          .eq('key', 'auto_accept_orders')
-          .single();
-        
-        if (data?.value?.enabled) {
-          setAutoAccept(true);
-        }
-      } catch (error) {
-        console.error('Erro ao carregar config:', error);
-      } finally {
-        setLoadingAutoAccept(false);
-      }
-    }
-    loadAutoAcceptStatus();
+    getBotFlag(BOT_SETTING_KEYS.AUTO_ACCEPT, false)
+      .then(setAutoAccept)
+      .catch((error) => console.error('Erro ao carregar config:', error))
+      .finally(() => setLoadingAutoAccept(false));
   }, []);
 
-  // 🔥 2. Função para Alternar (Ligar/Desligar) Aceite Automático
+  // 2. Liga/desliga o aceite automático
   const toggleAutoAccept = async () => {
     const newState = !autoAccept;
-    setAutoAccept(newState); // Atualiza visualmente na hora (otimista)
+    setAutoAccept(newState); // Otimista
 
     try {
-      await supabase.from('bot_settings').upsert({
-        key: 'auto_accept_orders',
-        value: { enabled: newState }
-      });
-      console.log(`Aceite automático ${newState ? 'ATIVADO' : 'DESATIVADO'}`);
+      await setBotFlag(BOT_SETTING_KEYS.AUTO_ACCEPT, newState);
+      toast.success(`Aceite automático ${newState ? 'ligado' : 'desligado'}`);
     } catch (error) {
       console.error('Erro ao salvar config:', error);
-      setAutoAccept(!newState); // Reverte se der erro
-      alert('Erro ao salvar configuração. Tente novamente.');
+      setAutoAccept(!newState); // Rollback
+      toast.error('Erro ao salvar configuração. Tente novamente.');
     }
   };
 
-  // 3. Monitoramento de Pedidos e Aceite Automático
+  // 3. Som quando chega pedido novo
   useEffect(() => {
-    if (!orders) return;
+    if (loading) return;
 
-    const handleNewOrders = async () => {
-      // Toca som se chegou pedido novo
-      if (!firstLoad && orders.length > prevCount) {
-        audioRef.current?.play().catch(err => {
-          console.warn("Autoplay bloqueado.", err);
-        });
-      }
+    // Primeira carga só registra a contagem, não toca som
+    if (firstLoadRef.current) {
+      firstLoadRef.current = false;
+      prevCountRef.current = orders.length;
+      return;
+    }
 
-      // 🔥 LÓGICA DE ACEITE: Só roda se o botão estiver LIGADO (autoAccept === true)
-      if (autoAccept) {
-        const pendingOrders = orders.filter(o => o.status === 'PENDING');
-        
-        for (const order of pendingOrders) {
-          // Move para PREPARING
+    if (orders.length > prevCountRef.current) {
+      audioRef.current?.play().catch((err) => console.warn('Autoplay bloqueado.', err));
+    }
+
+    prevCountRef.current = orders.length;
+  }, [orders, loading]);
+
+  // 4. Aceite automático
+  useEffect(() => {
+    if (!autoAccept) return;
+
+    const toAccept = orders.filter(
+      (o) => o.status === 'PENDING' && !autoAcceptedRef.current.has(o.id)
+    );
+    if (toAccept.length === 0) return;
+
+    // Marca ANTES de disparar: o realtime devolve a lista antes do update terminar
+    toAccept.forEach((o) => autoAcceptedRef.current.add(o.id));
+
+    (async () => {
+      for (const order of toAccept) {
+        try {
           await updateStatus(order.id, 'PREPARING');
           console.log(`✅ Pedido ${order.id} aceito automaticamente.`);
+        } catch (error) {
+          autoAcceptedRef.current.delete(order.id); // Deixa tentar de novo
+          console.error(`❌ Falha no aceite automático do pedido ${order.id}:`, error);
         }
       }
-
-      setPrevCount(orders.length);
-      if (firstLoad) setFirstLoad(false);
-    };
-
-    handleNewOrders();
-  }, [orders, prevCount, firstLoad, updateStatus, autoAccept]); // Adicionado autoAccept nas dependências
+    })();
+  }, [orders, autoAccept, updateStatus]);
 
   // Filtros de Status
   const pending = orders.filter(o => o.status === 'PENDING');

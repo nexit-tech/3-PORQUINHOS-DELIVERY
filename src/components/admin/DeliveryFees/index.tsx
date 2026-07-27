@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/services/supabase';
-import { MapPin, Plus, Trash2, Save, Loader2, DollarSign } from 'lucide-react';
+import { MapPin, Plus, Trash2, Save, Loader2 } from 'lucide-react';
 import styles from './styles.module.css';
 
 // Tipagem do Front-end

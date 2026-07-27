@@ -1,15 +1,24 @@
 // src/app/api/cron/auto-unpause/route.ts
 import { NextResponse } from 'next/server';
-import { supabase } from '@/services/supabase';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { requireSecret } from '@/lib/apiAuth';
 
-export async function GET() {
+// Este cron virou OPCIONAL: o /api/webhook já despausa sozinho o número
+// quando chega uma mensagem depois das 24h. Ele continua aqui para quem
+// quiser limpar a lista periodicamente (Railway cron, cron-job.org, etc).
+export async function GET(request: Request) {
+  const unauthorized = requireSecret(request, 'CRON_SECRET');
+  if (unauthorized) return unauthorized;
+
+  const db = getSupabaseAdmin();
+
   try {
     console.log('🔄 Verificando números para auto-despausar...');
 
     const now = new Date().toISOString();
 
     // Busca números pausados automaticamente que já passaram das 24h
-    const { data: toUnpause, error } = await supabase
+    const { data: toUnpause, error } = await db
       .from('bot_paused_numbers')
       .select('*')
       .eq('is_paused', true)
@@ -32,7 +41,7 @@ export async function GET() {
 
     // Despausa todos
     for (const item of toUnpause) {
-      const { error: updateError } = await supabase
+      const { error: updateError } = await db
         .from('bot_paused_numbers')
         .update({
           is_paused: false,

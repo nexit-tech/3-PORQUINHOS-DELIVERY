@@ -10,14 +10,15 @@ import styles from './page.module.css';
 
 export default function PagamentoPage() {
   const router = useRouter();
-  const { 
-    items, 
-    cartSubtotal, 
-    deliveryFee, 
-    address, 
-    customerName, 
+  const {
+    items,
+    cartSubtotal,
+    deliveryFee,
+    address,
+    deliveryType,
+    customerName,
     customerPhone,
-    clearCart 
+    clearCart
   } = useCart();
   
   const [method, setMethod] = useState('pix');
@@ -71,107 +72,94 @@ export default function PagamentoPage() {
     processOrder('Dinheiro', 'Sem troco');
   };
 
+  const buildAddressLine = () => {
+    if (deliveryType === 'pickup') return 'RETIRADA NO LOCAL';
+
+    const complement = address.complement ? ` - ${address.complement}` : '';
+    return `${address.street}, ${address.number}${complement} - ${address.neighborhood}`;
+  };
+
   const processOrder = async (paymentMethodLabel: string, changeInfo: string = '') => {
     if (isSubmitting) return;
     setIsSubmitting(true);
 
     try {
-      const finalPaymentMethod = changeInfo 
+      const finalPaymentMethod = changeInfo
         ? `${paymentMethodLabel} - ${changeInfo}`
         : paymentMethodLabel;
 
-      const orderPayload = {
-        customer_name: customerName,
-        customer_phone: customerPhone,
-        customer_address: `${address.street}, ${address.number} ${address.complement ? `- ${address.complement}` : ''} - ${address.neighborhood}`,
-        payment_method: finalPaymentMethod,
-        delivery_fee: deliveryFee,
-        total: total,
-        status: 'PENDING'
-      };
-
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert(orderPayload)
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
-
-      const orderId = orderData.id;
-
-      // Salva ID do pedido no localStorage
-      const savedOrders = JSON.parse(localStorage.getItem('my_orders') || '[]');
-      if (!savedOrders.includes(orderId)) {
-        savedOrders.push(orderId);
-        localStorage.setItem('my_orders', JSON.stringify(savedOrders));
-      }
-
-      // 🔥 NOVO: Salva o telefone do cliente para buscar pedidos futuros
-      localStorage.setItem('customer_phone', customerPhone);
-
-      // 🔥 FORMATAÇÃO CORRIGIDA COM "Pizza 1", "Pizza 2", etc
+      // Monta a descrição legível de cada item ("Pizza 1: Calabresa, Mussarela")
       const orderItems = items.map((item: any) => {
-        const detailsParts = [];
-        
-        // 🎯 NOVA LÓGICA: Formata grupos separadamente (Pizza 1, Pizza 2, etc)
+        const detailsParts: string[] = [];
+
         if (item.selections && Object.keys(item.selections).length > 0) {
           Object.entries(item.selections).forEach(([groupId, options]: [string, any]) => {
-            // Busca o nome do grupo (ex: "Pizza 1", "Pizza 2")
             const group = item.product.complements?.find((g: any) => g.id === groupId);
             const groupLabel = group?.name || 'Opções';
-            
-            // Lista os sabores selecionados
             const selectedFlavors = options.map((opt: any) => opt.name).join(', ');
-            
-            // Adiciona a linha formatada: "Pizza 1: Calabresa, Mussarela"
             detailsParts.push(`${groupLabel}: ${selectedFlavors}`);
           });
         } else if (item.flavors && item.flavors.length > 0) {
-          // Fallback antigo (se não tiver selections)
           detailsParts.push(`Sabores: ${item.flavors.join(', ')}`);
         }
-        
-        // Adicionais pagos (se houver)
+
         if (item.customizations && item.customizations.length > 0) {
           const paidExtras = item.customizations
             .filter((c: any) => c.price > 0)
             .map((c: any) => c.name)
             .join(', ');
-          
-          if (paidExtras) {
-            detailsParts.push(`Adicionais: ${paidExtras}`);
-          }
+
+          if (paidExtras) detailsParts.push(`Adicionais: ${paidExtras}`);
         }
 
-        // Observação do cliente
-        if (item.observation) {
-          detailsParts.push(`Obs: ${item.observation}`);
-        }
-        
-        // 🔥 USA QUEBRA DE LINHA PARA SEPARAR
-        const detailsString = detailsParts.join('\n');
+        if (item.observation) detailsParts.push(`Obs: ${item.observation}`);
+
+        // IDs das opções escolhidas: é com eles que o banco recalcula o preço.
+        // Nenhum valor em reais sai daqui — quem soma é o create_order().
+        const optionIds = item.selections
+          ? Object.values(item.selections)
+              .flat()
+              .map((opt: any) => opt?.id)
+              .filter(Boolean)
+          : [];
 
         return {
-          order_id: orderId,
           product_id: item.product.id,
-          product_name: item.product.name,
           quantity: item.quantity,
-          unit_price: item.totalPrice / item.quantity,
-          total_price: item.totalPrice,
-          observation: detailsString, // 🎯 AQUI VAI A FORMATAÇÃO CORRETA
-          customizations: item.customizations || {}
+          observation: detailsParts.join('\n'),
+          option_ids: optionIds,
+          customizations: item.customizations || {},
         };
       });
 
-      const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
-      if (itemsError) throw itemsError;
+      // Uma chamada só: pedido + itens na mesma transação, preço vindo do banco.
+      // Se qualquer item falhar, nada é gravado (antes sobrava pedido sem itens).
+      const { data: orderId, error } = await supabase.rpc('create_order', {
+        p_customer_name: customerName,
+        p_customer_phone: customerPhone,
+        p_customer_address: buildAddressLine(),
+        p_payment_method: finalPaymentMethod,
+        p_delivery_type: deliveryType,
+        p_neighborhood: deliveryType === 'delivery' ? address.neighborhood : null,
+        p_items: orderItems,
+      });
+
+      if (error) throw error;
+
+      // Guarda para o cliente conseguir acompanhar o pedido depois
+      const savedOrders = JSON.parse(localStorage.getItem('my_orders') || '[]');
+      if (!savedOrders.includes(orderId)) {
+        savedOrders.push(orderId);
+        localStorage.setItem('my_orders', JSON.stringify(savedOrders));
+      }
+      localStorage.setItem('customer_phone', customerPhone);
 
       clearCart();
       router.push('/pedido/historico');
 
     } catch (error: any) {
       console.error('Erro ao processar pedido:', error);
+      // O banco devolve mensagens já em português ("A loja está fechada no momento")
       alert('Erro ao realizar pedido: ' + (error.message || 'Tente novamente.'));
       setIsSubmitting(false);
     }

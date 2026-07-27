@@ -38,11 +38,13 @@ function startServer() {
     expressApp.get('/runtime-config.js', (req, res) => {
       console.log('[Server] 🧠 Servindo runtime-config da memória...');
       res.type('application/javascript');
+      // ADMIN_EMAIL/ADMIN_PASSWORD são as credenciais do usuário do Supabase
+      // Auth: o app desktop entra sozinho com elas, senão a RLS bloqueia tudo.
       res.send(`
         window.__RUNTIME_CONFIG__ = {
           NEXT_PUBLIC_SUPABASE_URL: "${process.env.NEXT_PUBLIC_SUPABASE_URL || ''}",
           NEXT_PUBLIC_SUPABASE_ANON_KEY: "${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''}",
-          ADMIN_USERNAME: "${process.env.ADMIN_USERNAME || ''}",
+          ADMIN_EMAIL: "${process.env.ADMIN_EMAIL || ''}",
           ADMIN_PASSWORD: "${process.env.ADMIN_PASSWORD || ''}"
         };
       `);
@@ -131,22 +133,9 @@ function startServer() {
       }
     });
 
-    // 🔥 ROTA: /api/auth/login
-    expressApp.post('/api/auth/login', (req, res) => {
-      const { username, password } = req.body;
-
-      const validUsername = process.env.ADMIN_USERNAME;
-      const validPassword = process.env.ADMIN_PASSWORD;
-
-      if (username === validUsername && password === validPassword) {
-        res.json({ success: true });
-      } else {
-        res.status(401).json({ 
-          success: false, 
-          message: 'Usuário ou senha incorretos' 
-        });
-      }
-    });
+    // A rota /api/auth/login foi removida: o login agora é do Supabase Auth,
+    // feito direto pelo cliente. No desktop o app entra sozinho com as
+    // credenciais expostas em /runtime-config.js.
 
     // ========================================
     // Serve arquivos estáticos (DEPOIS das rotas da API)
@@ -173,7 +162,6 @@ function startServer() {
       console.log('[Server] 📋 Rotas ativas:');
       console.log('  - GET  /runtime-config.js');
       console.log('  - POST /api/evolution');
-      console.log('  - POST /api/auth/login');
     });
 
     server.on('error', (error) => {

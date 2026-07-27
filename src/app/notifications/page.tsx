@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/services/supabase';
-import { Bell, ExternalLink, CheckCircle, Loader2, Trash2 } from 'lucide-react'; // 🔥 Trash2 importado
+import { Bell, ExternalLink, CheckCircle, Loader2 } from 'lucide-react';
 import styles from './page.module.css';
 
 interface Notification {
@@ -18,7 +18,8 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [prevCount, setPrevCount] = useState(0);
+  // Ref e não state: o handler do realtime capturaria o valor antigo
+  const prevCountRef = useRef(0);
 
   useEffect(() => {
     // Inicializa o áudio
@@ -26,12 +27,23 @@ export default function NotificationsPage() {
     audioRef.current.load();
 
     fetchNotifications();
-    
-    const interval = setInterval(() => {
-      fetchNotifications();
-    }, 5000);
 
-    return () => clearInterval(interval);
+    // Realtime no lugar do SELECT a cada 5 segundos
+    const channel = supabase
+      .channel('notifications-page')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bot_notifications' },
+        () => fetchNotifications()
+      )
+      .subscribe();
+
+    const fallback = setInterval(fetchNotifications, 60_000);
+
+    return () => {
+      clearInterval(fallback);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchNotifications = async () => {
@@ -46,15 +58,15 @@ export default function NotificationsPage() {
 
       // Conta apenas para tocar o som (se chegou nova)
       const unreadCount = (data || []).length;
-      
+
       // 🔊 TOCA SOM SE AUMENTOU O NÚMERO DE NOTIFICAÇÕES
-      if (unreadCount > prevCount && prevCount > 0) {
+      if (unreadCount > prevCountRef.current && prevCountRef.current > 0) {
         audioRef.current?.play().catch(err => {
           console.warn('Erro ao tocar som:', err);
         });
       }
 
-      setPrevCount(unreadCount);
+      prevCountRef.current = unreadCount;
       setNotifications(data || []);
     } catch (error) {
       console.error('Erro ao buscar notificações:', error);
@@ -91,7 +103,7 @@ export default function NotificationsPage() {
         .eq('type', 'HUMAN_REQUEST');
 
       setNotifications([]);
-      setPrevCount(0);
+      prevCountRef.current = 0;
     } catch (error) {
       console.error('Erro ao excluir todas:', error);
     }

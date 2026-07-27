@@ -1,6 +1,7 @@
 
 import { evolutionService } from './evolution';
 import { Order } from '@/types/order';
+import { STORE_PHONE_DISPLAY } from '@/config/store';
 
 // Formata dinheiro
 const formatMoney = (val: number) => {
@@ -66,7 +67,7 @@ ${generateOrderSummary(order)}
 
 ❌ *Motivo:* Produto indisponível no momento
 
-💬 Entre em contato conosco para mais informações: (21) 97389-6869
+💬 Entre em contato conosco para mais informações: ${STORE_PHONE_DISPLAY}
 
 Pedimos desculpas pelo transtorno.
   `.trim();
@@ -92,7 +93,7 @@ ${generateOrderSummary(order)}
 
 ❌ *Motivo:* Cancelamento solicitado
 
-💬 Dúvidas? Entre em contato: (21) 97389-6869
+💬 Dúvidas? Entre em contato: ${STORE_PHONE_DISPLAY}
 
 Esperamos você em breve! 😊
   `.trim();

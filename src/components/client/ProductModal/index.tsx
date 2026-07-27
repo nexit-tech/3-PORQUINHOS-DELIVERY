@@ -126,9 +126,14 @@ export default function ProductModal({ product, onClose, initialData }: ProductM
     if (diff > 0) setOffsetY(diff); 
   };
   
-  const handleTouchEnd = () => { 
-    setIsDragging(false); 
-    offsetY > 150 ? handleClose() : setOffsetY(0); 
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+
+    if (offsetY > 150) {
+      handleClose();
+    } else {
+      setOffsetY(0);
+    }
   };
   
   const handleClose = () => { 

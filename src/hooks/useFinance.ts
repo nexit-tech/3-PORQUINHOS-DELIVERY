@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/services/supabase';
+import { storeDateKey, getStoreParts } from '@/lib/storeHours';
+
+// Brasil não tem mais horário de verão desde 2019, então o offset é fixo.
+const STORE_UTC_OFFSET = '-03:00';
+
+const WEEK_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 export interface ProductStat {
   id: string;
@@ -10,37 +16,48 @@ export interface ProductStat {
 
 export interface FinanceOrder {
   id: string;
-  date: string;
+  date: string; // YYYY-MM-DD no fuso da loja
+  createdAt: string; // ISO cru, para exibir a hora
   customer: string;
   method: string;
   total: number;
+  deliveryFee: number;
+  address: string;
   status: string;
-  items?: any[];
+  items: any[];
+}
+
+/** Índice do dia da semana (0=Dom) a partir de uma chave YYYY-MM-DD. */
+function weekdayFromKey(key: string): number {
+  return new Date(`${key}T00:00:00Z`).getUTCDay();
 }
 
 export function useFinance() {
   const [loading, setLoading] = useState(true);
-  
+
   // KPIs
   const [revenue, setRevenue] = useState(0);
   const [ordersCount, setOrdersCount] = useState(0);
   const [avgTicket, setAvgTicket] = useState(0);
-  
+
   // Gráficos
-  // Agora weekDayData também tem 'count'
-  const [chartData, setChartData] = useState<{ date: string; fullDate: string; total: number; count: number }[]>([]);
-  const [weekDayData, setWeekDayData] = useState<{ day: string; total: number; count: number }[]>([]);
+  const [chartData, setChartData] = useState<
+    { date: string; fullDate: string; total: number; count: number }[]
+  >([]);
+  const [weekDayData, setWeekDayData] = useState<{ day: string; total: number; count: number }[]>(
+    []
+  );
 
   // Listas
   const [detailedOrders, setDetailedOrders] = useState<FinanceOrder[]>([]);
   const [topProducts, setTopProducts] = useState<ProductStat[]>([]);
 
-  // Filtros de Data
-  const today = new Date();
-  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-  
-  const [startDate, setStartDate] = useState(firstDay.toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
+  // Filtros de Data (no fuso da loja, não no fuso do navegador)
+  const todayParts = getStoreParts();
+  const firstDayKey = `${todayParts.year}-${String(todayParts.month).padStart(2, '0')}-01`;
+
+  const [startDate, setStartDate] = useState(firstDayKey);
+  const [endDate, setEndDate] = useState(todayParts.dateKey);
 
   const fetchFinancialData = useCallback(async () => {
     try {
@@ -48,10 +65,14 @@ export function useFinance() {
 
       const { data, error } = await supabase
         .from('orders')
-        .select(`*, items:order_items(product_id, product_name, quantity, total_price)`)
+        .select(
+          `*, items:order_items(product_id, product_name, quantity, unit_price, total_price, observation)`
+        )
         .eq('status', 'COMPLETED')
-        .gte('created_at', `${startDate}T00:00:00`)
-        .lte('created_at', `${endDate}T23:59:59`)
+        // Offset explícito: sem ele o Postgres interpreta o horário como UTC
+        // e o período fica 3h deslocado (a loja fatura quase tudo depois das 21h)
+        .gte('created_at', `${startDate}T00:00:00${STORE_UTC_OFFSET}`)
+        .lte('created_at', `${endDate}T23:59:59.999${STORE_UTC_OFFSET}`)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
@@ -61,91 +82,98 @@ export function useFinance() {
       // 1. KPIs
       const totalRevenue = orders.reduce((acc, order) => acc + Number(order.total), 0);
       const count = orders.length;
-      const ticket = count > 0 ? totalRevenue / count : 0;
 
       setRevenue(totalRevenue);
       setOrdersCount(count);
-      setAvgTicket(ticket);
+      setAvgTicket(count > 0 ? totalRevenue / count : 0);
 
-      // 2. Gráfico Evolução (Linha)
+      // 2. Agrupamento por dia — usando a data no fuso da LOJA.
+      // Antes usava toISOString() (UTC), então todo pedido depois das 21h
+      // era contabilizado no dia seguinte.
       const salesByDay: Record<string, { total: number; count: number }> = {};
-      
+
       orders.forEach((order) => {
-        const dateObj = new Date(order.created_at);
-        const key = dateObj.toISOString().split('T')[0];
+        const key = storeDateKey(order.created_at);
         if (!salesByDay[key]) salesByDay[key] = { total: 0, count: 0 };
         salesByDay[key].total += Number(order.total);
         salesByDay[key].count += 1;
       });
 
+      // 3. Preenche todos os dias do período (inclusive os sem venda)
       const filledChartData = [];
-      const currDate = new Date(`${startDate}T12:00:00`);
-      const lastDate = new Date(`${endDate}T12:00:00`);
+      const cursor = new Date(`${startDate}T00:00:00Z`);
+      const lastDay = new Date(`${endDate}T00:00:00Z`);
 
-      while (currDate <= lastDate) {
-        const key = currDate.toISOString().split('T')[0];
-        const dayLabel = currDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+      while (cursor <= lastDay) {
+        const key = cursor.toISOString().slice(0, 10);
+        const [, month, day] = key.split('-');
         const dataForDay = salesByDay[key] || { total: 0, count: 0 };
-        
+
         filledChartData.push({
           fullDate: key,
-          date: dayLabel,
+          date: `${day}/${month}`,
           total: dataForDay.total,
-          count: dataForDay.count
+          count: dataForDay.count,
         });
-        currDate.setDate(currDate.getDate() + 1);
+
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
       }
       setChartData(filledChartData);
 
-      // 3. Gráfico Dias da Semana (Contagem de Pedidos)
-      const salesByWeekDay: Record<string, { total: number; count: number }> = {
-        'Dom': { total: 0, count: 0 }, 'Seg': { total: 0, count: 0 }, 'Ter': { total: 0, count: 0 }, 
-        'Qua': { total: 0, count: 0 }, 'Qui': { total: 0, count: 0 }, 'Sex': { total: 0, count: 0 }, 
-        'Sáb': { total: 0, count: 0 }
-      };
-      
-      orders.forEach((order) => {
-        const d = new Date(order.created_at);
-        const weekDayStr = d.toLocaleDateString('pt-BR', { weekday: 'short' });
-        const key = weekDayStr.charAt(0).toUpperCase() + weekDayStr.slice(1).replace('.', '');
-        
-        if (salesByWeekDay[key]) {
-          salesByWeekDay[key].total += Number(order.total);
-          salesByWeekDay[key].count += 1; // Incrementa contagem
-        }
+      // 4. Agrupamento por dia da semana (derivado das mesmas chaves)
+      const salesByWeekDay = WEEK_LABELS.map(() => ({ total: 0, count: 0 }));
+
+      Object.entries(salesByDay).forEach(([key, value]) => {
+        const index = weekdayFromKey(key);
+        salesByWeekDay[index].total += value.total;
+        salesByWeekDay[index].count += value.count;
       });
 
-      const weekOrder = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-      setWeekDayData(weekOrder.map(day => ({ 
-        day, 
-        total: salesByWeekDay[day].total,
-        count: salesByWeekDay[day].count // Passamos o count
-      })));
+      setWeekDayData(
+        WEEK_LABELS.map((day, index) => ({
+          day,
+          total: salesByWeekDay[index].total,
+          count: salesByWeekDay[index].count,
+        }))
+      );
 
-      // 4. Listas
-      const formattedOrders = orders.map(order => ({
-        id: `#${order.id}`,
-        date: order.created_at.split('T')[0],
-        customer: order.customer_name,
-        method: order.payment_method,
-        total: Number(order.total),
-        status: order.status,
-        items: order.items
-      })).reverse();
+      // 5. Listas
+      const formattedOrders: FinanceOrder[] = orders
+        .map((order) => ({
+          id: `#${order.id}`,
+          date: storeDateKey(order.created_at),
+          createdAt: order.created_at,
+          customer: order.customer_name,
+          method: order.payment_method,
+          total: Number(order.total),
+          deliveryFee: Number(order.delivery_fee || 0),
+          address: order.customer_address || '',
+          status: order.status,
+          items: order.items || [],
+        }))
+        .reverse();
       setDetailedOrders(formattedOrders);
 
       const productMap = new Map<string, ProductStat>();
-      orders.forEach(order => {
+      orders.forEach((order) => {
         order.items?.forEach((item: any) => {
           const key = item.product_name;
-          const current = productMap.get(key) || { id: item.product_id || 'x', name: key, qtd: 0, total: 0 };
+          const current = productMap.get(key) || {
+            id: item.product_id || key,
+            name: key,
+            qtd: 0,
+            total: 0,
+          };
           current.qtd += item.quantity;
           current.total += Number(item.total_price);
           productMap.set(key, current);
         });
       });
-      setTopProducts(Array.from(productMap.values()).sort((a, b) => b.qtd - a.qtd).slice(0, 10));
-
+      setTopProducts(
+        Array.from(productMap.values())
+          .sort((a, b) => b.qtd - a.qtd)
+          .slice(0, 10)
+      );
     } catch (error) {
       console.error(error);
     } finally {
@@ -153,13 +181,22 @@ export function useFinance() {
     }
   }, [startDate, endDate]);
 
-  useEffect(() => { fetchFinancialData(); }, [fetchFinancialData]);
+  useEffect(() => {
+    fetchFinancialData();
+  }, [fetchFinancialData]);
 
-  return { 
-    revenue, ordersCount, avgTicket, 
-    chartData, weekDayData, 
-    detailedOrders, topProducts, 
-    startDate, endDate, setStartDate, setEndDate, 
-    loading 
+  return {
+    revenue,
+    ordersCount,
+    avgTicket,
+    chartData,
+    weekDayData,
+    detailedOrders,
+    topProducts,
+    startDate,
+    endDate,
+    setStartDate,
+    setEndDate,
+    loading,
   };
 }

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/services/supabase';
 import toast from 'react-hot-toast';
+import { loadPrinterSettings } from '@/lib/printerSettings';
 import { Order } from '@/types/order';
 import styles from './styles.module.css';
 
@@ -27,22 +28,24 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
     return new Date(dateString).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   };
 
-  // BOTÃO DE REIMPRESSÃO MANUAL (Não mexemos aqui)
+  // BOTÃO DE REIMPRESSÃO MANUAL
   const handlePrint = async () => {
     if (isPrinting) return;
     setIsPrinting(true);
     try {
-      const { data: settingsData } = await supabase.from('settings').select('value').eq('key', 'printer').single();
-      if (!settingsData?.value?.printerName) {
+      // Configuração da impressora é por máquina (localStorage), não do banco
+      const printerSettings = loadPrinterSettings();
+
+      if (!printerSettings.printerName) {
         toast.error('Configure a impressora em Configurações');
-        setIsPrinting(false);
         return;
       }
-      const printerSettings = settingsData.value;
+
       const { printReceipt } = await import('@/utils/printReceipt');
       await printReceipt(order, printerSettings, 1);
       toast.success('Impresso com sucesso!');
     } catch (error: any) {
+      console.error('Erro ao imprimir:', error);
       toast.error('Erro ao imprimir');
     } finally {
       setIsPrinting(false);
@@ -63,6 +66,7 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
       if (error) throw error;
       toast.success(`Pedido atualizado!`);
     } catch (error) {
+      console.error('Erro ao atualizar status:', error);
       toast.error('Erro ao atualizar');
     } finally {
       setLoading(false);

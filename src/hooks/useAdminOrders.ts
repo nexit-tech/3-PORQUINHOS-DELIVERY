@@ -3,11 +3,67 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/services/supabase';
 import { Order, OrderStatus } from '@/types/order';
 import { printReceipt } from '@/utils/printReceipt';
-import { 
-  notifyOrderAccepted, 
-  notifyOrderDelivering, 
-  notifyOrderCanceled 
+import { loadPrinterSettings, shouldAutoPrint } from '@/lib/printerSettings';
+import {
+  notifyOrderAccepted,
+  notifyOrderDelivering,
+  notifyOrderCanceled,
 } from '@/services/notifications';
+
+function mapOrder(raw: any): Order {
+  return {
+    id: raw.id,
+    displayId: `#${raw.id}`,
+    customerName: raw.customer_name,
+    customerPhone: raw.customer_phone,
+    customerAddress: raw.customer_address,
+    paymentMethod: raw.payment_method,
+    status: String(raw.status).toUpperCase() as OrderStatus,
+    total: Number(raw.total),
+    deliveryFee: Number(raw.delivery_fee || 0),
+    createdAt: raw.created_at,
+    updatedAt: raw.updated_at,
+    items: (raw.items || []).map((item: any) => ({
+      id: item.id,
+      name: item.product_name,
+      quantity: item.quantity,
+      unitPrice: Number(item.unit_price),
+      totalPrice: Number(item.total_price),
+      observation: item.observation || '',
+      customizations: item.customizations || {},
+    })),
+  };
+}
+
+/**
+ * Tenta "reservar" o envio da notificação deste pedido/status.
+ *
+ * O listener realtime roda em TODO painel aberto, então sem isso o cliente
+ * recebia uma mensagem de WhatsApp por aba/máquina aberta. A reserva é uma
+ * linha com chave primária (order_id, status): só o primeiro consegue inserir.
+ *
+ * Se a tabela ainda não existir (SQL não rodado), segue em frente — melhor
+ * duplicar do que deixar o cliente sem aviso nenhum.
+ */
+async function claimNotification(orderId: number, status: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('order_notifications')
+    .insert({ order_id: orderId, status });
+
+  if (!error) return true;
+
+  // 23505 = unique_violation: outro painel já enviou
+  if ((error as any).code === '23505') {
+    console.log(`↩️ Notificação de ${status} do pedido ${orderId} já foi enviada por outro painel.`);
+    return false;
+  }
+
+  console.warn(
+    '⚠️ Não consegui reservar a notificação (a tabela order_notifications existe?). Seguindo sem proteção contra duplicata:',
+    error
+  );
+  return true;
+}
 
 export function useAdminOrders() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -28,30 +84,7 @@ export function useAdminOrders() {
 
       if (error) throw error;
 
-      const formattedOrders: Order[] = (data || []).map((order: any) => ({
-        id: order.id,
-        displayId: `#${order.id}`,
-        customerName: order.customer_name,
-        customerPhone: order.customer_phone,
-        customerAddress: order.customer_address,
-        paymentMethod: order.payment_method,
-        status: order.status.toUpperCase() as OrderStatus,
-        total: Number(order.total),
-        deliveryFee: Number(order.delivery_fee || 0),
-        createdAt: order.created_at,
-        updatedAt: order.updated_at,
-        items: (order.items || []).map((item: any) => ({
-          id: item.id,
-          name: item.product_name,
-          quantity: item.quantity,
-          unitPrice: Number(item.unit_price),
-          totalPrice: Number(item.total_price),
-          observation: item.observation || '',
-          customizations: item.customizations || {}
-        }))
-      }));
-
-      setOrders(formattedOrders);
+      setOrders((data || []).map(mapOrder));
     } catch (error) {
       console.error('❌ Erro ao buscar pedidos:', error);
     } finally {
@@ -61,8 +94,7 @@ export function useAdminOrders() {
 
   const updateStatus = async (orderId: number | string, newStatus: OrderStatus) => {
     try {
-      const idStr = String(orderId).replace('#', '');
-      const id = parseInt(idStr, 10);
+      const id = parseInt(String(orderId).replace('#', ''), 10);
 
       const { error } = await supabase
         .from('orders')
@@ -70,9 +102,13 @@ export function useAdminOrders() {
         .eq('id', id);
 
       if (error) throw error;
-      
-      setOrders(prev => 
-        prev.map(order => order.id === id ? { ...order, status: newStatus, updatedAt: new Date().toISOString() } : order)
+
+      setOrders((prev) =>
+        prev.map((order) =>
+          order.id === id
+            ? { ...order, status: newStatus, updatedAt: new Date().toISOString() }
+            : order
+        )
       );
     } catch (error) {
       console.error('❌ Erro ao atualizar status:', error);
@@ -90,62 +126,53 @@ export function useAdminOrders() {
         { event: '*', schema: 'public', table: 'orders' },
         async (payload) => {
           console.log('🔔 Mudança detectada nos pedidos:', payload);
-          setTimeout(() => fetchOrders(), 500); 
+          setTimeout(() => fetchOrders(), 500);
 
-          // 🔥 CORREÇÃO TYPESCRIPT: Avisar que o formato que vem do supabase é "any" para não dar erro
           const newRecord = payload.new as any;
           const oldRecord = payload.old as any;
 
-          // Agora podemos acessar sem o typescript gritar
-          const newStatus = newRecord?.status;
-          const oldStatus = oldRecord?.status;
+          const newStatus = newRecord?.status ? String(newRecord.status).toUpperCase() : null;
+          const oldStatus = oldRecord?.status ? String(oldRecord.status).toUpperCase() : null;
           const newId = newRecord?.id;
 
-          // Se acabou de mudar de status ou inserido já com um status novo
-          if (newStatus && newStatus !== oldStatus && newId) {
-            
-            // Busca o pedido completinho no banco para ter os itens para imprimir e notificar
-            const { data: fullOrder } = await supabase
-              .from('orders')
-              .select('*, items:order_items(*)')
-              .eq('id', newId)
-              .single();
+          if (!newStatus || !newId || newStatus === oldStatus) return;
 
-            if (fullOrder) {
-              const formattedOrder: Order = {
-                id: fullOrder.id,
-                displayId: `#${fullOrder.id}`,
-                customerName: fullOrder.customer_name,
-                customerPhone: fullOrder.customer_phone,
-                customerAddress: fullOrder.customer_address,
-                paymentMethod: fullOrder.payment_method,
-                status: fullOrder.status as OrderStatus,
-                total: Number(fullOrder.total),
-                deliveryFee: Number(fullOrder.delivery_fee || 0),
-                createdAt: fullOrder.created_at,
-                updatedAt: fullOrder.updated_at,
-                items: fullOrder.items.map((i: any) => ({
-                  id: i.id, name: i.product_name, quantity: i.quantity,
-                  unitPrice: Number(i.unit_price), totalPrice: Number(i.total_price),
-                  observation: i.observation || '', customizations: i.customizations || {}
-                }))
-              };
+          const isNotifiable =
+            newStatus === 'PREPARING' || newStatus === 'DELIVERING' || newStatus === 'CANCELED';
+          const wantsPrint = newStatus === 'PREPARING' && shouldAutoPrint();
 
-              // 🎯 DISPAROS GLOBAIS: Funciona não importa quem alterou o banco!
-              if (newStatus === 'PREPARING') {
-                console.log('✅ Pedido Aceito (Bot ou Manual). Notificando e Imprimindo...');
-                await notifyOrderAccepted(formattedOrder);
+          if (!isNotifiable && !wantsPrint) return;
 
-                const { data: settingsData } = await supabase.from('settings').select('value').eq('key', 'printer').single();
-                if (settingsData?.value?.printerName) {
-                  await printReceipt(formattedOrder, settingsData.value, 1);
-                }
-              } else if (newStatus === 'DELIVERING') {
-                await notifyOrderDelivering(formattedOrder);
-              } else if (newStatus === 'CANCELED' || newStatus === 'REJECTED') {
-                await notifyOrderCanceled(formattedOrder);
-              }
+          const { data: fullOrder } = await supabase
+            .from('orders')
+            .select('*, items:order_items(*)')
+            .eq('id', newId)
+            .single();
+
+          if (!fullOrder) return;
+
+          const order = mapOrder(fullOrder);
+
+          // IMPRESSÃO: decisão local. Só imprime a máquina que tem impressora
+          // configurada e o aceite automático de impressão ligado.
+          if (wantsPrint) {
+            try {
+              await printReceipt(order, loadPrinterSettings(), 1);
+            } catch (error) {
+              console.error('❌ Erro ao imprimir automaticamente:', error);
             }
+          }
+
+          // NOTIFICAÇÃO: uma vez só, não importa quantos painéis estejam abertos.
+          if (!isNotifiable) return;
+          if (!(await claimNotification(newId, newStatus))) return;
+
+          if (newStatus === 'PREPARING') {
+            await notifyOrderAccepted(order);
+          } else if (newStatus === 'DELIVERING') {
+            await notifyOrderDelivering(order);
+          } else if (newStatus === 'CANCELED') {
+            await notifyOrderCanceled(order);
           }
         }
       )

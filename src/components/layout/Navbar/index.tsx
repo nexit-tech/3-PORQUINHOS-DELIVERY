@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, useEffect, useRef } from 'react'; // 🔥 useRef importado
-import { 
-  ShoppingBag, 
-  UtensilsCrossed, 
-  Settings, 
-  LogOut, 
+import { useState, useEffect, useRef } from 'react';
+import {
+  ShoppingBag,
+  UtensilsCrossed,
+  Settings,
+  LogOut,
   DollarSign,
-  Bell 
+  Bell
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { isElectron } from '@/lib/isElectron';
@@ -20,74 +20,84 @@ export default function Navbar() {
   const pathname = usePathname();
   const { logout } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
-  
-  // 🔥 Refs para controle de áudio e estado anterior
+
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const prevCountRef = useRef(0);
   const isFirstLoad = useRef(true);
 
-  // Se estiver na área do cliente, esconde navbar
-  if (pathname.startsWith('/pedido')) {
-    return null;
-  }
-
-  const isActive = (path: string) => {
-    if (path === '/') {
-      return pathname === '/';
-    }
-    return pathname.startsWith(path);
-  };
+  // A Navbar some na área do cliente. IMPORTANTE: isso é uma flag, não um
+  // `return null` antes dos hooks. Do jeito antigo os dois useEffect abaixo
+  // ficavam depois do early return, então a quantidade de hooks mudava
+  // conforme a rota — e o React quebra com "Rendered more hooks than during
+  // the previous render" na primeira navegação entre /pedido e o painel.
+  const hidden = pathname.startsWith('/pedido');
 
   const inElectron = isElectron();
 
-  // 🔥 Inicializa o objeto de áudio apenas uma vez
   useEffect(() => {
+    if (hidden) return;
+
     // Garanta que o arquivo mensagem.mp3 esteja na pasta /public
     audioRef.current = new Audio('/mensagem.mp3');
     audioRef.current.load();
-  }, []);
+  }, [hidden]);
 
-  // 🔥 Monitoramento de Notificações com Som
   useEffect(() => {
+    if (hidden) return;
+
     const fetchUnreadCount = async () => {
       try {
         const { count, error } = await supabase
           .from('bot_notifications')
-          .select('*', { count: 'exact', head: true }) // head: true é mais leve, traz só a contagem
+          .select('*', { count: 'exact', head: true })
           .eq('type', 'HUMAN_REQUEST')
           .eq('is_read', false);
 
-        if (!error && count !== null) {
-          // Lógica do som:
-          // 1. Não toca na primeira carga da página (pra não irritar no F5)
-          // 2. Toca se o número atual (count) for MAIOR que o anterior (prevCountRef)
-          if (!isFirstLoad.current && count > prevCountRef.current) {
-            try {
-              audioRef.current?.play().catch(err => {
-                console.warn('Bloqueio de autoplay ou erro de áudio:', err);
-              });
-            } catch (e) {
-              console.error(e);
-            }
-          }
+        if (error || count === null) return;
 
-          // Atualiza as referências
-          prevCountRef.current = count;
-          setUnreadCount(count);
-          isFirstLoad.current = false;
+        // Não toca na primeira carga (senão apita a cada F5)
+        if (!isFirstLoad.current && count > prevCountRef.current) {
+          audioRef.current?.play().catch((err) => {
+            console.warn('Bloqueio de autoplay ou erro de áudio:', err);
+          });
         }
+
+        prevCountRef.current = count;
+        setUnreadCount(count);
+        isFirstLoad.current = false;
       } catch (err) {
         console.error('Erro ao buscar notificações:', err);
       }
     };
 
-    // Busca imediata
     fetchUnreadCount();
-    
-    // Repete a cada 5 segundos
-    const interval = setInterval(fetchUnreadCount, 5000);
-    return () => clearInterval(interval);
-  }, []);
+
+    // Realtime no lugar de polling: antes era um SELECT a cada 5 segundos,
+    // 24h por dia, em cada painel aberto. O intervalo longo fica só como
+    // rede de segurança caso o websocket caia.
+    const channel = supabase
+      .channel('navbar-notifications')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bot_notifications' },
+        () => fetchUnreadCount()
+      )
+      .subscribe();
+
+    const fallback = setInterval(fetchUnreadCount, 60_000);
+
+    return () => {
+      clearInterval(fallback);
+      supabase.removeChannel(channel);
+    };
+  }, [hidden]);
+
+  if (hidden) return null;
+
+  const isActive = (path: string) => {
+    if (path === '/') return pathname === '/';
+    return pathname.startsWith(path);
+  };
 
   return (
     <nav className={styles.navbar}>
@@ -96,17 +106,16 @@ export default function Navbar() {
       </div>
 
       <div className={styles.links}>
-        <Link 
-          href="/" 
+        <Link
+          href="/"
           className={`${styles.link} ${isActive('/') ? styles.active : ''}`}
         >
           <ShoppingBag size={20} />
           <span>Pedidos</span>
         </Link>
 
-        {/* 🔥 LINK DE NOTIFICAÇÕES COM BADGE */}
-        <Link 
-          href="/notifications" 
+        <Link
+          href="/notifications"
           className={`${styles.link} ${isActive('/notifications') ? styles.active : ''}`}
         >
           <div className={styles.iconWrapper}>
@@ -118,24 +127,24 @@ export default function Navbar() {
           <span>Notificações</span>
         </Link>
 
-        <Link 
-          href="/products" 
+        <Link
+          href="/products"
           className={`${styles.link} ${isActive('/products') ? styles.active : ''}`}
         >
           <UtensilsCrossed size={20} />
           <span>Produtos</span>
         </Link>
-        
-        <Link 
-          href="/finance" 
+
+        <Link
+          href="/finance"
           className={`${styles.link} ${isActive('/finance') ? styles.active : ''}`}
         >
           <DollarSign size={20} />
           <span>Financeiro</span>
         </Link>
-        
-        <Link 
-          href="/settings" 
+
+        <Link
+          href="/settings"
           className={`${styles.link} ${isActive('/settings') ? styles.active : ''}`}
         >
           <Settings size={20} />
@@ -144,7 +153,7 @@ export default function Navbar() {
       </div>
 
       {!inElectron && (
-        <button className={styles.logoutBtn} onClick={logout}>
+        <button className={styles.logoutBtn} onClick={() => logout()}>
           <LogOut size={20} />
           <span>Sair</span>
         </button>

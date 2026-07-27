@@ -34,7 +34,11 @@ interface CartContextType {
   setCustomerPhone: (phone: string) => void;
   address: Address;
   setAddress: (addr: Address) => void;
+  deliveryType: DeliveryType;
+  setDeliveryType: (type: DeliveryType) => void;
 }
+
+export type DeliveryType = 'delivery' | 'pickup';
 
 interface Address {
   street: string;
@@ -51,6 +55,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [address, setAddress] = useState<Address>({ street: '', number: '', neighborhood: '' });
+  const [deliveryType, setDeliveryType] = useState<DeliveryType>('delivery');
 
   // Carrega do LocalStorage ao iniciar
   useEffect(() => {
@@ -135,6 +140,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setCustomerPhone,
         address,
         setAddress,
+        deliveryType,
+        setDeliveryType,
       }}
     >
       {children}

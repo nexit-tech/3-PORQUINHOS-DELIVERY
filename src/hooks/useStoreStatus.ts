@@ -1,61 +1,65 @@
 // src/hooks/useStoreStatus.ts
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/services/supabase';
+import {
+  isStoreOpen,
+  storeDayKey,
+  getNextOpening,
+  DAY_LABELS,
+  type DayHours,
+  type DayKey,
+} from '@/lib/storeHours';
 
 export function useStoreStatus() {
   const [isOpen, setIsOpen] = useState(true);
-  const [currentDay, setCurrentDay] = useState('');
+  const [currentDay, setCurrentDay] = useState<DayKey>(() => storeDayKey());
+  const [nextOpening, setNextOpening] = useState<{ label: string; time: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const checkStoreStatus = useCallback(async () => {
+  // Guarda a grade da semana para reavaliar o horário sem bater no banco de novo
+  const scheduleRef = useRef<DayHours[]>([]);
+
+  const evaluate = useCallback(() => {
+    const schedule = scheduleRef.current;
+
+    setCurrentDay(storeDayKey());
+
+    // Sem grade cadastrada, assume aberto para não derrubar as vendas por engano
+    if (schedule.length === 0) {
+      setIsOpen(true);
+      setNextOpening(null);
+      return;
+    }
+
+    setIsOpen(isStoreOpen(schedule));
+
+    const next = getNextOpening(schedule);
+    setNextOpening(next ? { label: DAY_LABELS[next.dayKey], time: next.openTime } : null);
+  }, []);
+
+  const fetchSchedule = useCallback(async () => {
     try {
-      if (loading) setLoading(true);
+      // Busca a semana INTEIRA: o horário que vira a meia-noite depende de ontem
+      const { data, error } = await supabase.from('store_settings').select('*');
 
-      const now = new Date();
-      const dayMap = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
-      const todayKey = dayMap[now.getDay()];
-      
-      setCurrentDay(todayKey);
+      if (error) throw error;
 
-      const { data, error } = await supabase
-        .from('store_settings')
-        .select('*')
-        .eq('day_of_week', todayKey)
-        .single();
-
-      if (error || !data) {
-        setIsOpen(true);
-        setLoading(false);
-        return;
-      }
-
-      if (!data.is_open) {
-        setIsOpen(false);
-        setLoading(false);
-        return;
-      }
-
-      const currentTime = now.getHours() * 60 + now.getMinutes();
-      const [openHour, openMin] = data.open_time.split(':').map(Number);
-      const [closeHour, closeMin] = data.close_time.split(':').map(Number);
-      
-      const openMinutes = openHour * 60 + openMin;
-      const closeMinutes = closeHour * 60 + closeMin;
-
-      setIsOpen(currentTime >= openMinutes && currentTime <= closeMinutes);
-
+      scheduleRef.current = (data as DayHours[]) || [];
+      evaluate();
     } catch (error) {
-      console.error('Erro ao verificar status:', error);
+      console.error('Erro ao verificar status da loja:', error);
       setIsOpen(true);
     } finally {
       setLoading(false);
     }
-  }, [loading]);
+  }, [evaluate]);
 
   useEffect(() => {
-    checkStoreStatus();
+    fetchSchedule();
 
-    // 🔥 REALTIME: Escuta alterações nas configurações da loja
+    // Reavalia a cada minuto: senão a loja "fecha" só quando alguém der F5
+    const tick = setInterval(evaluate, 60_000);
+
     const channel = supabase
       .channel('store-status-changes')
       .on(
@@ -63,15 +67,16 @@ export function useStoreStatus() {
         { event: '*', schema: 'public', table: 'store_settings' },
         () => {
           console.log('⏰ Horário da loja alterado!');
-          checkStoreStatus();
+          fetchSchedule();
         }
       )
       .subscribe();
 
     return () => {
+      clearInterval(tick);
       supabase.removeChannel(channel);
     };
-  }, [checkStoreStatus]);
+  }, [fetchSchedule, evaluate]);
 
-  return { isOpen, currentDay, loading };
+  return { isOpen, currentDay, nextOpening, loading };
 }

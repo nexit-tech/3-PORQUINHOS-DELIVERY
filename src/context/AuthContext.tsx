@@ -1,13 +1,14 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { supabase } from '@/services/supabase';
 import { isElectron } from '@/lib/isElectron';
+import { getEnv } from '@/lib/env';
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  login: (username: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<{ ok: boolean; message?: string }>;
+  logout: () => Promise<void>;
   loading: boolean;
 }
 
@@ -16,77 +17,81 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-  const pathname = usePathname();
 
-  // Verifica autenticação ao carregar
   useEffect(() => {
-    // 🔥 SE ESTIVER NO ELECTRON, AUTENTICA AUTOMATICAMENTE
-    if (isElectron()) {
-      console.log('[Auth] Electron detectado - Login automático');
-      setIsAuthenticated(true);
+    let active = true;
+
+    async function bootstrap() {
+      const { data } = await supabase.auth.getSession();
+
+      if (!active) return;
+
+      if (data.session) {
+        setIsAuthenticated(true);
+        setLoading(false);
+        return;
+      }
+
+      // No Electron não existe tela de login: o app roda na máquina do balcão.
+      // Mesmo assim ele precisa de uma sessão de verdade, senão a RLS bloqueia
+      // tudo. Então ele entra sozinho com as credenciais do .env empacotado.
+      if (isElectron()) {
+        const email = getEnv('ADMIN_EMAIL');
+        const password = getEnv('ADMIN_PASSWORD');
+
+        if (email && password) {
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) console.error('[Auth] Falha no login automático do Electron:', error.message);
+        } else {
+          console.error('[Auth] ADMIN_EMAIL/ADMIN_PASSWORD ausentes no .env do Electron.');
+        }
+      }
+
+      if (!active) return;
       setLoading(false);
-      return;
     }
 
-    // Se for web, verifica token normal
-    const token = localStorage.getItem('admin_token');
-    if (token === 'authenticated') {
-      setIsAuthenticated(true);
-    }
-    setLoading(false);
+    bootstrap();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(Boolean(session));
+      setLoading(false);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  // Redireciona se não estiver autenticado (exceto rotas públicas)
-  useEffect(() => {
-    if (loading) return;
+  const login = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-    const isPublicRoute = pathname.startsWith('/pedido') || pathname === '/login';
-
-    // 🔥 NO ELECTRON, NUNCA REDIRECIONA PARA LOGIN
-    if (isElectron()) {
-      return;
+    if (error) {
+      console.error('Erro no login:', error.message);
+      return {
+        ok: false,
+        message:
+          error.message === 'Invalid login credentials'
+            ? 'E-mail ou senha incorretos'
+            : error.message,
+      };
     }
 
-    if (!isAuthenticated && !isPublicRoute) {
-      router.push('/login');
-    }
-  }, [isAuthenticated, pathname, router, loading]);
-
-  const login = async (username: string, password: string): Promise<boolean> => {
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        localStorage.setItem('admin_token', 'authenticated');
-        setIsAuthenticated(true);
-        router.push('/');
-        return true;
-      } else {
-        return false;
-      }
-    } catch (error) {
-      console.error('Erro no login:', error);
-      return false;
-    }
+    setIsAuthenticated(true);
+    return { ok: true };
   };
 
-  const logout = () => {
-    // 🔥 NO ELECTRON, NÃO FAZ NADA (não pode sair)
+  const logout = async () => {
     if (isElectron()) {
       console.log('[Auth] Logout desabilitado no Electron');
       return;
     }
 
-    localStorage.removeItem('admin_token');
+    await supabase.auth.signOut();
     setIsAuthenticated(false);
-    router.push('/login');
   };
 
   return (

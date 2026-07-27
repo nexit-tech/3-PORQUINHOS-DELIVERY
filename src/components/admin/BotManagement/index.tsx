@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/services/supabase';
+import { BOT_SETTING_KEYS, getBotFlag, setBotFlag } from '@/services/botSettings';
 import { Play, Pause, Trash2, Plus, Phone, Loader2, MessageSquare, Power, AlertTriangle } from 'lucide-react';
 import styles from './styles.module.css';
 
@@ -37,15 +38,7 @@ export default function BotManagement() {
   // 🔥 Busca status global
   const fetchGlobalStatus = async () => {
     try {
-      const { data } = await supabase
-        .from('bot_settings')
-        .select('value')
-        .eq('key', 'is_bot_active')
-        .single();
-      
-      if (data && data.value) {
-        setIsBotGlobalActive(data.value.enabled);
-      }
+      setIsBotGlobalActive(await getBotFlag(BOT_SETTING_KEYS.BOT_ACTIVE, true));
     } catch (error) {
       console.error('Erro ao buscar status global:', error);
     } finally {
@@ -53,33 +46,25 @@ export default function BotManagement() {
     }
   };
 
-  // 🔥 Alterna status global (CORRIGIDO)
+  // 🔥 Alterna status global
   const toggleGlobalBot = async () => {
     const newState = !isBotGlobalActive;
-    const confirmMessage = newState 
+    const confirmMessage = newState
       ? "Deseja LIGAR o bot novamente? Ele voltará a responder automaticamente."
       : "Deseja DESLIGAR o bot? Ele parará de responder a TODOS os clientes.";
 
     if (!confirm(confirmMessage)) return;
 
-    // 1. Optimistic UI: Atualiza a tela instantaneamente
-    setIsBotGlobalActive(newState); 
-    
+    // Optimistic UI: Atualiza a tela instantaneamente
+    setIsBotGlobalActive(newState);
+
     try {
-      // 2. CORREÇÃO AQUI: Trocado de .upsert para .update
-      // Isso garante que ele atualize a linha existente e não tente criar outra
-      const { error } = await supabase
-        .from('bot_settings')
-        .update({ 
-          value: { enabled: newState } 
-        })
-        .eq('key', 'is_bot_active'); // Busca a chave exata
-
-      if (error) throw error;
-
+      // setBotFlag faz update e só insere se a chave não existir,
+      // então não cria linha duplicada nem quebra a leitura depois
+      await setBotFlag(BOT_SETTING_KEYS.BOT_ACTIVE, newState);
     } catch (error) {
       console.error('Erro ao alterar status global:', error);
-      setIsBotGlobalActive(!newState); // Reverte se der erro (Rollback)
+      setIsBotGlobalActive(!newState); // Rollback
       alert('Erro ao salvar configuração no banco.');
     }
   };

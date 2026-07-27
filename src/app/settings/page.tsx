@@ -6,14 +6,13 @@ import SettingsCard from '@/components/admin/SettingsCard';
 import Modal from '@/components/common/Modal';
 import OpeningHours from '@/components/admin/OpeningHours';
 import DeliveryFees from '@/components/admin/DeliveryFees';
-import PaymentSettings from '@/components/admin/PaymentSettings';
 import WhatsappConnect from '@/components/admin/WhatsappConnect';
 import BotManagement from '@/components/admin/BotManagement';
-import { Clock, Bike, Printer, CreditCard, MessageCircle, Bot } from 'lucide-react';
+import { Clock, Bike, Printer, MessageCircle, Bot } from 'lucide-react';
 import styles from './page.module.css';
 import { PrinterSettings } from '@/components/admin/PrinterSettings';
 
-type SettingType = 'HOURS' | 'FEES' | 'PRINTER' | 'PAYMENTS' | 'WHATSAPP' | 'BOT' | null;
+type SettingType = 'HOURS' | 'FEES' | 'PRINTER' | 'WHATSAPP' | 'BOT' | null;
 
 export default function SettingsPage() {
   const [activeSetting, setActiveSetting] = useState<SettingType>(null);
@@ -22,7 +21,6 @@ export default function SettingsPage() {
     switch (activeSetting) {
       case 'HOURS': return <OpeningHours />;
       case 'FEES': return <DeliveryFees />;
-      case 'PAYMENTS': return <PaymentSettings />;
       case 'WHATSAPP': return <WhatsappConnect />;
       case 'PRINTER': return <PrinterSettings />;
       case 'BOT': return <BotManagement />;
@@ -33,7 +31,6 @@ export default function SettingsPage() {
     switch (activeSetting) {
       case 'HOURS': return 'Horário de Funcionamento';
       case 'FEES': return 'Taxas de Entrega';
-      case 'PAYMENTS': return 'Formas de Pagamento';
       case 'WHATSAPP': return 'Conexão WhatsApp';
       case 'PRINTER': return 'Impressoras';
       case 'BOT': return 'Controle de Bot';

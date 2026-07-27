@@ -17,6 +17,10 @@
 /.next/
 /out/
 
+# arquivos escondidos temporariamente pelo build-electron.js
+/.electron-build-backup/
+/next.config.ts.backup
+
 # production
 /build
 

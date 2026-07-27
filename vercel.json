@@ -1,6 +1,17 @@
 {
-  "crons": [{
-    "path": "/api/cron/auto-unpause",
-    "schedule": "0 * * * *"
-  }]
+  "$comment": [
+    "O cron abaixo só funciona se o deploy for na Vercel. Como o projeto roda no",
+    "Railway (next.config.ts usa output: 'standalone'), ele nunca executou.",
+    "Isso deixou de ser um problema: /api/webhook agora despausa o número sozinho",
+    "quando as 24h vencem. Este cron ficou apenas como faxina opcional.",
+    "Se quiser agendar no Railway ou no cron-job.org, chame:",
+    "  GET https://SEU-DOMINIO/api/cron/auto-unpause",
+    "  Header: Authorization: Bearer <CRON_SECRET>"
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/auto-unpause",
+      "schedule": "0 * * * *"
+    }
+  ]
 }

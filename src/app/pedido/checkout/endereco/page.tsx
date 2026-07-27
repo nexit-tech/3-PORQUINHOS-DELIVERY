@@ -16,17 +16,15 @@ interface DeliveryZone {
 
 export default function EnderecoPage() {
   const router = useRouter();
-  const { 
-    setAddress, setDeliveryFee, cartSubtotal, 
-    setCustomerName, setCustomerPhone
+  const {
+    setAddress, setDeliveryFee, cartSubtotal,
+    setCustomerName, setCustomerPhone,
+    deliveryType, setDeliveryType
   } = useCart();
 
   // Estados dos dados pessoais
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  
-  // 🔥 NOVO: Estado para tipo de entrega
-  const [deliveryType, setDeliveryType] = useState<'delivery' | 'pickup'>('delivery');
 
   // Estados do endereço
   const [street, setStreet] = useState('');

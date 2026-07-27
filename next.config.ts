@@ -7,8 +7,13 @@ const nextConfig: NextConfig = {
   
   // ❌ REMOVIDO: distDir: 'out' (não é usado no modo standalone)
 
+  // Lint continua fora do build (não vale travar deploy por warning),
+  // mas roda com `npm run lint`.
   eslint: { ignoreDuringBuilds: true },
-  typescript: { ignoreBuildErrors: true },
+
+  // Antes era `ignoreBuildErrors: true`: erro de tipo passava direto para
+  // produção. O projeto está com `tsc --noEmit` limpo, então dá para exigir.
+  typescript: { ignoreBuildErrors: false },
   
   images: {
     unoptimized: true,

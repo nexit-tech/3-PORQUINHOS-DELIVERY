@@ -1,4 +1,20 @@
 import { PrinterSettings } from "@/types/settings";
+import { STORE_NAME, STORE_SITE } from "@/config/store";
+
+/**
+ * Escapa texto que vai para o HTML do cupom.
+ *
+ * Sem isso, um cliente chamado `<b>` ou uma observação com `<` quebrava o
+ * layout do cupom — e o conteúdo ainda era carregado numa janela do Electron
+ * via data:text/html, ou seja, virava HTML executável.
+ */
+const esc = (value: unknown): string =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
 export const printReceipt = async (order: any, settings: PrinterSettings, copies: number = 1) => {
   // CORREÇÃO: Largura MUITO mais conservadora + padding direito generoso
@@ -180,11 +196,11 @@ export const printReceipt = async (order: any, settings: PrinterSettings, copies
     <body>
       <!-- CABEÇALHO -->
       <div class="center">
-        <div class="big">3 PORQUINHOS</div>
+        <div class="big">${esc(STORE_NAME.toUpperCase())}</div>
         <div class="bold">DELIVERY</div>
-        <div style="font-size: 0.75em; margin-top: 3px;">${data}</div>
+        <div style="font-size: 0.75em; margin-top: 3px;">${esc(data)}</div>
         <div class="line"></div>
-        <div>PEDIDO: <span class="big">#${id}</span></div>
+        <div>PEDIDO: <span class="big">#${esc(id)}</span></div>
       </div>
       
       <div class="line"></div>
@@ -200,8 +216,8 @@ export const printReceipt = async (order: any, settings: PrinterSettings, copies
           
           return `
             <tr>
-              <td class="col-qtd bold">${qtd}x</td>
-              <td class="col-nome">${nome}${obs ? `<span class="obs">(${obs})</span>` : ''}</td>
+              <td class="col-qtd bold">${esc(qtd)}x</td>
+              <td class="col-nome">${esc(nome)}${obs ? `<span class="obs">(${esc(obs)})</span>` : ''}</td>
               <td class="col-valor">${formatMoney(preco)}</td>
             </tr>
           `;
@@ -232,14 +248,14 @@ export const printReceipt = async (order: any, settings: PrinterSettings, copies
       <!-- CLIENTE -->
       <div class="section">
         <div class="label">CLIENTE</div>
-        <div class="value wrap">${cliente}</div>
-        ${tel ? `<div class="value">${tel}</div>` : ''}
+        <div class="value wrap">${esc(cliente)}</div>
+        ${tel ? `<div class="value">${esc(tel)}</div>` : ''}
       </div>
-      
+
       <!-- ENDEREÇO -->
       <div class="section">
         <div class="label">ENTREGA</div>
-        <div class="value wrap">${endereco}</div>
+        <div class="value wrap">${esc(endereco)}</div>
       </div>
 
       <div class="line"></div>
@@ -247,8 +263,8 @@ export const printReceipt = async (order: any, settings: PrinterSettings, copies
       <!-- PAGAMENTO -->
       <div class="section">
         <div class="label">PAGAMENTO</div>
-        <div class="value">${metodoPagamento.split(' - ')[0]}</div>
-        ${trocoTexto ? `<div class="value" style="margin-top: 2px; font-size: 0.9em;">${trocoTexto}</div>` : ''}
+        <div class="value">${esc(metodoPagamento.split(' - ')[0])}</div>
+        ${trocoTexto ? `<div class="value" style="margin-top: 2px; font-size: 0.9em;">${esc(trocoTexto)}</div>` : ''}
       </div>
 
       <div class="line"></div>
@@ -256,7 +272,7 @@ export const printReceipt = async (order: any, settings: PrinterSettings, copies
       <!-- RODAPÉ -->
       <div class="center" style="font-size: 0.75em; margin-top: 8px;">
         Obrigado!<br>
-        www.3porquinhos.com.br
+        ${esc(STORE_SITE)}
       </div>
       
       <br><br><br>

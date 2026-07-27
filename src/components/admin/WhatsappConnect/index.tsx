@@ -39,6 +39,7 @@ export default function WhatsappConnect() {
         setStatus('qrcode');
       }
     } catch (error) {
+      console.error('Erro ao gerar QR Code:', error);
       alert('Erro ao gerar QR Code. Verifique a API.');
     } finally {
       setLoading(false);
@@ -53,6 +54,7 @@ export default function WhatsappConnect() {
       setStatus('disconnected');
       setQrCode(null);
     } catch (error) {
+      console.error('Erro ao desconectar:', error);
       alert('Erro ao desconectar.');
     } finally {
       setLoading(false);

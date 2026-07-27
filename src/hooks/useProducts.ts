@@ -1,7 +1,8 @@
 // src/hooks/useProducts.ts (COM ORDENAÇÃO)
 import { useState, useEffect, useCallback, useRef } from 'react';
+import toast from 'react-hot-toast';
 import { supabase } from '@/services/supabase';
-import { Product, Category, ComplementGroup } from '@/types/product'; 
+import { Product, Category, ComplementGroup } from '@/types/product';
 
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -97,86 +98,113 @@ export function useProducts() {
     isMounted.current = true;
     fetchData(false);
 
-    const intervalId = setInterval(() => {
-      fetchData(true); 
-    }, 15000); 
+    // Antes: SELECT com join aninhado (produtos + grupos + opções) a cada 15s,
+    // em toda página que usa o hook — inclusive no cardápio de cada cliente.
+    // Agora só recarrega quando algo realmente muda, com um refresh lento
+    // como rede de segurança caso o websocket caia.
+    let debounce: ReturnType<typeof setTimeout>;
+    const scheduleRefresh = () => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => fetchData(true), 400);
+    };
+
+    const channel = supabase
+      .channel('catalog-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, scheduleRefresh)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'complement_options' },
+        scheduleRefresh
+      )
+      .subscribe();
+
+    const fallback = setInterval(() => fetchData(true), 5 * 60_000);
 
     return () => {
       isMounted.current = false;
-      clearInterval(intervalId);
+      clearTimeout(debounce);
+      clearInterval(fallback);
+      supabase.removeChannel(channel);
     };
   }, [fetchData]);
 
-  // 🔥 REORDENAR CATEGORIAS (CORRIGIDO)
-  async function reorderCategories(newOrder: Category[]) {
-    try {
-      console.log('📋 Reordenando categorias...', newOrder);
-      
-      // 🔥 ENVIA APENAS id E order (nada mais!)
-      const updates = newOrder.map((cat, index) => ({
-        id: cat.id,
-        order: index
-      }));
+  /** Grava `order` sequencial, mandando só as linhas que realmente mudaram. */
+  async function persistOrder<T extends { id: string; order?: number }>(
+    table: 'products' | 'categories',
+    list: T[]
+  ) {
+    const changed = list
+      .map((item, index) => ({ id: item.id, order: index, previous: item.order ?? 0 }))
+      .filter((item) => item.previous !== item.order);
 
-      console.log('📤 Payload:', updates);
+    for (const item of changed) {
+      const { error } = await supabase
+        .from(table)
+        .update({ order: item.order })
+        .eq('id', item.id);
 
-      // 🔥 USA UPDATE EM VEZ DE UPSERT (mais seguro)
-      for (const update of updates) {
-        const { error } = await supabase
-          .from('categories')
-          .update({ order: update.order })
-          .eq('id', update.id);
-
-        if (error) {
-          console.error('❌ Erro ao atualizar categoria:', update.id, error);
-          throw error;
-        }
+      if (error) {
+        console.error(`❌ Erro ao atualizar ${table}:`, item.id, error);
+        throw error;
       }
-
-      // Atualiza o estado local
-      setCategories(newOrder);
-      console.log('✅ Categorias reordenadas com sucesso!');
-    } catch (error) {
-      console.error('❌ Erro ao reordenar categorias:', error);
-      alert('Erro ao reordenar categorias. Veja o console para detalhes.');
     }
   }
 
-  // 🔥 REORDENAR PRODUTOS (CORRIGIDO)
-  async function reorderProducts(newOrder: Product[]) {
+  async function reorderCategories(newOrder: Category[]) {
     try {
-      console.log('📋 Reordenando produtos...', newOrder);
-      
-      // 🔥 ENVIA APENAS id E order (nada mais!)
-      const updates = newOrder.map((prod, index) => ({
-        id: prod.id,
-        order: index
-      }));
+      await persistOrder('categories', newOrder);
+      setCategories(newOrder);
+      toast.success('Categorias reordenadas!');
+    } catch (error) {
+      console.error('❌ Erro ao reordenar categorias:', error);
+      toast.error('Erro ao reordenar categorias.');
+      fetchData(true);
+    }
+  }
 
-      console.log('📤 Payload:', updates);
+  /**
+   * Reordena produtos.
+   *
+   * `orderedSubset` é o que apareceu no modal — que pode ser só uma categoria,
+   * ou só os ativos. O código antigo fazia setProducts(orderedSubset) e gravava
+   * order 0..n nesse subset: os produtos filtrados sumiam do estado e o `order`
+   * colidia com o de outras categorias, embaralhando o cardápio.
+   *
+   * Aqui o subset é encaixado de volta nas MESMAS posições que ocupava na lista
+   * completa, e o `order` é reatribuído sobre a lista global inteira.
+   */
+  async function reorderProducts(orderedSubset: Product[]) {
+    const subsetIds = new Set(orderedSubset.map((p) => p.id));
 
-      // 🔥 USA UPDATE EM VEZ DE UPSERT (mais seguro)
-      for (const update of updates) {
-        const { error } = await supabase
-          .from('products')
-          .update({ order: update.order })
-          .eq('id', update.id);
+    // Índices que o subset ocupa hoje na lista completa
+    const slots: number[] = [];
+    products.forEach((p, index) => {
+      if (subsetIds.has(p.id)) slots.push(index);
+    });
 
-        if (error) {
-          console.error('❌ Erro ao atualizar produto:', update.id, error);
-          throw error;
-        }
-      }
+    if (slots.length !== orderedSubset.length) {
+      console.warn('Lista de produtos dessincronizada, recarregando antes de reordenar.');
+      fetchData(true);
+      return;
+    }
 
-      // Atualiza o estado local
-      setProducts(newOrder);
-      console.log('✅ Produtos reordenados com sucesso!');
-      
-      // Recarrega para garantir sincronia
-      setTimeout(() => fetchData(true), 500);
+    const merged = [...products];
+    slots.forEach((slot, i) => {
+      merged[slot] = orderedSubset[i];
+    });
+
+    // Otimista: a UI reflete a nova ordem antes do banco responder
+    setProducts(merged);
+
+    try {
+      await persistOrder('products', merged);
+      toast.success('Produtos reordenados!');
     } catch (error) {
       console.error('❌ Erro ao reordenar produtos:', error);
-      alert('Erro ao reordenar produtos. Veja o console para detalhes.');
+      toast.error('Erro ao reordenar produtos.');
+    } finally {
+      fetchData(true);
     }
   }
 
@@ -226,7 +254,8 @@ export function useProducts() {
       setTimeout(() => fetchData(true), 500);
     } catch (error) {
       console.error('❌ Erro ao toggle active:', error);
-      alert('Erro ao atualizar status do produto');
+      toast.error('Erro ao atualizar status do produto');
+      fetchData(true);
     }
   }
 

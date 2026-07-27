@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/services/supabase';
 import { Order, OrderStatus } from '@/types/order';
+import { STORE_TZ } from '@/lib/storeHours';
 
 export function useOrders(onlyActive = true) {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -9,47 +10,23 @@ export function useOrders(onlyActive = true) {
 
   const fetchMyOrders = useCallback(async () => {
     try {
-      let query = supabase
-        .from('orders')
-        .select(`
-          *,
-          items:order_items (
-            id,
-            product_name,
-            quantity,
-            unit_price,
-            total_price,
-            observation,
-            customizations
-          )
-        `)
-        .order('created_at', { ascending: false });
+      const storedPhone =
+        typeof window !== 'undefined' ? localStorage.getItem('customer_phone') : null;
 
-      const storedIds = typeof window !== 'undefined' 
-        ? JSON.parse(localStorage.getItem('my_orders') || '[]') 
-        : [];
-      
-      const storedPhone = typeof window !== 'undefined'
-        ? localStorage.getItem('customer_phone')
-        : null;
-
-      if (storedPhone) {
-        query = query.eq('customer_phone', storedPhone);
-      } 
-      else if (storedIds.length > 0) {
-        query = query.in('id', storedIds);
-      }
-      else {
+      if (!storedPhone) {
         setOrders([]);
         setLoading(false);
         return;
       }
 
-      if (onlyActive) {
-        query = query.not('status', 'in', '("COMPLETED","CANCELED")');
-      }
+      // Via RPC, não SELECT direto: com a RLS ligada o anônimo não lista a
+      // tabela `orders`. Antes qualquer visitante baixava nome, telefone e
+      // endereço de todos os clientes da loja.
+      const { data, error } = await supabase.rpc('get_orders_by_phone', {
+        p_phone: storedPhone,
+        p_only_active: onlyActive,
+      });
 
-      const { data, error } = await query;
       if (error) throw error;
 
       const formattedOrders: Order[] = (data || []).map((order: any) => ({
@@ -59,20 +36,19 @@ export function useOrders(onlyActive = true) {
         customerPhone: order.customer_phone,
         customerAddress: order.customer_address,
         paymentMethod: order.payment_method,
-        status: order.status.toUpperCase(), 
-        total: order.total,
-        deliveryFee: order.delivery_fee || 0,
-        createdAt: new Date(order.created_at).toLocaleDateString('pt-BR'),
+        status: String(order.status).toUpperCase() as OrderStatus,
+        total: Number(order.total),
+        deliveryFee: Number(order.delivery_fee || 0),
+        createdAt: new Date(order.created_at).toLocaleDateString('pt-BR', { timeZone: STORE_TZ }),
         updatedAt: order.updated_at,
-        items: order.items.map((item: any) => ({
+        items: (order.items || []).map((item: any) => ({
           id: item.id,
           name: item.product_name,
           quantity: item.quantity,
-          unitPrice: item.unit_price,
-          totalPrice: item.total_price,
+          unitPrice: Number(item.unit_price),
+          totalPrice: Number(item.total_price),
           observation: item.observation || '',
-          customizations: item.customizations
-        }))
+        })),
       }));
 
       setOrders(formattedOrders);
@@ -83,38 +59,17 @@ export function useOrders(onlyActive = true) {
     }
   }, [onlyActive]);
 
-  async function updateStatus(orderId: number | string, newStatus: OrderStatus) {
-    try {
-      const idStr = String(orderId).replace('#', '');
-      const id = parseInt(idStr, 10);
-      
-      const { error } = await supabase
-        .from('orders')
-        .update({ status: newStatus })
-        .eq('id', id);
-
-      if (error) throw error;
-      await fetchMyOrders();
-    } catch (error) {
-      console.error('Erro ao atualizar status:', error);
-    }
-  }
-
   useEffect(() => {
     setLoading(true);
     fetchMyOrders();
 
-    // 🔥 REALTIME: O cliente escuta mudanças no SEU pedido
+    // Realtime para o cliente ver o status mudar sem atualizar a página
     const channel = supabase
       .channel('client-orders-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'orders' },
-        (payload) => {
-          // Otimização: Só recarrega se o ID do pedido alterado estiver na nossa lista atual
-          // ou se for um INSERT novo (que pode ser do cliente)
-          fetchMyOrders(); 
-        }
+        () => fetchMyOrders()
       )
       .subscribe();
 
@@ -123,5 +78,5 @@ export function useOrders(onlyActive = true) {
     };
   }, [fetchMyOrders]);
 
-  return { orders, loading, refreshOrders: fetchMyOrders, updateStatus };
+  return { orders, loading, refreshOrders: fetchMyOrders };
 }

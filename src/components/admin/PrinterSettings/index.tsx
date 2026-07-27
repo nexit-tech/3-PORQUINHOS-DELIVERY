@@ -3,7 +3,12 @@ import { useState, useEffect } from 'react';
 import { Printer, Save, RefreshCw, FileText, CheckCircle } from 'lucide-react';
 import styles from './styles.module.css';
 import { printReceipt } from '@/utils/printReceipt';
-import { PrinterSettings as IPrinterSettings } from '@/types/settings'; // Agora existe!
+import { PrinterSettings as IPrinterSettings } from '@/types/settings';
+import {
+  DEFAULT_PRINTER_SETTINGS,
+  loadPrinterSettings,
+  savePrinterSettings,
+} from '@/lib/printerSettings';
 
 // MOCK para teste (Estrutura compatível)
 const MOCK_ORDER: any = {
@@ -22,32 +27,24 @@ const MOCK_ORDER: any = {
 };
 
 export function PrinterSettings() {
-  // Estado tipado corretamente
-  const [localSettings, setLocalSettings] = useState<IPrinterSettings>({
-    printerName: '',
-    paperWidth: '80mm',
-    autoPrint: false,
-    cutPaper: true
-  });
+  const [localSettings, setLocalSettings] = useState<IPrinterSettings>(DEFAULT_PRINTER_SETTINGS);
 
   const [availablePrinters, setAvailablePrinters] = useState<any[]>([]);
   const [loadingPrinters, setLoadingPrinters] = useState(false);
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
-    const saved = localStorage.getItem('printer_settings');
-    if (saved) {
-      try {
-        setLocalSettings(JSON.parse(saved));
-      } catch (e) { console.error(e); }
-    }
+    setLocalSettings(loadPrinterSettings());
     handleScanPrinters(true);
+    // Varre as impressoras uma vez, ao abrir. Incluir handleScanPrinters nas
+    // dependências faria a varredura rodar a cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleTestPrint = async () => {
     // Salva antes de testar
-    localStorage.setItem('printer_settings', JSON.stringify(localSettings));
-    
+    savePrinterSettings(localSettings);
+
     try {
       console.log("Iniciando teste...", localSettings);
       await printReceipt(MOCK_ORDER, localSettings, 1);
@@ -95,7 +92,7 @@ export function PrinterSettings() {
   };
 
   const handleSaveClick = () => {
-    localStorage.setItem('printer_settings', JSON.stringify(localSettings));
+    savePrinterSettings(localSettings);
     setMsg('Salvo!');
     setTimeout(() => setMsg(''), 3000);
   };
@@ -160,6 +157,27 @@ export function PrinterSettings() {
             <option value="80mm">80mm (Padrão)</option>
             <option value="58mm">58mm (Pequena)</option>
           </select>
+        </div>
+
+        {/* Sem este toggle o autoPrint ficava sempre false e a impressão
+            automática nunca disparava, mesmo com impressora configurada. */}
+        <div className={styles.inputGroup}>
+          <label
+            className={styles.label}
+            style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
+          >
+            <input
+              type="checkbox"
+              checked={localSettings.autoPrint}
+              onChange={(e) => handleChange('autoPrint', e.target.checked)}
+              style={{ width: 18, height: 18, accentColor: 'var(--primary-color)' }}
+            />
+            Imprimir automaticamente ao aceitar um pedido
+          </label>
+          <small style={{ color: 'var(--text-light)', fontSize: '0.8rem' }}>
+            Ligue apenas no computador que está ligado à impressora. Se ligar em mais de um,
+            o cupom sai em todos.
+          </small>
         </div>
       </div>
     </div>

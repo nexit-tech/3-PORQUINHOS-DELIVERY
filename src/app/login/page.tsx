@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { isElectron } from '@/lib/isElectron'; // 🔥 NOVO
-import { Lock, User, Loader2 } from 'lucide-react';
+import { isElectron } from '@/lib/isElectron';
+import { Lock, Mail, Loader2 } from 'lucide-react';
+import { STORE_NAME } from '@/config/store';
 import styles from './page.module.css';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -28,12 +30,18 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
-    const success = await login(username, password);
+    const result = await login(email, password);
 
-    if (!success) {
-      setError('Usuário ou senha incorretos');
+    if (!result.ok) {
+      setError(result.message || 'E-mail ou senha incorretos');
       setLoading(false);
+      return;
     }
+
+    // Volta para a página que o middleware bloqueou, se houver
+    const from = searchParams.get('from');
+    router.replace(from && from.startsWith('/') ? from : '/');
+    router.refresh();
   };
 
   // 🔥 NÃO RENDERIZA NADA SE FOR ELECTRON (vai redirecionar)
@@ -53,21 +61,22 @@ export default function LoginPage() {
             <Lock size={32} />
           </div>
           <h1>Painel Administrativo</h1>
-          <p>3 Porquinhos Delivery</p>
+          <p>{STORE_NAME} Delivery</p>
         </div>
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.inputGroup}>
             <div className={styles.inputIcon}>
-              <User size={18} />
+              <Mail size={18} />
             </div>
             <input
-              type="text"
-              placeholder="Usuário"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              type="email"
+              placeholder="E-mail"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
               disabled={loading}
+              autoComplete="email"
             />
           </div>
 
@@ -110,5 +119,20 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// useSearchParams exige Suspense no App Router
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+          <Loader2 className={styles.spin} size={32} />
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

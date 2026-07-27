@@ -47,7 +47,7 @@ try {
 log('🔍 Verificando variáveis de ambiente...');
 log(`SUPABASE_URL: ${process.env.NEXT_PUBLIC_SUPABASE_URL ? '✅ OK' : '❌ FALTANDO'}`);
 log(`SUPABASE_KEY: ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? '✅ OK' : '❌ FALTANDO'}`);
-log(`ADMIN_USER: ${process.env.ADMIN_USERNAME ? '✅ OK' : '❌ FALTANDO'}`);
+log(`ADMIN_EMAIL: ${process.env.ADMIN_EMAIL ? '✅ OK' : '❌ FALTANDO'}`);
 log(`ADMIN_PASS: ${process.env.ADMIN_PASSWORD ? '✅ OK' : '❌ FALTANDO'}`);
 
 let mainWindow;
