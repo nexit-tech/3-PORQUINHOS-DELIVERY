@@ -45,24 +45,28 @@ src/
 
 Os arquivos em [`supabase/`](supabase/) precisam ser rodados **à mão no SQL Editor**, na ordem:
 
-| Ordem | Arquivo | O que faz |
-|---|---|---|
-| 1 | `01-bot-settings-unique.sql` | Limpa duplicatas em `bot_settings` e cria a constraint de unicidade |
-| 2 | `02-order-notifications.sql` | Trava que impede notificação de WhatsApp duplicada |
-| 3 | `03-create-order-rpc.sql` | Cria `is_store_open()` e `create_order()` |
-| 4 | `05-admin-user.sql` | Cria o usuário admin no Supabase Auth |
-| 5 | `04-rls-pedidos.sql` | Liga a RLS em todas as tabelas |
-| 6 | `06-service-role.sql` | Só conferência: mostra RLS e políticas aplicadas |
+Projeto: **Delivery 3 porquinhos** (`tgugjefgwwluycrkhcss`, sa-east-1).
 
-> **O `03` é obrigatório** — sem ele o checkout quebra, porque o cliente não insere
-> mais direto na tabela `orders`.
+| Arquivo | O que faz | Situação |
+|---|---|---|
+| `00-realtime.sql` | Publica `products`, `categories` e `complement_options` no Realtime | ✅ aplicado |
+| `01-bot-settings-unique.sql` | Conferência de `bot_settings` (o banco já estava certo) | ✅ aplicado |
+| `02-order-notifications.sql` | Trava que impede notificação de WhatsApp duplicada | ✅ aplicado |
+| `03-create-order-rpc.sql` | Cria `is_store_open()` e `create_order()` | ✅ aplicado |
+| `03b-get-orders-by-phone.sql` | Cria `get_orders_by_phone()` | ✅ aplicado |
+| `05-admin-user.sql` | Cria o usuário admin no Supabase Auth | ⏳ pendente |
+| `04-rls-pedidos.sql` | Liga a RLS e tranca o acesso | ⏳ pendente — **só depois do deploy** |
+| `06-service-role.sql` | Conferência: RLS, políticas e Realtime | — |
+
+Os aplicados são todos **aditivos**: criam função ou tabela e não mudam o comportamento
+do código que já está em produção.
+
+> ⚠️ **O `04` não pode ser aplicado antes do deploy do código novo.** Ele bloqueia o
+> INSERT direto em `orders`, e o código atualmente em produção insere direto — a loja
+> pararia de aceitar pedidos na hora.
 >
-> **O `05` vem antes do `04`.** As políticas do `04` exigem um admin autenticado;
-> se você ligar a RLS antes de criar o usuário e conseguir entrar no painel, ele
-> para de gravar até você criar.
->
-> Depois do `04`, preencha `SUPABASE_SERVICE_ROLE_KEY` no `.env` — senão o bot do
-> WhatsApp para de funcionar.
+> Ordem correta: `05` (criar usuário) → deploy do código novo → confirmar que o login
+> funciona → preencher `SUPABASE_SERVICE_ROLE_KEY` → `04`.
 
 ### Tabelas
 

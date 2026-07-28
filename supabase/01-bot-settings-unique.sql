@@ -1,35 +1,36 @@
 -- =====================================================================
--- 01 - bot_settings: remover duplicatas e garantir 1 linha por chave
+-- 01 - bot_settings: conferência (nada a corrigir no banco)
 -- =====================================================================
--- Contexto: o painel usava .upsert({ key, value }) sem onConflict.
--- Como `key` não tem constraint de unicidade, cada clique no botão de
--- "Aceite Automático" inseria uma linha NOVA, e depois o .single() da
--- leitura quebrava com "multiple (or no) rows returned".
+-- Este arquivo foi escrito assumindo que `key` não tinha constraint de
+-- unicidade e que a tabela tinha linhas duplicadas. A inspeção do banco
+-- real mostrou que a suposição estava ERRADA:
 --
--- O código já foi corrigido (src/services/botSettings.ts), mas as linhas
--- duplicadas que já estão no banco precisam ser limpas.
+--   bot_settings PRIMARY KEY (id)      <- uuid
+--   bot_settings UNIQUE      (key)     <- já existe
+--   e nenhuma chave duplicada
+--
+-- O bug do painel era outro, e pior: `.upsert({ key, value })` sem
+-- onConflict faz o PostgREST resolver o conflito pela PRIMARY KEY (`id`).
+-- Como o código não mandava `id`, o Postgres gerava um uuid novo, não
+-- havia conflito de PK, e o INSERT batia na UNIQUE de `key` — erro 23505.
+--
+-- Ou seja: o botão "Aceite Automático" NUNCA salvou. Toda vez caía no
+-- catch e mostrava "Erro ao salvar configuração. Tente novamente."
+--
+-- A correção é só no código (src/services/botSettings.ts, que faz UPDATE
+-- e só insere se a chave não existir). Não há DDL a aplicar aqui.
 -- =====================================================================
 
--- 1. Confere o estrago antes de mexer (rode sozinho primeiro se quiser ver)
---    SELECT key, count(*) FROM bot_settings GROUP BY key HAVING count(*) > 1;
+-- Confirma que continua tudo certo (esperado: 4 chaves, 1 linha cada)
+SELECT key, jsonb_pretty(value) AS value
+  FROM bot_settings
+ ORDER BY key;
 
--- 2. Mantém apenas a linha mais recente de cada chave
-DELETE FROM bot_settings a
-USING bot_settings b
-WHERE a.key = b.key
-  AND a.ctid < b.ctid;
-
--- 3. Impede que volte a acontecer
-ALTER TABLE bot_settings
-  ADD CONSTRAINT bot_settings_key_unique UNIQUE (key);
-
--- 4. Garante que as chaves usadas pelo sistema existam
+-- Garante que as chaves usadas pelo sistema existam.
+-- Aqui o ON CONFLICT (key) funciona porque a constraint existe de verdade.
 INSERT INTO bot_settings (key, value)
 VALUES
   ('is_bot_active',      '{"enabled": true}'::jsonb),
   ('auto_accept_orders', '{"enabled": false}'::jsonb),
   ('pause_message',      '{"text": "⏸️ Atendimento humano ativado. Aguarde, em breve te responderemos!"}'::jsonb)
 ON CONFLICT (key) DO NOTHING;
-
--- 5. Confere
-SELECT key, value FROM bot_settings ORDER BY key;

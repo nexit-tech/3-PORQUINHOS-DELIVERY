@@ -22,6 +22,44 @@
 
 
 -- ---------------------------------------------------------------------
+-- PASSO 0: derrubar as políticas permissivas que já existem
+-- ---------------------------------------------------------------------
+-- Sem isto, tudo abaixo é decorativo. O banco já tem políticas assim:
+--
+--   orders          "Acesso total público orders"    FOR ALL TO public USING (true)
+--   order_items     "Acesso total público items"     FOR ALL TO public USING (true)
+--   store_settings  "Escrita admin store_settings"   FOR ALL TO public USING (true)
+--
+-- Políticas do Postgres são somadas com OR: basta UMA liberar para o
+-- acesso passar. Como os nomes são diferentes dos que este arquivo cria,
+-- um "DROP POLICY IF EXISTS <meu_nome>" não encostaria nelas, e a RLS
+-- continuaria escancarada — só que parecendo fechada.
+--
+-- Então: apaga TODAS as políticas das tabelas que este arquivo gerencia,
+-- seja qual for o nome, e recria do zero logo abaixo.
+DO $$
+DECLARE
+  r record;
+  managed text[] := ARRAY[
+    'products', 'categories', 'complement_groups', 'complement_options',
+    'product_complements', 'delivery_zones', 'store_settings',
+    'bot_settings', 'bot_paused_numbers', 'bot_notifications',
+    'orders', 'order_items'
+  ];
+BEGIN
+  FOR r IN
+    SELECT tablename, policyname
+      FROM pg_policies
+     WHERE schemaname = 'public'
+       AND tablename = ANY(managed)
+  LOOP
+    RAISE NOTICE 'Removendo política antiga: % em %', r.policyname, r.tablename;
+    EXECUTE format('DROP POLICY %I ON public.%I', r.policyname, r.tablename);
+  END LOOP;
+END $$;
+
+
+-- ---------------------------------------------------------------------
 -- Helper: leitura pública, escrita só para quem está logado
 -- ---------------------------------------------------------------------
 DO $$
@@ -123,73 +161,9 @@ CREATE POLICY order_items_admin_read
   TO authenticated
   USING (true);
 
-
--- ---------------------------------------------------------------------
--- get_orders_by_phone(): o "Meus Pedidos" do cliente
--- ---------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.get_orders_by_phone(
-  p_phone       text,
-  p_only_active boolean DEFAULT true
-)
-RETURNS TABLE (
-  id               bigint,
-  customer_name    text,
-  customer_phone   text,
-  customer_address text,
-  payment_method   text,
-  status           text,
-  total            numeric,
-  delivery_fee     numeric,
-  created_at       timestamptz,
-  updated_at       timestamptz,
-  items            jsonb
-)
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
-STABLE
-AS $$
-  -- Casts explícitos: RETURNS TABLE exige que o tipo bata EXATAMENTE.
-  -- Se alguma coluna for varchar (e não text), ou o status for um enum,
-  -- o Postgres recusa com "structure of query does not match function
-  -- result type". Os casts deixam a função funcionar de qualquer jeito.
-  SELECT
-    o.id::bigint,
-    o.customer_name::text,
-    o.customer_phone::text,
-    o.customer_address::text,
-    o.payment_method::text,
-    o.status::text,
-    o.total::numeric,
-    o.delivery_fee::numeric,
-    o.created_at::timestamptz,
-    o.updated_at::timestamptz,
-    COALESCE(
-      (
-        SELECT jsonb_agg(
-          jsonb_build_object(
-            'id',           oi.id,
-            'product_name', oi.product_name,
-            'quantity',     oi.quantity,
-            'unit_price',   oi.unit_price,
-            'total_price',  oi.total_price,
-            'observation',  oi.observation
-          )
-        )
-        FROM order_items oi
-        WHERE oi.order_id = o.id
-      ),
-      '[]'::jsonb
-    ) AS items
-  FROM orders o
-  WHERE regexp_replace(o.customer_phone, '\D', '', 'g')
-      = regexp_replace(p_phone,           '\D', '', 'g')
-    AND (NOT p_only_active OR o.status NOT IN ('COMPLETED', 'CANCELED'))
-  ORDER BY o.created_at DESC
-  LIMIT 50;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.get_orders_by_phone(text, boolean) TO anon, authenticated;
+-- A função get_orders_by_phone() foi movida para 03b-get-orders-by-phone.sql:
+-- lá ela pode ser aplicada antes do deploy, porque só cria função e não
+-- tranca acesso nenhum. Aqui ficam apenas as políticas.
 
 
 -- =====================================================================
