@@ -1,6 +1,8 @@
 .container {
   padding: 24px;
-  padding-bottom: 200px;
+  /* O rodapé é fixo e cresceu ao ganhar subtotal, taxa e linha de desconto.
+     Com os 200px antigos, o último bloco da página ficava atrás dele. */
+  padding-bottom: 330px;
   min-height: 100vh;
   position: relative;
 }

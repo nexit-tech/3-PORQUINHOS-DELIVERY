@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Ticket, ChevronDown, Check, X, Loader2, Lock } from 'lucide-react';
 import { supabase } from '@/services/supabase';
 import type { AvailableCoupon } from '@/types/coupon';
@@ -25,11 +26,14 @@ export default function CouponPicker({
   subtotal, deliveryFee, phone, deliveryType, applied, onApply,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [list, setList] = useState<AvailableCoupon[]>([]);
   const [loading, setLoading] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => setMounted(true), []);
 
   const loadCoupons = useCallback(async () => {
     setLoading(true);
@@ -50,8 +54,21 @@ export default function CouponPicker({
     }
   }, [subtotal, deliveryFee, phone, deliveryType]);
 
+  // Trava o scroll do fundo enquanto a folha está aberta
   useEffect(() => {
-    if (open) loadCoupons();
+    if (!open) return;
+
+    loadCoupons();
+    const anterior = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const onEsc = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    window.addEventListener('keydown', onEsc);
+
+    return () => {
+      document.body.style.overflow = anterior;
+      window.removeEventListener('keydown', onEsc);
+    };
   }, [open, loadCoupons]);
 
   /**
@@ -126,64 +143,55 @@ export default function CouponPicker({
     }
   };
 
-  if (applied) {
-    return (
-      <div className={styles.appliedBox}>
-        <div className={styles.appliedInfo}>
-          <div className={styles.appliedIcon}><Check size={16} /></div>
+  const disponiveis = list.filter((c) => c.qualifies).length;
+
+  // ---- Folha que sobe por cima de tudo ----
+  // O rodapé desta tela é fixo. Um dropdown inline ficava escondido atrás
+  // dele assim que a lista passava de um item, e nenhum ajuste de padding
+  // resolve isso para uma lista de tamanho variável.
+  const sheet = (
+    <div className={styles.sheetOverlay} onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
+      <div className={styles.sheet} role="dialog" aria-label="Cupons de desconto">
+        <div className={styles.sheetGrip} />
+
+        <header className={styles.sheetHeader}>
           <div>
-            <strong>{applied.code}</strong>
-            <span>Você economizou {formatMoney(applied.discount)}</span>
+            <h3>Cupons de desconto</h3>
+            <span>
+              {loading
+                ? 'Buscando...'
+                : disponiveis > 0
+                  ? `${disponiveis} disponível${disponiveis > 1 ? 'eis' : ''} para este pedido`
+                  : 'Nenhum liberado para este pedido ainda'}
+            </span>
           </div>
+          <button type="button" onClick={() => setOpen(false)} className={styles.sheetClose}>
+            <X size={22} />
+          </button>
+        </header>
+
+        <div className={styles.manualRow}>
+          <input
+            value={manualCode}
+            onChange={(e) => { setManualCode(e.target.value.toUpperCase()); setError(null); }}
+            onKeyDown={(e) => e.key === 'Enter' && applyCode(manualCode)}
+            placeholder="DIGITE O CÓDIGO"
+            className={styles.manualInput}
+            maxLength={24}
+          />
+          <button
+            type="button"
+            className={styles.manualBtn}
+            onClick={() => applyCode(manualCode)}
+            disabled={checking || !manualCode.trim()}
+          >
+            {checking ? <Loader2 size={16} className={styles.spin} /> : 'Aplicar'}
+          </button>
         </div>
-        <button
-          type="button"
-          className={styles.removeBtn}
-          onClick={() => { onApply(null); setError(null); }}
-        >
-          Remover
-        </button>
-      </div>
-    );
-  }
 
-  return (
-    <div className={styles.wrapper}>
-      <button type="button" className={styles.trigger} onClick={() => setOpen((v) => !v)}>
-        <div className={styles.triggerLeft}>
-          <Ticket size={20} />
-          <span>Tem um cupom de desconto?</span>
-        </div>
-        <ChevronDown size={20} className={open ? styles.chevronUp : styles.chevron} />
-      </button>
+        {error && <div className={styles.errorBox}><X size={14} /> {error}</div>}
 
-      {error && (
-        <div className={styles.errorBox}>
-          <X size={14} /> {error}
-        </div>
-      )}
-
-      {open && (
-        <div className={styles.dropdown}>
-          <div className={styles.manualRow}>
-            <input
-              value={manualCode}
-              onChange={(e) => { setManualCode(e.target.value.toUpperCase()); setError(null); }}
-              onKeyDown={(e) => e.key === 'Enter' && applyCode(manualCode)}
-              placeholder="Digite o código"
-              className={styles.manualInput}
-              maxLength={24}
-            />
-            <button
-              type="button"
-              className={styles.manualBtn}
-              onClick={() => applyCode(manualCode)}
-              disabled={checking || !manualCode.trim()}
-            >
-              {checking ? <Loader2 size={16} className={styles.spin} /> : 'Aplicar'}
-            </button>
-          </div>
-
+        <div className={styles.sheetBody}>
           {loading ? (
             <div className={styles.listState}>
               <Loader2 size={20} className={styles.spin} /> Buscando cupons...
@@ -232,7 +240,46 @@ export default function CouponPicker({
             </ul>
           )}
         </div>
+      </div>
+    </div>
+  );
+
+  if (applied) {
+    return (
+      <div className={styles.appliedBox}>
+        <div className={styles.appliedInfo}>
+          <div className={styles.appliedIcon}><Check size={16} /></div>
+          <div>
+            <strong>{applied.code}</strong>
+            <span>Você economizou {formatMoney(applied.discount)}</span>
+          </div>
+        </div>
+        <button
+          type="button"
+          className={styles.removeBtn}
+          onClick={() => { onApply(null); setError(null); }}
+        >
+          Trocar
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.wrapper}>
+      <button type="button" className={styles.trigger} onClick={() => setOpen(true)}>
+        <div className={styles.triggerLeft}>
+          <Ticket size={20} />
+          <span>Tem um cupom de desconto?</span>
+        </div>
+        <ChevronDown size={20} className={styles.chevron} />
+      </button>
+
+      {error && !open && (
+        <div className={styles.errorBox}><X size={14} /> {error}</div>
       )}
+
+      {mounted && open && createPortal(sheet, document.body)}
     </div>
   );
 }

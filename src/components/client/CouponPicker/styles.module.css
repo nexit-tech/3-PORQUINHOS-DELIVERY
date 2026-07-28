@@ -5,7 +5,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
+  padding: 16px;
   background: var(--surface);
   border: 1px dashed var(--primary-color);
   border-radius: 12px;
@@ -18,32 +18,94 @@
 .trigger:active { transform: scale(0.995); }
 
 .triggerLeft { display: flex; align-items: center; gap: 10px; color: var(--primary-dark); }
+.chevron { color: var(--text-light); transform: rotate(-90deg); }
 
-.chevron { transition: transform 0.2s; color: var(--text-light); }
-.chevronUp { transition: transform 0.2s; transform: rotate(180deg); color: var(--text-light); }
+/* ---------------------------------------------------------------
+   Folha inferior.
+   O rodapé da tela de pagamento é position: fixed. Um dropdown inline
+   ficava atrás dele assim que a lista passava de um item — por isso a
+   lista virou uma folha em portal, acima de tudo e com rolagem própria.
+   --------------------------------------------------------------- */
+.sheetOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 3000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.18s ease-out;
+}
 
-.dropdown {
+.sheet {
   background: var(--surface);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 85vh;
+  border-top-left-radius: 22px;
+  border-top-right-radius: 22px;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
+  animation: slideUp 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.sheetGrip {
+  width: 42px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--border-color);
+  margin: 10px auto 4px auto;
+  flex-shrink: 0;
+}
+
+.sheetHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px 14px 20px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+.sheetHeader h3 { font-size: 1.05rem; font-weight: 800; color: var(--text-main); }
+.sheetHeader span { font-size: 0.78rem; color: var(--text-light); }
+
+.sheetClose {
+  background: none;
+  border: none;
+  color: var(--text-light);
+  cursor: pointer;
+  display: flex;
+  padding: 4px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.sheetClose:active { background: var(--background); }
+
+.sheetBody {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+  min-height: 0;
 }
 
 .manualRow {
   display: flex;
   gap: 8px;
-  padding: 12px;
+  padding: 14px 20px;
   border-bottom: 1px solid var(--border-color);
   background: var(--background);
+  flex-shrink: 0;
 }
 
 .manualInput {
   flex: 1;
   min-width: 0;
-  padding: 11px 12px;
+  padding: 12px;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 10px;
   font-family: 'Courier New', monospace;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -55,22 +117,22 @@
 .manualInput:focus { outline: none; border-color: var(--primary-color); }
 
 .manualBtn {
-  padding: 11px 16px;
+  padding: 12px 18px;
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--primary-color);
   color: #fff;
   font-weight: 700;
   font-size: 0.85rem;
   cursor: pointer;
-  min-width: 84px;
+  min-width: 88px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .manualBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.list { list-style: none; max-height: 260px; overflow-y: auto; }
+.list { list-style: none; }
 
 .item {
   width: 100%;
@@ -78,7 +140,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 13px 14px;
+  padding: 15px 20px;
   background: none;
   border: none;
   border-bottom: 1px solid var(--border-color);
@@ -86,7 +148,7 @@
   text-align: left;
   font-family: inherit;
 }
-.item:hover:not(:disabled) { background: var(--surface-hover); }
+.item:active:not(:disabled) { background: var(--surface-hover); }
 .item:last-child { border-bottom: none; }
 
 .itemBlocked { opacity: 0.55; cursor: not-allowed; }
@@ -100,17 +162,17 @@
   font-family: 'Courier New', monospace;
   font-weight: 800;
   letter-spacing: 0.06em;
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   color: var(--primary-dark);
 }
 
 .itemDesc { font-size: 0.8rem; color: var(--text-main); }
-.itemMissing { font-size: 0.72rem; color: var(--text-light); }
+.itemMissing { font-size: 0.73rem; color: var(--text-light); }
 
 .itemValue {
   font-weight: 800;
   color: #059669;
-  font-size: 0.95rem;
+  font-size: 1rem;
   white-space: nowrap;
 }
 
@@ -119,17 +181,18 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 22px 14px;
+  padding: 34px 20px;
   color: var(--text-light);
   font-size: 0.85rem;
 }
 
+/* ---- Cupom já aplicado ---- */
 .appliedBox {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 13px 15px;
+  padding: 14px 16px;
   background: #ecfdf5;
   border: 1px solid #6ee7b7;
   border-radius: 12px;
@@ -163,7 +226,7 @@
   border: none;
   color: #047857;
   font-weight: 700;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   cursor: pointer;
   text-decoration: underline;
   font-family: inherit;
@@ -174,6 +237,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  margin: 10px 20px;
   padding: 10px 13px;
   background: #fef2f2;
   border: 1px solid #fecaca;
@@ -184,3 +248,5 @@
 
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
