@@ -63,18 +63,25 @@ export function useOrders(onlyActive = true) {
     setLoading(true);
     fetchMyOrders();
 
-    // Realtime para o cliente ver o status mudar sem atualizar a página
-    const channel = supabase
-      .channel('client-orders-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders' },
-        () => fetchMyOrders()
-      )
-      .subscribe();
+    // ATENÇÃO: aqui o polling não é preguiça, é necessidade.
+    //
+    // O Realtime do Supabase respeita RLS. Depois de aplicar a 04, o papel
+    // `anon` não tem política de SELECT em `orders` (de propósito: era assim
+    // que dava para baixar a base inteira de clientes). Consequência: o
+    // cliente NÃO recebe mais os eventos de postgres_changes, e a tela de
+    // "Meus Pedidos" ficaria congelada em "Aguardando confirmação" para
+    // sempre. Quem busca o status é este intervalo, via RPC.
+    const interval = setInterval(fetchMyOrders, 20_000);
+
+    // Revalida quando o cliente volta para a aba, para não esperar o tick
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') fetchMyOrders();
+    };
+    document.addEventListener('visibilitychange', onVisible);
 
     return () => {
-      supabase.removeChannel(channel);
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [fetchMyOrders]);
 

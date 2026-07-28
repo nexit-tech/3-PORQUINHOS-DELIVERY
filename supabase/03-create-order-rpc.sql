@@ -115,6 +115,8 @@ DECLARE
   v_unit_price   numeric;
   v_total_price  numeric;
   v_qty          integer;
+  v_sent_opts    integer;
+  v_found_opts   integer;
 BEGIN
   -- 1. Validações básicas
   IF p_customer_name IS NULL OR btrim(p_customer_name) = '' THEN
@@ -182,7 +184,7 @@ BEGIN
 
     -- Só soma opções que pertencem MESMO a este produto e estão ativas.
     -- Assim não dá para colar o id de um adicional de outro produto.
-    SELECT COALESCE(sum(co.price), 0) INTO v_extras
+    SELECT COALESCE(sum(co.price), 0), count(*) INTO v_extras, v_found_opts
       FROM complement_options co
       JOIN product_complements pc ON pc.group_id = co.group_id
      WHERE pc.product_id::text = v_product.id::text
@@ -191,6 +193,17 @@ BEGIN
          SELECT value
            FROM jsonb_array_elements_text(COALESCE(v_item->'option_ids', '[]'::jsonb))
        );
+
+    SELECT count(*) INTO v_sent_opts
+      FROM jsonb_array_elements_text(COALESCE(v_item->'option_ids', '[]'::jsonb));
+
+    -- Se alguma opção enviada não existe mais (produto editado enquanto o
+    -- carrinho estava guardado no localStorage), NÃO cobre a menos em
+    -- silêncio: recusa e manda o cliente montar de novo.
+    IF v_found_opts <> v_sent_opts THEN
+      RAISE EXCEPTION
+        'O cardápio foi atualizado. Atualize a página e monte o pedido novamente.';
+    END IF;
 
     v_unit_price  := v_product.price + v_extras;
     v_total_price := v_unit_price * v_qty;

@@ -222,10 +222,19 @@ export function useProducts() {
   async function deleteCategory(id: string) {
     if (!confirm('Tem certeza?')) return;
     try {
-      await supabase.from('categories').delete().eq('id', id);
+      // O erro do Supabase vem no retorno, não como exceção: sem checar,
+      // uma falha de FK ou de RLS passava batida e o admin achava que
+      // tinha apagado
+      const { error } = await supabase.from('categories').delete().eq('id', id);
+      if (error) throw error;
+
       if (activeCategory === id) setActiveCategory('all');
+      toast.success('Categoria removida');
       fetchData(true);
-    } catch (error) { console.error(error); }
+    } catch (error: any) {
+      console.error('Erro ao deletar categoria:', error);
+      toast.error(error?.message || 'Não foi possível remover a categoria.');
+    }
   }
 
   async function toggleProductActive(id: string, currentStatus: boolean) {
@@ -329,18 +338,56 @@ export function useProducts() {
             group_id: groupId
           });
 
-          await supabase.from('complement_options').delete().eq('group_id', groupId);
-          
-          const opts = group.options.map((o: any) => ({
-            group_id: groupId,
-            name: o.name,
-            price: o.price,
-            max_quantity: 1,
-            is_active: o.active !== false
-          }));
+          // Opções: atualiza as que já existem, insere as novas e apaga só as
+          // que foram removidas na tela.
+          //
+          // Antes isso era um DELETE de tudo seguido de INSERT, o que trocava
+          // o id de TODAS as opções a cada save. Como o carrinho do cliente
+          // fica guardado no localStorage, editar um produto invalidava os
+          // ids que ele tinha escolhido — e o create_order, que confere as
+          // opções pelo id, somava zero de adicional. O cliente pagava o
+          // preço base sem os sabores, sem ninguém perceber.
+          const isNewOption = (id: any) =>
+            String(id).startsWith('new_') || String(id).startsWith('opt_');
 
-          if (opts.length > 0) {
-            await supabase.from('complement_options').insert(opts);
+          const keptOptions = group.options.filter((o: any) => !isNewOption(o.id));
+          const newOptions = group.options.filter((o: any) => isNewOption(o.id));
+
+          const { data: currentOptions } = await supabase
+            .from('complement_options')
+            .select('id')
+            .eq('group_id', groupId);
+
+          const keepIds = new Set(keptOptions.map((o: any) => String(o.id)));
+          const removedIds = (currentOptions || [])
+            .map((o: any) => String(o.id))
+            .filter((id: string) => !keepIds.has(id));
+
+          if (removedIds.length > 0) {
+            await supabase.from('complement_options').delete().in('id', removedIds);
+          }
+
+          for (const option of keptOptions) {
+            await supabase
+              .from('complement_options')
+              .update({
+                name: option.name,
+                price: option.price,
+                is_active: option.active !== false,
+              })
+              .eq('id', option.id);
+          }
+
+          if (newOptions.length > 0) {
+            await supabase.from('complement_options').insert(
+              newOptions.map((o: any) => ({
+                group_id: groupId,
+                name: o.name,
+                price: o.price,
+                max_quantity: 1,
+                is_active: o.active !== false,
+              }))
+            );
           }
         }
       }
@@ -357,9 +404,23 @@ export function useProducts() {
     if (!confirm('Tem certeza?')) return;
     try {
       await supabase.from('product_complements').delete().eq('product_id', id);
-      await supabase.from('products').delete().eq('id', id);
+
+      const { error } = await supabase.from('products').delete().eq('id', id);
+
+      // Produto com pedidos antigos costuma ter FK em order_items: o delete
+      // falha. Antes o erro sumia no console e a tela não mudava, dando a
+      // impressão de que o botão não funcionava. Nesse caso, pausar resolve.
+      if (error) throw error;
+
+      toast.success('Produto removido');
       fetchData(true);
-    } catch (error) { console.error(error); }
+    } catch (error: any) {
+      console.error('Erro ao deletar produto:', error);
+      toast.error(
+        'Não foi possível excluir. Se o produto já tem pedidos, use "Pausar" em vez de excluir.'
+      );
+      fetchData(true);
+    }
   }
 
   return {

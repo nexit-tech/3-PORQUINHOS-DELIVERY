@@ -24,6 +24,34 @@
 -- =====================================================================
 
 
+-- =====================================================================
+-- REALTIME: quais tabelas precisam estar publicadas
+-- =====================================================================
+-- O painel depende de Realtime para o pedido aparecer sozinho na tela.
+-- Se a tabela não estiver na publication, nada chega e o painel só
+-- atualiza no refresh lento de segurança.
+--
+-- Confira o que já está publicado:
+SELECT tablename
+  FROM pg_publication_tables
+ WHERE pubname = 'supabase_realtime'
+ ORDER BY tablename;
+
+-- Se faltar alguma, adicione (não dá erro se já estiver lá em versões
+-- recentes; se der, é porque já está publicada):
+-- ALTER PUBLICATION supabase_realtime ADD TABLE orders;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE products;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE categories;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE complement_options;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE store_settings;
+-- ALTER PUBLICATION supabase_realtime ADD TABLE bot_notifications;
+
+-- Importante: Realtime RESPEITA RLS. Como `anon` não tem política de
+-- SELECT em `orders`, o cliente na loja não recebe esses eventos — por
+-- isso a tela "Meus Pedidos" usa polling (src/hooks/useOrders.ts) e não
+-- Realtime. Isso é intencional, não é esquecimento.
+
+
 -- Confere quais tabelas estão com RLS ligada
 SELECT
   tablename,
