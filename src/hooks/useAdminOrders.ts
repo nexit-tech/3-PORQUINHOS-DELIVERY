@@ -19,8 +19,11 @@ function mapOrder(raw: any): Order {
     customerAddress: raw.customer_address,
     paymentMethod: raw.payment_method,
     status: String(raw.status).toUpperCase() as OrderStatus,
+    subtotal: Number(raw.subtotal ?? Number(raw.total) - Number(raw.delivery_fee || 0)),
     total: Number(raw.total),
     deliveryFee: Number(raw.delivery_fee || 0),
+    discount: Number(raw.discount || 0),
+    couponCode: raw.coupon_code || null,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
     items: (raw.items || []).map((item: any) => ({

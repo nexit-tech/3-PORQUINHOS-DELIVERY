@@ -9,7 +9,8 @@ import {
   Settings,
   LogOut,
   DollarSign,
-  Bell
+  Bell,
+  Ticket
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { isElectron } from '@/lib/isElectron';
@@ -133,6 +134,14 @@ export default function Navbar() {
         >
           <UtensilsCrossed size={20} />
           <span>Produtos</span>
+        </Link>
+
+        <Link
+          href="/coupons"
+          className={`${styles.link} ${isActive('/coupons') ? styles.active : ''}`}
+        >
+          <Ticket size={20} />
+          <span>Cupons</span>
         </Link>
 
         <Link

@@ -249,3 +249,24 @@
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+/* ---- Cupom de desconto ---- */
+.couponSection {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.summaryLine {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--text-light);
+  margin-bottom: 6px;
+}
+
+.discountLine {
+  color: #059669;
+  font-weight: 700;
+}

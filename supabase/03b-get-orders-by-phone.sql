@@ -16,6 +16,10 @@
 -- no banco real `orders.status` é um ENUM (order_status), não text.
 -- =====================================================================
 
+-- DROP antes: mudar as colunas do RETURNS TABLE é mudar o tipo de retorno,
+-- e o Postgres recusa isso num CREATE OR REPLACE.
+DROP FUNCTION IF EXISTS public.get_orders_by_phone(text, boolean);
+
 CREATE OR REPLACE FUNCTION public.get_orders_by_phone(
   p_phone       text,
   p_only_active boolean DEFAULT true
@@ -27,8 +31,11 @@ RETURNS TABLE (
   customer_address text,
   payment_method   text,
   status           text,
+  subtotal         numeric,
   total            numeric,
   delivery_fee     numeric,
+  discount         numeric,
+  coupon_code      text,
   created_at       timestamptz,
   updated_at       timestamptz,
   items            jsonb
@@ -45,8 +52,11 @@ AS $$
     o.customer_address::text,
     o.payment_method::text,
     o.status::text,
+    COALESCE(o.subtotal, o.total - COALESCE(o.delivery_fee, 0))::numeric,
     o.total::numeric,
     o.delivery_fee::numeric,
+    COALESCE(o.discount, 0)::numeric,
+    o.coupon_code::text,
     o.created_at::timestamptz,
     o.updated_at::timestamptz,
     COALESCE(
@@ -67,9 +77,9 @@ AS $$
       '[]'::jsonb
     ) AS items
   FROM orders o
-  -- Compara só os dígitos: o telefone é gravado com máscara "(22) 99815-1575"
-  WHERE regexp_replace(o.customer_phone, '\D', '', 'g')
-      = regexp_replace(p_phone,           '\D', '', 'g')
+  -- Mesma canonicalização usada no limite por cupom: máscara e DDI 55 têm
+  -- que cair no mesmo cliente
+  WHERE public.normalize_phone(o.customer_phone) = public.normalize_phone(p_phone)
     AND (NOT p_only_active OR o.status::text NOT IN ('COMPLETED', 'CANCELED'))
   ORDER BY o.created_at DESC
   LIMIT 50;

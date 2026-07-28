@@ -35,7 +35,9 @@ export default function DetailedStats({ products, orders }: DetailedStatsProps) 
 
   const items = selectedOrder?.items ?? [];
   const deliveryFee = selectedOrder?.deliveryFee ?? 0;
-  const subtotal = (selectedOrder?.total ?? 0) - deliveryFee;
+  const discount = selectedOrder?.discount ?? 0;
+  // total = subtotal + frete - desconto  =>  subtotal = total - frete + desconto
+  const subtotal = (selectedOrder?.total ?? 0) - deliveryFee + discount;
   const isPickup = !selectedOrder?.address || selectedOrder.address.includes('RETIRADA');
 
   return (
@@ -187,6 +189,12 @@ export default function DetailedStats({ products, orders }: DetailedStatsProps) 
                 <div className={styles.summaryRow}>
                   <span>Taxa de Entrega</span>
                   <span>{formatMoney(deliveryFee)}</span>
+                </div>
+              )}
+              {selectedOrder.discount > 0 && (
+                <div className={styles.summaryRow} style={{ color: '#059669', fontWeight: 700 }}>
+                  <span>Cupom {selectedOrder.couponCode}</span>
+                  <span>- {formatMoney(selectedOrder.discount)}</span>
                 </div>
               )}
               <div className={styles.dividerDotted} />

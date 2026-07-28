@@ -66,6 +66,7 @@ export const config = {
   matcher: [
     '/',
     '/products/:path*',
+    '/coupons/:path*',
     '/finance/:path*',
     '/settings/:path*',
     '/notifications/:path*',

@@ -6,6 +6,7 @@ import { ArrowLeft, CreditCard, Banknote, QrCode, X, Loader2 } from 'lucide-reac
 import { useCart } from '@/context/CartContext';
 import Link from 'next/link';
 import { supabase } from '@/services/supabase';
+import CouponPicker, { type AppliedCoupon } from '@/components/client/CouponPicker';
 import styles from './page.module.css';
 
 export default function PagamentoPage() {
@@ -25,8 +26,12 @@ export default function PagamentoPage() {
   const [isCashModalOpen, setIsCashModalOpen] = useState(false);
   const [changeValue, setChangeValue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
 
-  const total = cartSubtotal + deliveryFee;
+  // Mesma conta do banco: total = subtotal + frete - desconto.
+  // Aqui é só para exibir — quem manda é o create_order.
+  const discount = coupon?.discount ?? 0;
+  const total = Math.max(cartSubtotal + deliveryFee - discount, 0);
 
   useEffect(() => {
     if (isSubmitting) return;
@@ -152,6 +157,8 @@ export default function PagamentoPage() {
         p_delivery_type: deliveryType,
         p_neighborhood: deliveryType === 'delivery' ? address.neighborhood : null,
         p_items: orderItems,
+        // Só o código. O desconto quem calcula é o banco.
+        p_coupon_code: coupon?.code ?? null,
       });
 
       if (error) throw error;
@@ -206,9 +213,35 @@ export default function PagamentoPage() {
             <div className={styles.radio}>{method === 'cash' && <div className={styles.dot}/>}</div>
           </button>
         </div>
+
+        <div className={styles.couponSection}>
+          <h2 className={styles.sectionTitle}>Cupom de desconto</h2>
+          <CouponPicker
+            subtotal={cartSubtotal}
+            deliveryFee={deliveryFee}
+            phone={customerPhone}
+            deliveryType={deliveryType}
+            applied={coupon}
+            onApply={setCoupon}
+          />
+        </div>
       </div>
 
       <div className={styles.footer}>
+        <div className={styles.summaryLine}>
+          <span>Subtotal</span>
+          <span>{cartSubtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+        </div>
+        <div className={styles.summaryLine}>
+          <span>{deliveryType === 'pickup' ? 'Retirada no local' : 'Taxa de entrega'}</span>
+          <span>{deliveryFee > 0 ? `+ ${deliveryFee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}` : 'Grátis'}</span>
+        </div>
+        {discount > 0 && (
+          <div className={`${styles.summaryLine} ${styles.discountLine}`}>
+            <span>Cupom {coupon?.code}</span>
+            <span>- {discount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+          </div>
+        )}
         <div className={styles.totalRow}>
           <span>Total a pagar</span>
           <span className={styles.totalValue}>{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>

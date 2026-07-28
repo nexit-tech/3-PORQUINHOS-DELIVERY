@@ -48,11 +48,19 @@ export const printReceipt = async (order: any, settings: PrinterSettings, copies
   
   const taxaEntregaNum = Number(order.delivery_fee || order.deliveryFee || 0);
   const totalNum = Number(order.total || 0);
-  const subtotalVal = totalNum - taxaEntregaNum;
-  
+  const descontoNum = Number(order.discount || 0);
+  const cupomCodigo = order.coupon_code || order.couponCode || '';
+
+  // Usa o subtotal gravado quando existe; o cálculo antigo (total - frete)
+  // ficaria errado agora que há desconto no meio
+  const subtotalVal = Number(
+    order.subtotal ?? (totalNum + descontoNum - taxaEntregaNum)
+  );
+
   const total = formatMoney(totalNum);
   const subtotal = formatMoney(subtotalVal);
   const entrega = taxaEntregaNum > 0 ? formatMoney(taxaEntregaNum) : null;
+  const desconto = descontoNum > 0 ? formatMoney(descontoNum) : null;
   
   // Detecção de troco
   const metodoPagamento = order.payment_method || order.paymentMethod || '';
@@ -236,6 +244,11 @@ export const printReceipt = async (order: any, settings: PrinterSettings, copies
         <tr>
           <td class="left">Taxa:</td>
           <td class="right" style="padding-right: 2px;">${entrega}</td>
+        </tr>` : ''}
+        ${desconto ? `
+        <tr>
+          <td class="left">Cupom ${esc(cupomCodigo)}:</td>
+          <td class="right" style="padding-right: 2px;">-${desconto}</td>
         </tr>` : ''}
         <tr style="font-size: 1.15em; font-weight: 900;">
           <td class="left" style="padding-top: 3px;">TOTAL:</td>

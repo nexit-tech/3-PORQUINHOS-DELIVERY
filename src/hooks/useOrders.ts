@@ -37,8 +37,11 @@ export function useOrders(onlyActive = true) {
         customerAddress: order.customer_address,
         paymentMethod: order.payment_method,
         status: String(order.status).toUpperCase() as OrderStatus,
+        subtotal: Number(order.subtotal ?? 0),
         total: Number(order.total),
         deliveryFee: Number(order.delivery_fee || 0),
+        discount: Number(order.discount || 0),
+        couponCode: order.coupon_code || null,
         createdAt: new Date(order.created_at).toLocaleDateString('pt-BR', { timeZone: STORE_TZ }),
         updatedAt: order.updated_at,
         items: (order.items || []).map((item: any) => ({

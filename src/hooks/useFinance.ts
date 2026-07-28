@@ -22,6 +22,8 @@ export interface FinanceOrder {
   method: string;
   total: number;
   deliveryFee: number;
+  discount: number;
+  couponCode: string | null;
   address: string;
   status: string;
   items: any[];
@@ -147,6 +149,8 @@ export function useFinance() {
           method: order.payment_method,
           total: Number(order.total),
           deliveryFee: Number(order.delivery_fee || 0),
+          discount: Number(order.discount || 0),
+          couponCode: order.coupon_code || null,
           address: order.customer_address || '',
           status: order.status,
           items: order.items || [],

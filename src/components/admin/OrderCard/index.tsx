@@ -176,7 +176,14 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
           <span>Taxa de Entrega</span>
           <span>{formatCurrency(order.deliveryFee)}</span>
         </div>
-        
+
+        {order.discount > 0 && (
+          <div className={styles.fee} style={{ color: '#059669', fontWeight: 700 }}>
+            <span>Cupom {order.couponCode}</span>
+            <span>- {formatCurrency(order.discount)}</span>
+          </div>
+        )}
+
         <div className={styles.total}>
           <span>TOTAL</span>
           <span>{formatCurrency(order.total)}</span>

@@ -20,8 +20,12 @@ export interface Order {
   paymentMethod: string; // Texto no banco
   status: OrderStatus;
   items: OrderItem[];
+  subtotal: number;
   total: number;
   deliveryFee: number;
+  /** Desconto aplicado pelo cupom. total = subtotal + deliveryFee - discount */
+  discount: number;
+  couponCode?: string | null;
   createdAt: string;
   updatedAt: string;
 }

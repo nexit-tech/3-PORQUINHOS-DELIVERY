@@ -82,6 +82,15 @@ export default function HistoricoPage() {
 
                   <div className={styles.divider} />
 
+                  {order.discount > 0 && (
+                    <div className={styles.cardFooter} style={{ color: '#059669', fontWeight: 700 }}>
+                      <div className={styles.totalInfo}>
+                        <span>Cupom {order.couponCode}</span>
+                        <strong>- {order.discount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>
+                      </div>
+                    </div>
+                  )}
+
                   <div className={styles.cardFooter}>
                     <div className={styles.totalInfo}>
                       <span>Total</span>
