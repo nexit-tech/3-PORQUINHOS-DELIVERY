@@ -272,3 +272,28 @@
   color: #059669;
   font-weight: 700;
 }
+
+/* ---- Pagamento online ---- */
+.optionOnline {
+  border-color: #6ee7b7;
+  background: linear-gradient(180deg, #f0fdf4 0%, var(--surface) 100%);
+}
+.optionOnline.active {
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+.optionOnline .iconBox { color: #059669; }
+
+.badgeOnline {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  background: #10b981;
+  color: #fff;
+  border-radius: 20px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+}

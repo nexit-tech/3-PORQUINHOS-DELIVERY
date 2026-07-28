@@ -59,9 +59,17 @@ export default function HistoricoPage() {
                   </div>
 
                   <div className={styles.statusRow}>
-                    <span className={styles.statusBadge} style={{ color: statusInfo.color, backgroundColor: statusInfo.bg }}>
-                      {statusInfo.label}
-                    </span>
+                    {/* Pedido criado mas não pago não pode parecer aceito:
+                        o cliente ficaria esperando comida que ninguém viu */}
+                    {order.paymentStatus === 'AWAITING' ? (
+                      <span className={styles.statusBadge} style={{ color: '#92400e', backgroundColor: '#fffbeb' }}>
+                        Aguardando seu pagamento
+                      </span>
+                    ) : (
+                      <span className={styles.statusBadge} style={{ color: statusInfo.color, backgroundColor: statusInfo.bg }}>
+                        {statusInfo.label}
+                      </span>
+                    )}
                   </div>
 
                   <div className={styles.itemsList}>

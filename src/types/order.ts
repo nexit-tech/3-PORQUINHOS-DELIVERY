@@ -26,6 +26,11 @@ export interface Order {
   /** Desconto aplicado pelo cupom. total = subtotal + deliveryFee - discount */
   discount: number;
   couponCode?: string | null;
+  /** ON_DELIVERY = paga na entrega. PAID = já pago online. */
+  paymentStatus?: PaymentStatus;
+  paymentReceiptUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }
+
+export type PaymentStatus = 'ON_DELIVERY' | 'AWAITING' | 'PAID' | 'FAILED' | 'EXPIRED';

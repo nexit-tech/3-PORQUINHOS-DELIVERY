@@ -1,7 +1,28 @@
 // src/app/api/cron/auto-unpause/route.ts
 import { NextResponse } from 'next/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { requireSecret } from '@/lib/apiAuth';
+
+/**
+ * Fecha os pedidos de pagamento online que o cliente abandonou no checkout.
+ *
+ * Sem isto eles ficam AWAITING para sempre — e, quando usaram cupom,
+ * segurando um uso que nunca volta. Marcar como cancelado dispara o
+ * trigger que devolve o cupom.
+ */
+async function expirarPedidosAbandonados(db: SupabaseClient): Promise<number> {
+  const { data, error } = await db.rpc('expire_abandoned_orders', { p_minutes: 45 });
+
+  if (error) {
+    console.error('❌ Erro ao expirar pedidos abandonados:', error);
+    return 0;
+  }
+
+  const total = Number(data || 0);
+  if (total > 0) console.log(`🧹 ${total} pedido(s) abandonado(s) no checkout expirado(s)`);
+  return total;
+}
 
 // Este cron virou OPCIONAL: o /api/webhook já despausa sozinho o número
 // quando chega uma mensagem depois das 24h. Ele continua aqui para quem
@@ -30,10 +51,12 @@ export async function GET(request: Request) {
 
     if (!toUnpause || toUnpause.length === 0) {
       console.log('✅ Nenhum número para despausar');
-      return NextResponse.json({ 
-        success: true, 
+      const expirados = await expirarPedidosAbandonados(db);
+      return NextResponse.json({
+        success: true,
         message: 'No numbers to unpause',
-        count: 0 
+        count: 0,
+        expiredOrders: expirados,
       });
     }
 
@@ -57,10 +80,13 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    const expirados = await expirarPedidosAbandonados(db);
+
+    return NextResponse.json({
+      success: true,
       message: `${toUnpause.length} number(s) unpaused`,
-      count: toUnpause.length 
+      count: toUnpause.length,
+      expiredOrders: expirados,
     });
 
   } catch (error: any) {

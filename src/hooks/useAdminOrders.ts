@@ -24,6 +24,8 @@ function mapOrder(raw: any): Order {
     deliveryFee: Number(raw.delivery_fee || 0),
     discount: Number(raw.discount || 0),
     couponCode: raw.coupon_code || null,
+    paymentStatus: raw.payment_status || 'ON_DELIVERY',
+    paymentReceiptUrl: raw.payment_receipt_url || null,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
     items: (raw.items || []).map((item: any) => ({
@@ -83,6 +85,10 @@ export function useAdminOrders() {
           )
         `)
         .not('status', 'in', '("COMPLETED","CANCELED")')
+        // Pedido de pagamento online que ainda não pagou NÃO É PEDIDO.
+        // É carrinho no meio do checkout: não pode aparecer para a cozinha,
+        // senão a loja produz comida que ninguém pagou.
+        .not('payment_status', 'in', '("AWAITING","EXPIRED","FAILED")')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -141,6 +147,20 @@ export function useAdminOrders() {
           const newId = newRecord?.id;
 
           if (!newStatus || !newId || newStatus === oldStatus) return;
+
+          // Pedido que nunca foi pago não gera notificação nem impressão.
+          //
+          // Sem isto, todo carrinho abandonado no checkout online virava
+          // CANCELED na expiração e disparava "Seu pedido foi CANCELADO"
+          // no WhatsApp de alguém que nunca fechou pedido. Como o telefone
+          // é digitado sem verificação, isso vira relay: qualquer um cria
+          // pedido com o número da vítima, não paga, e espera a loja
+          // mandar mensagem por ele.
+          const paymentStatus = String(newRecord?.payment_status ?? 'ON_DELIVERY');
+          if (['AWAITING', 'EXPIRED', 'FAILED'].includes(paymentStatus)) {
+            console.log(`↩️ Pedido ${newId} sem pagamento confirmado: sem notificação.`);
+            return;
+          }
 
           const isNotifiable =
             newStatus === 'PREPARING' || newStatus === 'DELIVERING' || newStatus === 'CANCELED';

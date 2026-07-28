@@ -278,6 +278,10 @@ export const printReceipt = async (order: any, settings: PrinterSettings, copies
         <div class="label">PAGAMENTO</div>
         <div class="value">${esc(metodoPagamento.split(' - ')[0])}</div>
         ${trocoTexto ? `<div class="value" style="margin-top: 2px; font-size: 0.9em;">${esc(trocoTexto)}</div>` : ''}
+        <!-- O entregador precisa saber, em letra grande, se cobra ou não -->
+        <div class="value big" style="margin-top: 4px;">
+          ${(order.payment_status || order.paymentStatus) === 'PAID' ? '*** JA PAGO ***' : '*** COBRAR NA ENTREGA ***'}
+        </div>
       </div>
 
       <div class="line"></div>

@@ -1,7 +1,7 @@
 // src/hooks/useOrders.ts
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/services/supabase';
-import { Order, OrderStatus } from '@/types/order';
+import { Order, OrderStatus, PaymentStatus } from '@/types/order';
 import { STORE_TZ } from '@/lib/storeHours';
 
 export function useOrders(onlyActive = true) {
@@ -37,6 +37,10 @@ export function useOrders(onlyActive = true) {
         customerAddress: order.customer_address,
         paymentMethod: order.payment_method,
         status: String(order.status).toUpperCase() as OrderStatus,
+        // Sem isto o cliente via um pedido AWAITING como "Aguardando
+        // confirmação", igualzinho a um pedido que a loja já recebeu — e
+        // ficava esperando pizza que ninguém ia fazer
+        paymentStatus: (order.payment_status || 'ON_DELIVERY') as PaymentStatus,
         subtotal: Number(order.subtotal ?? 0),
         total: Number(order.total),
         deliveryFee: Number(order.delivery_fee || 0),

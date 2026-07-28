@@ -194,6 +194,25 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
             {order.paymentMethod === 'CREDIT_CARD' ? <CreditCard size={14}/> : <DollarSign size={14}/>}
             <span style={{ fontWeight: '500' }}>{order.paymentMethod}</span>
           </div>
+
+          {/* Diz à cozinha se o dinheiro já entrou ou se o entregador cobra */}
+          {order.paymentStatus === 'PAID' ? (
+            <span style={{
+              background: '#dcfce7', color: '#166534', fontWeight: 800,
+              fontSize: '0.68rem', padding: '3px 8px', borderRadius: 20,
+              textTransform: 'uppercase', letterSpacing: '0.03em',
+            }}>
+              ✓ Pago online
+            </span>
+          ) : (
+            <span style={{
+              background: '#fef3c7', color: '#92400e', fontWeight: 800,
+              fontSize: '0.68rem', padding: '3px 8px', borderRadius: 20,
+              textTransform: 'uppercase', letterSpacing: '0.03em',
+            }}>
+              Cobrar na entrega
+            </span>
+          )}
         </div>
 
       <div className={styles.actions}>

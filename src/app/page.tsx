@@ -72,7 +72,12 @@ export default function AdminDashboard() {
     if (!autoAccept) return;
 
     const toAccept = orders.filter(
-      (o) => o.status === 'PENDING' && !autoAcceptedRef.current.has(o.id)
+      (o) =>
+        o.status === 'PENDING' &&
+        // Nunca aceitar sozinho um pedido que ainda não foi pago: seria
+        // mandar produzir comida sem dinheiro na conta
+        o.paymentStatus !== 'AWAITING' &&
+        !autoAcceptedRef.current.has(o.id)
     );
     if (toAccept.length === 0) return;
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, CreditCard, Banknote, QrCode, X, Loader2 } from 'lucide-react';
+import { ArrowLeft, CreditCard, Banknote, QrCode, X, Loader2, Smartphone } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import Link from 'next/link';
 import { supabase } from '@/services/supabase';
@@ -27,6 +27,17 @@ export default function PagamentoPage() {
   const [changeValue, setChangeValue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
+
+  // A opção "pagar agora" só aparece se a loja tiver a InfinitePay
+  // configurada no servidor. Sem isso o botão levaria a um erro.
+  const [onlineHabilitado, setOnlineHabilitado] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/pagamento/status')
+      .then((r) => r.json())
+      .then((d) => setOnlineHabilitado(Boolean(d.enabled)))
+      .catch(() => setOnlineHabilitado(false));
+  }, []);
 
   // Mesma conta do banco: total = subtotal + frete - desconto.
   // Aqui é só para exibir — quem manda é o create_order.
@@ -54,7 +65,9 @@ export default function PagamentoPage() {
   }
 
   const handlePreFinish = () => {
-    if (method === 'cash') {
+    if (method === 'online') {
+      processOrder('Pago online', '', 'online');
+    } else if (method === 'cash') {
       setIsCashModalOpen(true);
     } else {
       processOrder(getMethodLabel(method));
@@ -63,9 +76,10 @@ export default function PagamentoPage() {
 
   const getMethodLabel = (key: string) => {
     switch (key) {
-      case 'pix': return 'Pix'; 
-      case 'card': return 'Cartão'; 
-      case 'cash': return 'Dinheiro'; 
+      case 'online': return 'Pago online';
+      case 'pix': return 'Pix';
+      case 'card': return 'Cartão';
+      case 'cash': return 'Dinheiro';
       default: return 'Dinheiro';
     }
   };
@@ -94,7 +108,11 @@ export default function PagamentoPage() {
     return `${address.street}, ${address.number}${complement} - ${address.neighborhood}`;
   };
 
-  const processOrder = async (paymentMethodLabel: string, changeInfo: string = '') => {
+  const processOrder = async (
+    paymentMethodLabel: string,
+    changeInfo: string = '',
+    paymentFlow: 'on_delivery' | 'online' = 'on_delivery'
+  ) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
 
@@ -159,6 +177,7 @@ export default function PagamentoPage() {
         p_items: orderItems,
         // Só o código. O desconto quem calcula é o banco.
         p_coupon_code: coupon?.code ?? null,
+        p_payment_flow: paymentFlow,
       });
 
       if (error) throw error;
@@ -170,6 +189,48 @@ export default function PagamentoPage() {
         localStorage.setItem('my_orders', JSON.stringify(savedOrders));
       }
       localStorage.setItem('customer_phone', customerPhone);
+
+      if (paymentFlow === 'online') {
+        // O pedido existe, mas em AWAITING: não vale nada até o dinheiro
+        // entrar. O carrinho SÓ é limpo depois do pagamento confirmar, na
+        // tela de retorno — senão quem desiste no checkout perde tudo.
+        const resposta = await fetch('/api/pagamento/criar-link', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId }),
+        });
+
+        const dados = await resposta.json();
+
+        if (!resposta.ok || !dados.url) {
+          throw new Error(dados.error || 'Não foi possível iniciar o pagamento.');
+        }
+
+        // O total desta tela vem do carrinho no localStorage; o que a
+        // operadora vai cobrar vem do banco. Se divergirem (preço mudou
+        // com a aba aberta), o cliente precisa aprovar antes — senão ele
+        // clica achando que paga X e cai num checkout de Y.
+        const cobrado = Number(dados.total ?? 0);
+
+        if (Math.abs(cobrado - total) > 0.005) {
+          const fmt = (v: number) =>
+            v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+          const segue = window.confirm(
+            `O valor do seu pedido foi atualizado.\n\n` +
+            `Nesta tela: ${fmt(total)}\nA pagar: ${fmt(cobrado)}\n\n` +
+            `Deseja continuar para o pagamento?`
+          );
+
+          if (!segue) {
+            setIsSubmitting(false);
+            return;
+          }
+        }
+
+        window.location.href = dados.url;
+        return;
+      }
 
       clearCart();
       router.push('/pedido/historico');
@@ -193,10 +254,24 @@ export default function PagamentoPage() {
       </header>
 
       <div className={styles.content}>
-        <h2 className={styles.sectionTitle}>Pagamento na Entrega</h2>
-        <p className={styles.subtitle}>Escolha como deseja pagar ao receber seu pedido.</p>
-        
+        <h2 className={styles.sectionTitle}>Como você quer pagar?</h2>
+        <p className={styles.subtitle}>Pague agora pelo site ou na hora de receber.</p>
+
         <div className={styles.options}>
+          {onlineHabilitado && (
+            <button
+              className={`${styles.option} ${styles.optionOnline} ${method === 'online' ? styles.active : ''}`}
+              onClick={() => setMethod('online')}
+            >
+              <div className={styles.iconBox}><Smartphone size={24} /></div>
+              <div className={styles.info}>
+                <span>Pagar agora <small className={styles.badgeOnline}>Pix ou cartão</small></span>
+                <small>Confirmação na hora, pedido vai direto pra cozinha</small>
+              </div>
+              <div className={styles.radio}>{method === 'online' && <div className={styles.dot} />}</div>
+            </button>
+          )}
+
           <button className={`${styles.option} ${method === 'pix' ? styles.active : ''}`} onClick={() => setMethod('pix')}>
             <div className={styles.iconBox}><QrCode size={24} /></div>
             <div className={styles.info}><span>Pix</span><small>Pague ao entregador</small></div>
