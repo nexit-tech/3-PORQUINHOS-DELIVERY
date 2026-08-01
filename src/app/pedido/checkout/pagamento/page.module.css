@@ -1,115 +1,234 @@
 .container {
-  padding: 24px;
-  /* O rodapé é fixo e cresceu ao ganhar subtotal, taxa e linha de desconto.
-     Com os 200px antigos, o último bloco da página ficava atrás dele. */
-  padding-bottom: 330px;
-  min-height: 100vh;
-  position: relative;
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  background: #fffdfb;
+  display: flex;
+  flex-direction: column;
 }
 
 .header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 32px;
+  gap: 12px;
+  padding: 14px 20px;
+  background: #fffdfb;
 }
-.header h1 { font-size: 1.2rem; color: var(--text-main); font-weight: 700; }
-.iconBtn { color: var(--text-main); }
+
+.header h1 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--tinta);
+}
+.iconBtn {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  color: var(--tinta);
+  flex-shrink: 0;
+}
 
 .content {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+  flex: 1;
+  max-width: var(--coluna);
+  width: 100%;
+  margin: 0 auto;
+  padding: 4px 20px 250px;
 }
 
 .sectionTitle {
-  font-size: 1.1rem;
-  color: var(--text-main);
+  font-size: 1.02rem;
   font-weight: 800;
+  color: var(--tinta);
+  margin-bottom: 6px;
 }
 
 .options {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
 }
 
 .option {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 20px;
-  background: var(--surface);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  cursor: pointer;
-  transition: all 0.2s;
+  gap: 13px;
+  width: 100%;
   text-align: left;
+  padding: 15px;
+  border-radius: var(--r-m);
+  border: 1.5px solid var(--linha);
+  background: var(--papel);
+  font-family: inherit;
+  color: var(--tinta);
 }
 
-.active {
-  border-color: var(--primary-color);
-  background: rgba(249, 115, 22, 0.05);
+/* ---- Card do pagamento online ----
+   Raio menor que o --r-g original: num card raso, 26px deixava as bordas
+   estufadas e o conteúdo espremido no meio. */
+.payCard {
+  border-radius: var(--r-m);
+  border: 1.5px solid #ffd9b8;
+  background: var(--laranja-tint);
+  overflow: hidden;
 }
 
-.iconBox { color: var(--text-light); }
-.active .iconBox { color: var(--primary-color); }
+.payMain {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 15px;
+}
+
+.iconBox {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--r-p);
+  background: var(--laranja);
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: var(--sombra-laranja);
+}
 
 .info {
-  flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
 }
-.info span { font-weight: 700; color: var(--text-main); font-size: 1rem; }
-.info small { color: var(--text-light); font-size: 0.8rem; margin-top: 2px; }
+
+.info > span {
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--tinta);
+}
+
+.info small {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--tinta-2);
+}
+
+/* O badge "Pix ou cartão" ficava inline no título e quebrava a linha de
+   base. Como chips embaixo, viram informação escaneável. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.chip {
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: var(--papel);
+  border: 1px solid #ffd9b8;
+  color: var(--laranja-escuro);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.check {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--laranja);
+  color: #fff;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.payFoot {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 11px 15px;
+  border-top: 1px solid #ffd9b8;
+  background: rgba(255, 255, 255, 0.55);
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: var(--tinta-2);
+}
+
+.payFoot svg { flex-shrink: 0; margin-top: 1px; color: var(--verde); }
 
 /* FOOTER */
 .footer {
   position: fixed;
   bottom: 0;
   left: 0;
-  width: 100%;
-  background: var(--surface);
-  padding: 24px 24px 40px 24px;
-  border-top: 1px solid var(--border-color);
-  border-top-left-radius: 24px;
-  border-top-right-radius: 24px;
-  box-shadow: 0 -10px 40px rgba(0,0,0,0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  z-index: 100;
+  right: 0;
+  z-index: 30;
+  max-width: var(--coluna);
+  margin: 0 auto;
+  padding: 16px 20px max(16px, env(safe-area-inset-bottom));
+  background: rgba(255, 253, 251, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--linha);
 }
 
 .totalRow {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  font-size: 1.1rem;
-  color: var(--text-light);
+  justify-content: space-between;
+  padding-top: 10px;
+  margin-bottom: 12px;
+  border-top: 1px dashed var(--linha);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--tinta);
 }
 
 .totalValue {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 800;
-  color: var(--text-main);
+  color: var(--tinta);
+  letter-spacing: -0.02em;
 }
 
 .finishBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  padding: 18px;
-  background: #10b981;
-  color: white;
+  padding: 16px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--r-pill);
+  background: var(--laranja);
+  color: #fff;
+  font-family: inherit;
+  font-size: 1rem;
   font-weight: 800;
-  font-size: 1.1rem;
   cursor: pointer;
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+  box-shadow: var(--sombra-laranja);
+  transition: transform 0.16s ease;
 }
-.finishBtn:active { transform: scale(0.98); }
 
-.finishBtn:disabled { cursor: not-allowed; transform: none; }
+.finishBtn:active {
+  transform: scale(0.985);
+}
+
+.finishBtn:disabled {
+  cursor: not-allowed;
+  transform: none;
+}
+
 
 /* --- PAGAMENTO INDISPONÍVEL --- */
 /* Só aparece quando /api/pagamento/status responde enabled:false. Como a
@@ -154,24 +273,11 @@
   text-decoration: underline;
 }
 
-/* --- SELO DE SEGURANÇA --- */
-.seguranca {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 12px;
-  font-size: 0.78rem;
-  line-height: 1.4;
-  color: var(--text-light);
-}
-
-.seguranca svg { flex-shrink: 0; color: #059669; }
-
 .subtitle {
-  font-size: 0.9rem;
-  color: var(--text-light);
-  margin-top: -16px;
-  margin-bottom: 8px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--tinta-2);
+  margin: 2px 0 16px;
 }
 
 .spin {
@@ -184,18 +290,15 @@
 }
 /* ---- Cupom de desconto ---- */
 .couponSection {
-  margin-top: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  margin-top: 26px;
 }
 
 .summaryLine {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  font-size: 0.85rem;
-  color: var(--text-light);
+  justify-content: space-between;
+  font-size: 0.84rem;
+  color: var(--tinta-2);
   margin-bottom: 6px;
 }
 
@@ -204,27 +307,3 @@
   font-weight: 700;
 }
 
-/* ---- Pagamento online ---- */
-.optionOnline {
-  border-color: #6ee7b7;
-  background: linear-gradient(180deg, #f0fdf4 0%, var(--surface) 100%);
-}
-.optionOnline.active {
-  border-color: #10b981;
-  background: #ecfdf5;
-}
-.optionOnline .iconBox { color: #059669; }
-
-.badgeOnline {
-  display: inline-block;
-  margin-left: 8px;
-  padding: 2px 8px;
-  background: #10b981;
-  color: #fff;
-  border-radius: 20px;
-  font-size: 0.66rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  vertical-align: middle;
-}

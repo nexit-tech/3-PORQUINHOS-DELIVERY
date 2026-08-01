@@ -1,0 +1,133 @@
+.faixa {
+  padding: 22px 0 4px;
+}
+
+.cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 20px 11px;
+}
+
+.cabecalho h2 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--tinta);
+}
+
+.cabecalho h2 svg {
+  color: var(--laranja);
+}
+
+.dica {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--tinta-3);
+}
+
+.trilho {
+  display: flex;
+  gap: 11px;
+  overflow-x: auto;
+  padding: 3px 20px 12px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scroll-snap-type: x mandatory;
+}
+
+.trilho::-webkit-scrollbar {
+  display: none;
+}
+
+/* Bilhete: fundo tint quente com borda tracejada separando o selo do
+   código, e dois recortes semicirculares nas laterais. É o detalhe que
+   faz ler como cupom e não como mais um card. */
+.cupom {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: stretch;
+  min-width: 214px;
+  scroll-snap-align: start;
+  background: var(--papel);
+  border: 1.5px solid var(--laranja-tint-2);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--sombra);
+}
+
+.selo {
+  display: grid;
+  place-items: center;
+  padding: 0 13px;
+  background: linear-gradient(160deg, #fb923c, #ea580c);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-align: center;
+  line-height: 1.15;
+  min-width: 84px;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 12px 14px;
+  border-left: 1.5px dashed var(--laranja-tint-2);
+  min-width: 0;
+}
+
+.info strong {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--tinta);
+  letter-spacing: 0.03em;
+}
+
+.info small {
+  font-size: 0.71rem;
+  line-height: 1.35;
+  color: var(--tinta-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Os recortes ficam exatamente sobre a linha tracejada. */
+.recorte {
+  position: absolute;
+  left: 84px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--fundo);
+  transform: translateX(-50%);
+}
+
+.recorteEsq {
+  top: -7px;
+}
+
+.recorteDir {
+  bottom: -7px;
+}
+
+@media (min-width: 700px) {
+  .cabecalho,
+  .trilho {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}

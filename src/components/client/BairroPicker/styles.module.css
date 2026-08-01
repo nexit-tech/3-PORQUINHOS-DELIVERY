@@ -1,0 +1,222 @@
+/* =====================================================================
+   BairroPicker — gatilho no formulário + folha que sobe do rodapé.
+   Tokens vêm de .loja (ver src/app/pedido/loja.css). A folha é renderizada
+   em portal, e o invólucro .loja no componente é o que traz as variáveis
+   até aqui.
+   ===================================================================== */
+
+/* ---------- Gatilho ----------
+   Copia o estilo dos campos do checkout (bege dentro do cartão branco)
+   para a escolha do bairro não parecer um botão no meio do formulário. */
+.gatilho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1.5px solid var(--linha);
+  border-radius: var(--r-m);
+  background: var(--fundo);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--tinta);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.gatilho:active:not(:disabled) { border-color: var(--laranja); background: var(--papel); }
+.gatilho:disabled { cursor: wait; opacity: 0.7; }
+
+.gatilhoInfo { display: flex; flex-direction: column; min-width: 0; }
+.gatilhoNome {
+  font-weight: 700;
+  color: var(--tinta);
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gatilhoTaxa { font-size: 0.8rem; color: var(--laranja-escuro); margin-top: 2px; }
+
+/* Sem escolha ainda: cinza de placeholder, não preto de valor preenchido. */
+.gatilhoVazio { color: var(--tinta-2); font-weight: 600; }
+
+.seta { color: var(--tinta-3); flex-shrink: 0; }
+.girando { color: var(--tinta-3); flex-shrink: 0; animation: girar 1s linear infinite; }
+
+/* ---------- Folha ---------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 25, 23, 0.55);
+  z-index: 3000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: aparecer 0.18s ease-out;
+}
+
+.folha {
+  background: var(--papel);
+  width: 100%;
+  max-width: 520px;
+  max-height: 85vh;
+  border-top-left-radius: var(--r-g);
+  border-top-right-radius: var(--r-g);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--sombra-alta);
+  animation: subir 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  /* Respeita a barra de gestos do iPhone: sem isto o último bairro da
+     lista fica embaixo dela. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.alca {
+  width: 42px;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--linha);
+  margin: 10px auto 4px auto;
+  flex-shrink: 0;
+}
+
+.cabecalho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px 14px 20px;
+  border-bottom: 1px solid var(--linha);
+  flex-shrink: 0;
+}
+.cabecalho h3 { font-size: 1.05rem; font-weight: 800; color: var(--tinta); }
+.cabecalho span { font-size: 0.78rem; color: var(--tinta-2); }
+
+.fechar {
+  background: none;
+  border: none;
+  color: var(--tinta-2);
+  cursor: pointer;
+  display: flex;
+  padding: 4px;
+  border-radius: var(--r-p);
+  flex-shrink: 0;
+}
+.fechar:active { background: var(--fundo); }
+
+.buscaBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: var(--fundo);
+  border-bottom: 1px solid var(--linha);
+  color: var(--tinta-3);
+  flex-shrink: 0;
+}
+.buscaBox input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--tinta);
+}
+.buscaBox input::placeholder { color: var(--tinta-3); }
+
+.limpar {
+  display: flex;
+  border: none;
+  background: var(--linha);
+  color: var(--tinta-2);
+  border-radius: var(--r-pill);
+  padding: 3px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.corpo {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+  min-height: 0;
+}
+
+.lista { list-style: none; }
+
+.item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  /* 15px em cima e embaixo deixa o alvo de toque perto de 50px — dedo
+     escolhendo bairro em movimento não pode errar de linha. */
+  padding: 15px 20px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--linha);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: var(--tinta);
+}
+.item:active { background: var(--fundo); }
+.item:last-child { border-bottom: none; }
+
+.itemAtivo { background: var(--laranja-tint); }
+.itemAtivo:active { background: var(--laranja-tint-2); }
+
+.itemNome {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  min-width: 0;
+}
+.itemCheck { color: var(--laranja-escuro); flex-shrink: 0; }
+
+.itemTaxa {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--tinta-2);
+  white-space: nowrap;
+}
+.itemAtivo .itemTaxa { color: var(--laranja-escuro); }
+
+/* ---------- Busca sem resultado ---------- */
+.vazio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 38px 24px;
+  text-align: center;
+  color: var(--tinta-2);
+}
+.vazio strong { font-size: 0.95rem; color: var(--tinta); }
+.vazio p { font-size: 0.83rem; }
+
+.vazioBotao {
+  margin-top: 8px;
+  padding: 10px 18px;
+  border: 1px solid var(--linha);
+  border-radius: var(--r-pill);
+  background: var(--papel);
+  color: var(--laranja-escuro);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.83rem;
+  cursor: pointer;
+}
+
+@keyframes girar { to { transform: rotate(360deg); } }
+@keyframes aparecer { from { opacity: 0; } to { opacity: 1; } }
+@keyframes subir { from { transform: translateY(100%); } to { transform: translateY(0); } }

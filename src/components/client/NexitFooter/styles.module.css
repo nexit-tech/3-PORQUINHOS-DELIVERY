@@ -1,0 +1,28 @@
+.rodape {
+  display: flex;
+  justify-content: center;
+  padding: 28px 20px 12px;
+}
+
+.link {
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  color: var(--tinta-3);
+  padding: 8px 14px;
+  border-radius: var(--r-pill);
+  transition: color 0.18s ease, background 0.18s ease;
+}
+
+.link strong {
+  font-weight: 700;
+  color: var(--tinta-2);
+}
+
+.link:hover {
+  color: var(--tinta-2);
+  background: var(--laranja-tint);
+}
+
+.link:hover strong {
+  color: var(--laranja-escuro);
+}

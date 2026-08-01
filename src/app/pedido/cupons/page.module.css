@@ -1,0 +1,259 @@
+/* =====================================================================
+   Cupons da loja
+   ===================================================================== */
+
+.container {
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--fundo);
+}
+
+.coluna {
+  max-width: var(--coluna);
+  margin: 0 auto;
+}
+
+.topo {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--fundo);
+}
+
+.topo h1 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--tinta);
+}
+
+.voltar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  color: var(--tinta);
+  flex-shrink: 0;
+}
+
+.conteudo {
+  padding: 4px 20px 118px;
+}
+
+.explica {
+  font-size: 0.82rem;
+  color: var(--tinta-2);
+  line-height: 1.45;
+  margin-bottom: 14px;
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ---------------------------------------------------------------------
+   Bilhete
+   ---------------------------------------------------------------------
+   --corte é a largura do canhoto E a posição dos furos. Antes eram dois
+   números soltos: o selo tinha min-width (mínimo, não fixo) e crescia com
+   o texto, enquanto os furos ficavam chumbados em 92px. No cupom de frete
+   grátis, que tem o rótulo mais longo, os furos caíam dentro da área
+   laranja em vez da divisa. Amarrando os dois na mesma variável, isso não
+   volta a acontecer por mais longo que seja o rótulo. */
+.cupom {
+  --corte: 96px;
+
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  text-align: left;
+  padding: 0;
+  /* Corpo branco: deixa o canhoto ser o único ponto de cor forte. Antes o
+     card inteiro era laranja-tint e competia com ele. */
+  background: var(--papel);
+  border: 1.5px solid var(--linha);
+  border-radius: var(--r-m);
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: var(--sombra);
+  transition: transform 0.16s ease, border-color 0.16s ease;
+}
+
+.cupom:hover { border-color: #ffd9b8; }
+.cupom:active { transform: scale(0.99); }
+
+.cupomCopiado { border-color: #a7f3d0; }
+
+/* ---- Canhoto ---- */
+.selo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  /* flex-basis fixo, não min-width: é o que garante que todos os cupons
+     tenham o canhoto do mesmo tamanho e alinhem na vertical. */
+  flex: 0 0 var(--corte);
+  padding: 18px 10px;
+  background: linear-gradient(160deg, var(--laranja-claro), var(--laranja-escuro));
+  color: #fff;
+  border-radius: calc(var(--r-m) - 2px) 0 0 calc(var(--r-m) - 2px);
+}
+
+.seloValor {
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1.05;
+  text-align: center;
+  letter-spacing: -0.02em;
+}
+
+/* "Frete grátis" e "R$ 10,00" não cabem no mesmo corpo de "10%". */
+.seloLongo { font-size: 0.8rem; }
+
+.selo small {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  opacity: 0.85;
+}
+
+/* ---- Corpo ---- */
+.corpo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 14px 10px 14px 16px;
+  border-left: 1.5px dashed var(--linha);
+}
+
+.codigo {
+  font-size: 0.94rem;
+  font-weight: 800;
+  color: var(--tinta);
+  letter-spacing: 0.05em;
+}
+
+.desc {
+  font-size: 0.76rem;
+  line-height: 1.35;
+  color: var(--tinta-2);
+}
+
+.regras {
+  font-size: 0.7rem;
+  color: var(--tinta-3);
+  font-weight: 700;
+}
+
+/* Confirmação onde o olho já está, em vez de só trocar um ícone lá na
+   ponta do card. */
+.regrasCopiado { color: var(--verde); }
+
+/* ---- Ação ---- */
+.acao {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  margin: auto 12px auto 0;
+  background: var(--laranja-tint);
+  color: var(--laranja-escuro);
+  flex-shrink: 0;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.acaoCopiado { background: var(--verde-tint); color: var(--verde); }
+
+/* ---- Furos da picotagem ----
+   A cor tem que ser a do fundo da página: é isso que faz parecer buraco
+   e não bolinha. Por isso var(--fundo), o mesmo do .container. */
+.recorte {
+  position: absolute;
+  left: var(--corte);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--fundo);
+  transform: translateX(-50%);
+}
+
+.recorteTopo { top: -8px; }
+.recorteBase { bottom: -8px; }
+
+/* ------------------------------------------------------- VAZIO / ESQUELETO */
+.vazio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 46px 24px;
+  background: var(--papel);
+  border: 1.5px solid var(--linha);
+  border-radius: var(--r-g);
+}
+
+.vazioIcone {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background: var(--laranja-tint);
+  color: var(--laranja);
+  margin-bottom: 14px;
+}
+
+.vazio strong {
+  font-size: 1rem;
+  color: var(--tinta);
+  margin-bottom: 5px;
+}
+
+.vazio p {
+  font-size: 0.86rem;
+  color: var(--tinta-2);
+  line-height: 1.5;
+}
+
+.vazioBotao {
+  margin-top: 16px;
+  padding: 11px 22px;
+  border-radius: var(--r-pill);
+  background: var(--laranja);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.86rem;
+  box-shadow: var(--sombra-laranja);
+}
+
+/* Mesma altura e raio do cupom real: sem isso a lista dá um pulo quando
+   os dados chegam. */
+.esqueleto {
+  height: 94px;
+  border-radius: var(--r-m);
+  background: linear-gradient(90deg, #f3ece6 25%, #eae0d8 37%, #f3ece6 63%);
+  background-size: 400% 100%;
+  animation: brilho 1.3s ease-in-out infinite;
+}
+
+@keyframes brilho {
+  from { background-position: 100% 50%; }
+  to { background-position: 0 50%; }
+}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2, Smartphone, AlertCircle, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Loader2, Smartphone, AlertCircle, ShieldCheck, Check } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import Link from 'next/link';
 import { supabase } from '@/services/supabase';
@@ -32,6 +32,7 @@ export default function PagamentoPage() {
     deliveryType,
     customerName,
     customerPhone,
+    customerEmail,
   } = useCart();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -157,7 +158,14 @@ export default function PagamentoPage() {
       const resposta = await fetch('/api/pagamento/criar-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId }),
+        // E-mail e CEP não viram dinheiro e não ficam no pedido: servem só
+        // para o checkout da operadora abrir com contato e entrega
+        // preenchidos. Por isso vão por aqui em vez de passar pelo banco.
+        body: JSON.stringify({
+          orderId,
+          email: customerEmail || undefined,
+          address: deliveryType === 'delivery' ? address : undefined,
+        }),
       });
 
       const dados = await resposta.json();
@@ -211,29 +219,42 @@ export default function PagamentoPage() {
       </header>
 
       <div className={styles.content}>
-        <h2 className={styles.sectionTitle}>Pagamento pelo site</h2>
         <p className={styles.subtitle}>
-          O pagamento é feito agora, na finalização. Assim que confirmar, seu pedido
-          vai direto para a cozinha.
+          Você paga agora, pelo site. Assim que confirmar, seu pedido vai direto
+          para a cozinha.
         </p>
 
         <div className={styles.options}>
           {statusPagamento === 'verificando' && (
             <div className={styles.option}>
-              <div className={styles.iconBox}><Loader2 size={24} className={styles.spin} /></div>
+              <div className={styles.iconBox}><Loader2 size={22} className={styles.spin} /></div>
               <div className={styles.info}>
                 <span>Carregando formas de pagamento...</span>
               </div>
             </div>
           )}
 
+          {/* Só existe uma forma de pagamento, então o card não é uma escolha:
+              é a confirmação do que vai acontecer. O selo da InfinitePay mora
+              dentro dele — solto embaixo, lia como aviso avulso. */}
           {statusPagamento === 'ok' && (
-            <div className={`${styles.option} ${styles.optionOnline} ${styles.active}`}>
-              <div className={styles.iconBox}><Smartphone size={24} /></div>
-              <div className={styles.info}>
-                <span>Pagar agora <small className={styles.badgeOnline}>Pix ou cartão</small></span>
-                <small>Você escolhe entre Pix e cartão na próxima tela</small>
+            <div className={styles.payCard}>
+              <div className={styles.payMain}>
+                <div className={styles.iconBox}><Smartphone size={22} /></div>
+                <div className={styles.info}>
+                  <span>Pagar agora</span>
+                  <small>Você escolhe a forma na próxima tela</small>
+                  <div className={styles.chips}>
+                    <span className={styles.chip}>Pix</span>
+                    <span className={styles.chip}>Cartão</span>
+                  </div>
+                </div>
+                <div className={styles.check}><Check size={13} strokeWidth={3.5} /></div>
               </div>
+              <p className={styles.payFoot}>
+                <ShieldCheck size={14} /> Processado pela InfinitePay — a loja não
+                recebe os dados do seu cartão.
+              </p>
             </div>
           )}
 
@@ -258,13 +279,6 @@ export default function PagamentoPage() {
             </div>
           )}
         </div>
-
-        {statusPagamento === 'ok' && (
-          <p className={styles.seguranca}>
-            <ShieldCheck size={15} /> Pagamento processado pela InfinitePay. A loja não
-            recebe os dados do seu cartão.
-          </p>
-        )}
 
         <div className={styles.couponSection}>
           <h2 className={styles.sectionTitle}>Cupom de desconto</h2>

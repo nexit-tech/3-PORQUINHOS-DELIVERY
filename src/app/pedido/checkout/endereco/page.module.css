@@ -1,296 +1,341 @@
-.container {
-  background-color: var(--background);
-  
-  /* --- A SOLUÇÃO DO SCROLL (O PULO DO GATO) --- */
-  height: 100vh;       /* Fixa a altura na tela inteira */
-  height: 100dvh;      /* Garante o tamanho certo no celular */
-  overflow-y: auto;    /* LIBERA O SCROLL SÓ AQUI */
-  overflow-x: hidden;  /* Trava scroll lateral */
-  
-  padding: 24px;
-  
-  /* --- O CALÇO GIGANTE --- */
-  /* Isso garante que você consiga rolar até o fim sem o footer cobrir o input */
-  padding-bottom: 320px; 
+/* =====================================================================
+   Checkout — dados do pedido
+   =====================================================================
+   Antes era tudo branco sobre branco: formulário, fundo e rodapé na mesma
+   cor, separados só por bordas finas. Nada tinha peso e o resumo do total
+   — a informação que decide a compra — ficava do mesmo tamanho de um
+   rótulo de campo.
 
-  display: flex;
-  flex-direction: column;
-  position: relative;
+   Agora o fundo é bege (--fundo) e cada bloco é um cartão branco elevado.
+   O resumo ganhou hierarquia: subtotal e taxa discretos, total grande.
+   Tokens em src/app/pedido/loja.css.
+   ===================================================================== */
+
+.container {
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--fundo);
 }
 
+/* ---------- Cabeçalho ---------- */
 .header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
-  flex-shrink: 0; /* Impede o header de ser esmagado */
+  gap: 12px;
+  max-width: var(--coluna);
+  margin: 0 auto;
+  padding: 14px 20px;
+  background: var(--fundo);
 }
 
 .header h1 {
-  font-size: 1.2rem;
-  color: var(--text-main);
-  font-weight: 700;
-}
-.iconBtn { 
-  color: var(--text-main); 
-  padding: 8px;
-  margin-left: -8px;
-}
-
-/* FORMULÁRIO */
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.sectionHeader {
-  font-size: 0.85rem;
+  font-size: 1.1rem;
   font-weight: 800;
-  color: var(--primary-color);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-top: 8px;
-  padding-left: 2px;
+  color: var(--tinta);
 }
 
-.divider {
-  height: 1px;
-  background: var(--border-color);
-  opacity: 0.6;
-  margin: 4px 0;
-}
+/* Mesma largura do botão de voltar, para o título ficar centrado de fato. */
+.headerSpacer { width: 38px; flex-shrink: 0; }
 
-.inputGroup {
+.iconBtn {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  color: var(--tinta);
+  flex-shrink: 0;
+  box-shadow: var(--sombra);
+}
+.iconBtn:active { transform: scale(0.94); }
+
+/* ---------- Coluna ---------- */
+.conteudo {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  position: relative;
-  z-index: 1;
+  gap: 14px;
+  max-width: var(--coluna);
+  margin: 0 auto;
+  /* O resumo é fixo no pé da tela e taparia o último campo. Esta folga é
+     só o valor de partida: a página mede o resumo e ajusta o padding-bottom
+     por inline style, senão sobra um vão morto no fim da rolagem. */
+  padding: 4px 16px 300px;
 }
 
-.inputGroup label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-light);
+/* ---------- Entrega x Retirada ----------
+   Um trilho com dois trechos, no lugar de dois botões soltos: fica claro
+   que é uma escolha entre duas opções, não dois comandos. O ativo é o
+   pedaço branco elevado — o mesmo idioma dos cartões abaixo. */
+.segmento {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  background: var(--linha);
+  border-radius: var(--r-pill);
+}
+
+.segmentoBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 12px 10px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--tinta-2);
+  cursor: pointer;
+  transition: color 0.18s ease, background 0.18s ease;
+}
+
+.segmentoAtivo {
+  background: var(--papel);
+  color: var(--laranja-escuro);
+  box-shadow: var(--sombra);
+}
+
+/* ---------- Cartões ---------- */
+.cartao {
+  background: var(--papel);
+  border-radius: var(--r-g);
+  padding: 18px;
+  box-shadow: var(--sombra);
+}
+
+.cartaoTopo {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 16px;
+}
+
+.cartaoIcone {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--laranja-tint);
+  color: var(--laranja-escuro);
+  flex-shrink: 0;
+}
+
+.cartaoTopo h2 {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--tinta);
+}
+.cartaoTopo p {
+  font-size: 0.78rem;
+  color: var(--tinta-2);
+  margin-top: 1px;
+}
+
+.campos { display: flex; flex-direction: column; gap: 14px; }
+
+.campo { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+
+.campo label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--tinta-2);
   margin-left: 2px;
 }
 
-.input {
-  width: 100%;
-  padding: 14px;
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-  background: var(--surface);
-  color: var(--text-main);
-  font-size: 1rem;
-  outline: none;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-  transition: border-color 0.2s;
+.opcional {
+  font-weight: 600;
+  font-size: 0.72rem;
+  color: var(--tinta-3);
+  text-transform: lowercase;
 }
-.input:focus { border-color: var(--primary-color); }
 
-/* INPUT COM ÍCONE */
-.inputIconWrapper {
-  position: relative;
+/* Campo em bege dentro do cartão branco: o contorno some e a área de
+   escrita fica óbvia sem precisar de borda grossa. */
+.entrada,
+.entradaIcone {
   width: 100%;
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1.5px solid var(--linha);
+  border-radius: var(--r-m);
+  background: var(--fundo);
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--tinta);
+  outline: none;
+  transition: border-color 0.18s ease, background 0.18s ease;
 }
-.inputIcon {
+
+.entradaIcone { padding-left: 44px; }
+
+.entrada::placeholder,
+.entradaIcone::placeholder { color: var(--tinta-3); }
+
+.entrada:focus,
+.entradaIcone:focus {
+  border-color: var(--laranja);
+  background: var(--papel);
+}
+
+.comIcone { position: relative; width: 100%; }
+
+.icone {
   position: absolute;
-  left: 14px;
+  left: 15px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-light);
+  color: var(--tinta-3);
   pointer-events: none;
-  z-index: 2;
 }
-.inputWithIcon {
-  width: 100%;
-  padding: 14px 14px 14px 44px;
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-  background: var(--surface);
-  color: var(--text-main);
-  font-size: 1rem;
-  outline: none;
-}
-.inputWithIcon:focus { border-color: var(--primary-color); }
 
-.row {
+.duplo {
   display: grid;
-  grid-template-columns: 100px 1fr;
+  grid-template-columns: minmax(88px, 0.62fr) 1fr;
   gap: 12px;
-  width: 100%;
 }
 
-/* COMBOBOX */
-.comboboxWrapper {
-  position: relative;
-  width: 100%;
-}
-
-.comboboxTrigger {
-  width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 12px 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  text-align: left;
-}
-
-.triggerInfo {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.hoodName { font-weight: 700; color: var(--text-main); font-size: 0.95rem; }
-.hoodFee { font-size: 0.8rem; color: var(--primary-color); margin-top: 2px; }
-
-/* DROPDOWN FLUTUANTE */
-.dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  width: 100%;
-  background: var(--surface);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-  z-index: 9999; 
-  overflow: hidden;
-  max-height: 280px;
-  display: flex;
-  flex-direction: column;
-  animation: fadeIn 0.1s ease-out;
-}
-
-@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-
-.searchBox {
-  padding: 10px;
-  background: var(--background);
-  border-bottom: 1px solid var(--border-color);
+/* ---------- Retirada ---------- */
+.retirada {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-.searchBox input {
-  border: none;
-  background: transparent;
-  width: 100%;
-  outline: none;
-  font-size: 0.95rem;
-  color: var(--text-main);
+  gap: 14px;
+  padding: 18px;
+  background: var(--laranja-tint);
+  border-radius: var(--r-g);
+  color: var(--tinta);
 }
 
-.list { overflow-y: auto; }
-
-.listItem {
-  width: 100%;
-  padding: 14px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid var(--border-color);
-  color: var(--text-main);
-  font-size: 0.95rem;
-  cursor: pointer;
+.retiradaIcone {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--papel);
+  color: var(--laranja-escuro);
+  flex-shrink: 0;
 }
-.listItem:hover, .listItem:active { background: var(--surface-hover); }
-.listItem small { font-weight: 600; color: var(--text-light); }
-.emptySearch { padding: 16px; text-align: center; color: var(--text-light); font-size: 0.85rem; }
 
-/* FOOTER FIXO */
-.footerSummary {
+.retirada strong { font-size: 0.95rem; font-weight: 800; }
+.retirada p { font-size: 0.82rem; color: var(--tinta-2); margin-top: 3px; }
+
+/* ---------- Resumo fixo ----------
+   O bloco antigo era uma pilha de linhas do mesmo tamanho separada por
+   tracejado. Aqui subtotal e taxa recuam para texto de apoio e o total
+   fica sozinho na linha grande, logo acima do botão. */
+.resumo {
   position: fixed;
   bottom: 0;
   left: 0;
-  width: 100%;
-  background: var(--surface);
-  z-index: 500; 
-  
-  /* Garante que o footer fique visível e bonito */
-  padding: 24px 24px 32px 24px;
-  border-top: 1px solid var(--border-color);
-  border-top-left-radius: 24px;
-  border-top-right-radius: 24px;
-  box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+  right: 0;
+  z-index: 30;
+  max-width: var(--coluna);
+  margin: 0 auto;
+  padding: 16px 20px max(16px, env(safe-area-inset-bottom));
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-top: 1px solid var(--linha);
+  border-top-left-radius: var(--r-g);
+  border-top-right-radius: var(--r-g);
+  box-shadow: 0 -8px 28px -18px rgba(28, 25, 23, 0.35);
+}
+
+.resumoLinhas { display: flex; flex-direction: column; gap: 5px; }
+
+.linha {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  font-size: 0.85rem;
+  color: var(--tinta-2);
+}
+/* O nome do bairro pode ser longo; corta ele, nunca o preço. */
+.linha > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.summaryLine { display: flex; justify-content: space-between; color: var(--text-light); font-size: 0.9rem; }
-.totalLine { 
-  font-weight: 800; 
-  color: var(--text-main); 
-  font-size: 1.25rem; 
-  margin-top: 6px; 
-  padding-top: 12px; 
-  border-top: 1px dashed var(--border-color); 
+.valor { font-weight: 700; color: var(--tinta); white-space: nowrap; }
+.gratis { font-weight: 700; color: var(--verde); white-space: nowrap; }
+.pendente {
+  font-weight: 600;
+  color: var(--tinta-3);
+  font-style: italic;
+  white-space: nowrap;
 }
-.feeValue { color: #ef4444; font-weight: 600; }
 
-.finishBtn {
+.totalLinha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--linha);
+}
+.totalLinha span { font-size: 0.9rem; font-weight: 600; color: var(--tinta-2); }
+.totalLinha strong {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--tinta);
+}
+
+.erro {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 9px 12px;
+  background: var(--vermelho-tint);
+  color: var(--vermelho);
+  border-radius: var(--r-p);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.erro svg { flex-shrink: 0; }
+
+.cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
   margin-top: 12px;
   padding: 16px;
-  background: var(--primary-color);
-  color: white;
   border: none;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 1.05rem;
+  border-radius: var(--r-pill);
+  background: var(--laranja);
+  color: #fff;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.1s;
+  box-shadow: var(--sombra-laranja);
+  transition: transform 0.14s ease, background 0.14s ease;
 }
-.finishBtn:active { transform: scale(0.98); background: var(--primary-dark); }
+.cta:active { transform: scale(0.985); background: var(--laranja-escuro); }
 
-.deliverySelector {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.typeBtn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 8px;
-  border: 2px solid #e4e4e7;
-  background: white;
-  color: #71717a;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.activeType {
-  border-color: #e11d48;
-  color: #e11d48;
-  background: #fff1f2;
-}
-
-.pickupInfo {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 20px;
-  background: #f8fafc;
-  border-radius: 12px;
-  border: 1px dashed #cbd5e1;
-  margin-top: 20px;
-  color: #475569;
+/* ---------- Desktop ----------
+   A coluna cresce nas outras telas da loja, mas um formulário de 940px
+   vira linha de leitura ruim. Aqui ela fica travada. */
+@media (min-width: 700px) {
+  .header,
+  .conteudo,
+  .resumo { max-width: 560px; }
 }

@@ -22,6 +22,44 @@ export interface CreateLinkInput {
   redirectUrl: string;
   webhookUrl?: string;
   customer?: { name?: string; email?: string; phone_number?: string };
+  /** Vai no topo do payload, não dentro de customer. */
+  address?: InfinitePayAddress;
+}
+
+export interface InfinitePayAddress {
+  /** Só dígitos: "28930000". */
+  cep?: string;
+  street?: string;
+  neighborhood?: string;
+  number?: string;
+  complement?: string;
+}
+
+/**
+ * Normaliza o endereço para o formato do checkout, ou devolve undefined.
+ *
+ * Sem CEP a etapa de entrega não fecha do lado de lá, então um endereço
+ * sem ele não adianta nada — melhor omitir o bloco inteiro do que mandar
+ * meia informação e o cliente ter que corrigir campo por campo.
+ */
+export function buildAddress(input?: Partial<InfinitePayAddress> | null): InfinitePayAddress | undefined {
+  if (!input) return undefined;
+
+  const cep = (input.cep || '').replace(/\D/g, '');
+  if (cep.length !== 8) return undefined;
+
+  const limpar = (v?: string) => {
+    const t = (v || '').trim();
+    return t ? t.slice(0, 120) : undefined;
+  };
+
+  return {
+    cep,
+    street: limpar(input.street),
+    neighborhood: limpar(input.neighborhood),
+    number: limpar(input.number),
+    complement: limpar(input.complement),
+  };
 }
 
 export interface PaymentCheckResult {
@@ -54,6 +92,34 @@ export function toCents(reais: number | string): number {
 }
 
 /**
+ * Telefone no formato que a InfinitePay documenta: "+5511999887766".
+ *
+ * A loja grava o que o cliente digitou ("(22) 99815-1575"). Mandando
+ * assim, o campo chega irreconhecível e o checkout pede o telefone de
+ * novo — que é justamente a etapa que queremos evitar.
+ *
+ * Devolve undefined quando não dá para afirmar que é um telefone válido:
+ * melhor omitir o campo do que enviar lixo.
+ */
+export function toE164BR(phone?: string | null): string | undefined {
+  if (!phone) return undefined;
+
+  const digits = phone.replace(/\D/g, '');
+
+  // Já veio com o país na frente (55 + DDD + 8 ou 9 dígitos)
+  if (digits.length === 12 || digits.length === 13) {
+    return digits.startsWith('55') ? `+${digits}` : undefined;
+  }
+
+  // DDD + número, sem país
+  if (digits.length === 10 || digits.length === 11) {
+    return `+55${digits}`;
+  }
+
+  return undefined;
+}
+
+/**
  * Cria o link de cobrança e devolve a URL do checkout.
  *
  * Os itens vêm montados a partir do BANCO, nunca do navegador — mesma
@@ -66,6 +132,7 @@ export async function createPaymentLink(input: CreateLinkInput): Promise<string>
     redirect_url: input.redirectUrl,
     ...(input.webhookUrl ? { webhook_url: input.webhookUrl } : {}),
     ...(input.customer ? { customer: input.customer } : {}),
+    ...(input.address ? { address: input.address } : {}),
     items: input.items,
   };
 

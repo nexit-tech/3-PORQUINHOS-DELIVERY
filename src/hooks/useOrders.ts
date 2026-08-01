@@ -19,6 +19,12 @@ export function useOrders(onlyActive = true) {
         return;
       }
 
+      // Antes de listar, derruba o que ficou pendurado sem pagamento.
+      // await de propósito: sem ele a lista chegaria antes da limpeza e o
+      // cliente ainda veria o pedido abandonado por um tick.
+      // Falha aqui não impede a listagem — a rota já devolve 200 no erro.
+      await fetch('/api/pedidos/expirar', { method: 'POST' }).catch(() => {});
+
       // Via RPC, não SELECT direto: com a RLS ligada o anônimo não lista a
       // tabela `orders`. Antes qualquer visitante baixava nome, telefone e
       // endereço de todos os clientes da loja.
@@ -29,7 +35,15 @@ export function useOrders(onlyActive = true) {
 
       if (error) throw error;
 
-      const formattedOrders: Order[] = (data || []).map((order: any) => ({
+      // Pedido não pago não é pedido: é carrinho que virou linha no banco.
+      // Mostrar isso como "Aguardando seu pagamento" só gerava dúvida —
+      // a cozinha nunca viu, e em MINUTOS_ABANDONO ele é cancelado sozinho.
+      // Some da tela na hora; do banco, na primeira limpeza.
+      const pagos = (data || []).filter(
+        (order: any) => (order.payment_status || 'ON_DELIVERY') !== 'AWAITING'
+      );
+
+      const formattedOrders: Order[] = pagos.map((order: any) => ({
         id: order.id,
         displayId: `#${order.id}`,
         customerName: order.customer_name,

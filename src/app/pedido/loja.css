@@ -1,0 +1,152 @@
+/* =====================================================================
+   Sistema visual da LOJA (/pedido/*)
+   =====================================================================
+   Tudo aqui vive dentro de .loja, aplicado no layout do cliente. O painel
+   administrativo usa as variáveis antigas do globals.css e não é tocado —
+   por isso os tokens novos têm nomes próprios em vez de sobrescrever
+   --primary-color e companhia.
+
+   Mobile primeiro. As media queries no fim sobem para tablet e desktop.
+   ===================================================================== */
+
+.loja {
+  /* --- Marca --- */
+  --laranja: #f97316;
+  --laranja-escuro: #ea580c;
+  --laranja-claro: #fb923c;
+  /* Fundo de selo e estado ativo. Tint quente, não cinza: com comida,
+     cinza puro deixa a foto sem apetite. */
+  --laranja-tint: #fff3e9;
+  --laranja-tint-2: #ffe6d2;
+
+  /* --- Tinta --- */
+  --tinta: #1c1917;
+  --tinta-2: #78716c;
+  --tinta-3: #a8a29e;
+
+  /* --- Superfícies --- */
+  --papel: #ffffff;
+  --fundo: #faf8f6;
+  --linha: #f1ece8;
+
+  /* --- Apoio --- */
+  --verde: #15803d;
+  --verde-tint: #ecfdf3;
+  --vermelho: #dc2626;
+  --vermelho-tint: #fef2f2;
+
+  /* --- Forma --- */
+  --r-g: 26px;
+  --r-m: 18px;
+  --r-p: 12px;
+  --r-pill: 999px;
+
+  /* --- Profundidade ---
+     Duas camadas em vez de uma: a curta cola o card no fundo, a longa dá
+     a flutuação. Sombra única fica ou dura demais ou invisível. */
+  --sombra: 0 1px 2px rgba(28, 25, 23, 0.04), 0 8px 24px -10px rgba(28, 25, 23, 0.14);
+  --sombra-alta: 0 2px 6px rgba(28, 25, 23, 0.06), 0 24px 48px -16px rgba(28, 25, 23, 0.22);
+  --sombra-laranja: 0 8px 22px -8px rgba(249, 115, 22, 0.55);
+
+  /* Largura da coluna de conteúdo. No celular ocupa tudo; no desktop
+     segura a leitura para não virar uma linha de 1400px. */
+  --coluna: 480px;
+
+  background: var(--fundo);
+  color: var(--tinta);
+  font-feature-settings: 'ss01', 'cv11';
+}
+
+/* Tipografia mais apertada nos títulos: nomes de produto ficam com cara
+   de cardápio em vez de parágrafo. */
+.loja h1,
+.loja h2,
+.loja h3 {
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.loja ::selection {
+  background: var(--laranja-tint-2);
+  color: var(--tinta);
+}
+
+/* Área de toque: alvo mínimo confortável no celular. */
+.loja button,
+.loja a[role='button'] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Barra de rolagem discreta no desktop; no celular nem aparece. */
+.loja *::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.loja *::-webkit-scrollbar-thumb {
+  background: #e7e0da;
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.loja *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* =====================================================================
+   Transição entre telas
+   =====================================================================
+   Sem isto cada navegação era um corte seco: a tela nova aparecia inteira
+   de uma vez e o cliente perdia a noção de que avançou ou voltou.
+
+   O alvo é o <main> de cada rota (todas as telas da loja usam um), e não
+   o wrapper .loja — o wrapper não remonta na navegação do App Router, o
+   conteúdo dentro dele sim. Animar o wrapper não dispararia nada.
+
+   Deslocamento curto e opacidade: entrada longa demais atrasa a leitura
+   do cardápio, que é o que o cliente veio fazer. */
+@keyframes loja-entrada {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.loja > main {
+  animation: loja-entrada 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* A folha de cupons e o modal de produto entram por conta própria (cada
+   um tem a sua animação de subida). Sem esta trava eles herdariam a
+   entrada da página e piscariam duas vezes. */
+.loja > main [role='dialog'] {
+  animation: none;
+}
+
+/* Respeita quem pediu menos animação no sistema. */
+@media (prefers-reduced-motion: reduce) {
+  .loja *,
+  .loja *::before,
+  .loja *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =====================================================================
+   Desktop
+   =====================================================================
+   O app é mobile por natureza (o cliente pede pelo celular). No desktop
+   não vale esticar: a coluna cresce um pouco, ganha respiro nas laterais
+   e os cards viram grade. */
+@media (min-width: 700px) {
+  .loja {
+    --coluna: 680px;
+    --r-g: 28px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .loja {
+    --coluna: 940px;
+  }
+}

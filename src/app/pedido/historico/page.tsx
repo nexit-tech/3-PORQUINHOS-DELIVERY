@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, ShoppingBag, MessageCircle } from 'lucide-react';
+import { ArrowLeft, ShoppingBag, MessageCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useOrders } from '@/hooks/useOrders';
 import { whatsappLink } from '@/config/store';
@@ -8,20 +8,24 @@ import styles from './page.module.css';
 
 function getStatusInfo(status: string) {
   switch (status) {
-    case 'PENDING': return { label: 'Aguardando confirmação', color: '#f59e0b', bg: '#fffbeb' };
-    case 'PREPARING': return { label: 'Em preparação', color: '#3b82f6', bg: '#eff6ff' };
-    case 'DELIVERING': return { label: 'Saiu para entrega', color: '#8b5cf6', bg: '#f5f3ff' };
-    case 'COMPLETED': return { label: 'Finalizado', color: '#10b981', bg: '#ecfdf5' };
-    case 'CANCELED': return { label: 'Cancelado', color: '#ef4444', bg: '#fef2f2' };
-    default: return { label: 'Processando', color: '#6b7280', bg: '#f3f4f6' };
+    case 'PENDING': return { label: 'Aguardando confirmação', tom: styles.tomAmbar };
+    case 'PREPARING': return { label: 'Em preparação', tom: styles.tomAzul };
+    case 'DELIVERING': return { label: 'Saiu para entrega', tom: styles.tomRoxo };
+    case 'COMPLETED': return { label: 'Finalizado', tom: styles.tomVerde };
+    case 'CANCELED': return { label: 'Cancelado', tom: styles.tomVermelho };
+    default: return { label: 'Processando', tom: styles.tomNeutro };
   }
 }
 
+const moeda = (v: number) =>
+  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
 export default function HistoricoPage() {
+  // Pedido sem pagamento nem chega aqui: o useOrders filtra os AWAITING e
+  // manda expirar os abandonados antes de listar.
   const { orders, loading } = useOrders();
 
   const handleHelpClick = (orderId: string | number) => {
-    // Converte para string e remove o '#' se tiver
     const cleanId = String(orderId).replace('#', '');
     window.open(whatsappLink(`Oi! Preciso de ajuda com o pedido ${cleanId}`), '_blank');
   };
@@ -29,48 +33,40 @@ export default function HistoricoPage() {
   return (
     <main className={styles.container}>
       <header className={styles.header}>
-        <Link href="/pedido" className={styles.iconBtn}>
-          <ArrowLeft size={24} />
+        <Link href="/pedido" className={styles.iconBtn} aria-label="Voltar">
+          <ArrowLeft size={20} />
         </Link>
         <h1>Meus Pedidos</h1>
-        <div style={{width: 24}}/>
+        <div className={styles.headerSpacer} />
       </header>
 
       <div className={styles.content}>
         {loading ? (
-          <div className={styles.loading}><p>Carregando pedidos...</p></div>
+          <div className={styles.loading}>
+            <Loader2 size={20} className={styles.spin} /> Carregando pedidos...
+          </div>
         ) : orders.length === 0 ? (
           <div className={styles.emptyState}>
-            <div className={styles.emptyIcon}><ShoppingBag size={48} /></div>
+            <div className={styles.emptyIcon}><ShoppingBag size={40} /></div>
             <h2>Nenhum pedido ainda</h2>
-            <p>Seus pedidos recentes aparecerão aqui.</p>
-            <Link href="/pedido" className={styles.ctaBtn}>Fazer Pedido</Link>
+            <p>Seus pedidos confirmados aparecem aqui.</p>
+            <Link href="/pedido" className={styles.ctaBtn}>Fazer pedido</Link>
           </div>
         ) : (
           <div className={styles.list}>
             {orders.map(order => {
               const statusInfo = getStatusInfo(order.status);
-              
+
               return (
-                <div key={order.id} className={styles.card}>
+                <article key={order.id} className={styles.card}>
                   <div className={styles.cardHeader}>
                     <span className={styles.orderId}>Pedido {order.id}</span>
                     <span className={styles.date}>{order.createdAt}</span>
                   </div>
 
-                  <div className={styles.statusRow}>
-                    {/* Pedido criado mas não pago não pode parecer aceito:
-                        o cliente ficaria esperando comida que ninguém viu */}
-                    {order.paymentStatus === 'AWAITING' ? (
-                      <span className={styles.statusBadge} style={{ color: '#92400e', backgroundColor: '#fffbeb' }}>
-                        Aguardando seu pagamento
-                      </span>
-                    ) : (
-                      <span className={styles.statusBadge} style={{ color: statusInfo.color, backgroundColor: statusInfo.bg }}>
-                        {statusInfo.label}
-                      </span>
-                    )}
-                  </div>
+                  <span className={`${styles.statusBadge} ${statusInfo.tom}`}>
+                    {statusInfo.label}
+                  </span>
 
                   <div className={styles.itemsList}>
                     {order.items.map((item, idx) => (
@@ -80,42 +76,34 @@ export default function HistoricoPage() {
                           <span className={styles.prodName}>{item.name}</span>
                         </div>
                         {item.observation && (
-                          <div className={styles.itemObs}>
-                            {item.observation}
-                          </div>
+                          <div className={styles.itemObs}>{item.observation}</div>
                         )}
                       </div>
                     ))}
                   </div>
 
-                  <div className={styles.divider} />
-
-                  {order.discount > 0 && (
-                    <div className={styles.cardFooter} style={{ color: '#059669', fontWeight: 700 }}>
-                      <div className={styles.totalInfo}>
+                  <div className={styles.resumo}>
+                    {order.discount > 0 && (
+                      <div className={`${styles.resumoLinha} ${styles.linhaCupom}`}>
                         <span>Cupom {order.couponCode}</span>
-                        <strong>- {order.discount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>
+                        <span>- {moeda(order.discount)}</span>
                       </div>
-                    </div>
-                  )}
-
-                  <div className={styles.cardFooter}>
-                    <div className={styles.totalInfo}>
+                    )}
+                    <div className={`${styles.resumoLinha} ${styles.linhaTotal}`}>
                       <span>Total</span>
-                      <strong>{order.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>
+                      <strong>{moeda(order.total)}</strong>
                     </div>
                   </div>
 
-                  {/* 🔥 BOTÃO DE AJUDA CORRIGIDO */}
-                  <button 
+                  <button
+                    type="button"
                     className={styles.helpBtn}
                     onClick={() => handleHelpClick(order.id)}
                   >
-                    <MessageCircle size={18} />
+                    <MessageCircle size={16} />
                     Ajuda com o pedido
                   </button>
-
-                </div>
+                </article>
               );
             })}
           </div>

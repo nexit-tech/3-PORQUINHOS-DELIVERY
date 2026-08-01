@@ -1,24 +1,29 @@
 .container {
-  background-color: #f9fafb;
-  min-height: 100vh;
-  /* Espaço para o rodapé do carrinho + menu inferior */
-  padding-bottom: 180px; 
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  background: #fffdfb;
   display: flex;
   flex-direction: column;
 }
 
 /* --- HEADER --- */
 .header {
-  background-color: white;
-  height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  gap: 12px;
+  padding: 14px 20px;
+  background: #fffdfb;
+}
+
+.header h1 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--tinta);
 }
 
 .header h1 {
@@ -28,20 +33,24 @@
 }
 
 .iconBtn {
-  color: #333;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  color: var(--tinta);
+  flex-shrink: 0;
 }
 
 /* --- CONTEÚDO --- */
 .content {
-  padding: 16px;
-  max-width: 600px;
-  margin: 0 auto;
+  flex: 1;
+  max-width: var(--coluna);
   width: 100%;
+  margin: 0 auto;
+  padding: 4px 20px 190px;
 }
 
 /* LISTA DE ITENS */
@@ -52,14 +61,12 @@
 }
 
 .card {
-  background-color: white;
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  border: 1px solid #f3f4f6;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--r-g);
+  padding: 14px;
+  margin-bottom: 12px;
+  box-shadow: var(--sombra);
 }
 
 .cardHeader {
@@ -70,13 +77,13 @@
 
 /* --- AQUI ESTÁ A CORREÇÃO DO MONSTRO --- */
 .imageWrapper {
-  width: 80px;
-  height: 80px;
-  border-radius: 12px;
-  overflow: hidden;
-  position: relative; /* <--- ISSO SEGURA O 'FILL' DO NEXT.JS */
+  position: relative;
+  width: 70px;
+  height: 70px;
   flex-shrink: 0;
-  border: 1px solid #eee;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--laranja-tint);
 }
 
 .prodImage {
@@ -120,7 +127,7 @@
 .removeBtn {
   background: transparent;
   border: none;
-  color: #ef4444;
+  color: #f97316;
   padding: 8px;
   display: flex;
   align-items: center;
@@ -132,14 +139,13 @@
 
 /* Detalhes (Sabores, Obs) */
 .details {
-  background-color: #f9fafb;
-  padding: 10px;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  color: #4b5563;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  background: var(--laranja-tint);
+  border-radius: 14px;
+  padding: 11px 13px;
+  margin: 12px 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--tinta-2);
 }
 
 .detailLine strong {
@@ -155,24 +161,27 @@
 }
 
 .editBtn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: transparent;
   border: none;
-  color: #e11d48;
-  font-weight: 600;
-  font-size: 0.9rem;
-  padding: 4px 0;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--laranja-escuro);
+  cursor: pointer;
+  padding: 6px 2px;
 }
 
 .quantityControl {
   display: flex;
   align-items: center;
-  gap: 12px;
-  background-color: #f3f4f6;
-  padding: 6px 12px;
-  border-radius: 50px;
+  gap: 4px;
+  background: var(--laranja-tint);
+  border: 1px solid #ffe0c4;
+  border-radius: var(--r-pill);
+  padding: 4px;
 }
 
 .quantityControl button {
@@ -184,7 +193,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #e11d48;
+  color: #f97316;
   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 
@@ -198,56 +207,102 @@
 /* --- FOOTER FIXO (Subtotal e Botão) --- */
 .footer {
   position: fixed;
-  bottom: 70px; /* Acima da BottomNav */
+  bottom: 0;
   left: 0;
-  width: 100%;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
-  padding: 16px 20px;
-  border-top: 1px solid rgba(0,0,0,0.05);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  z-index: 40;
+  right: 0;
+  z-index: 30;
+  max-width: var(--coluna);
+  margin: 0 auto;
+  padding: 16px 20px max(16px, env(safe-area-inset-bottom));
+  background: rgba(255, 253, 251, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--linha);
 }
 
 .totalRow {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  font-size: 1.1rem;
-  color: #1f2937;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 0.92rem;
+  color: var(--tinta-2);
+  font-weight: 600;
 }
 
+/* É um <Link>, ou seja, um <a> — inline por padrão. Sem display:flex o
+   width:100% era ignorado e o botão encolhia até o texto, com o padding
+   vazando por cima do subtotal. */
 .checkoutBtn {
-  background-color: #e11d48;
-  color: white;
-  text-align: center;
-  padding: 14px;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 1rem;
-  text-decoration: none;
-  box-shadow: 0 4px 15px rgba(225, 29, 72, 0.3);
-}
-.checkoutBtn:active { transform: scale(0.98); }
-
-/* ESTADO VAZIO */
-.emptyContainer {
-  height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f9fafb;
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--laranja);
+  color: #fff;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 800;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: var(--sombra-laranja);
+  transition: transform 0.16s ease;
+}
+
+.checkoutBtn:active {
+  transform: scale(0.985);
+}
+
+/* ESTADO VAZIO */
+.emptyContainer {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px 120px;
+  background: #fffdfb;
 }
 
 .emptyContent {
-  text-align: center;
-  padding: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  text-align: center;
+  width: 100%;
+  max-width: 340px;
+  padding: 40px 26px;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  border-radius: var(--r-g);
+  box-shadow: var(--sombra);
+}
+
+.emptyContent svg {
+  color: var(--laranja);
+  background: var(--laranja-tint);
+  border-radius: 50%;
+  padding: 15px;
+  width: 66px;
+  height: 66px;
+  margin-bottom: 16px;
+}
+
+.emptyContent h2 {
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: var(--tinta);
+  margin-bottom: 6px;
+}
+
+.emptyContent p {
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--tinta-2);
+  margin-bottom: 20px;
 }
 
 .emptyContent h2 {
@@ -261,11 +316,17 @@
 }
 
 .backBtn {
-  background-color: white;
-  color: #e11d48;
-  border: 1px solid #e11d48;
-  padding: 12px 24px;
-  border-radius: 50px;
-  font-weight: 600;
-  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 14px 24px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--laranja);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 800;
+  box-shadow: var(--sombra-laranja);
 }

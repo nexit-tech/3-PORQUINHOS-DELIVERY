@@ -1,121 +1,608 @@
 .container {
-  background-color: var(--background, #f9fafb);
-  /* Força o container a ter exatamente o tamanho da tela do celular */
-  height: 100vh; 
-  height: 100dvh; 
-  /* Habilita a rolagem interna (app-like scroll) */
-  overflow-y: auto; 
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
   overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  /* Rolagem suave */
+  /* Fundo quase branco: contra o off-white de antes, o card tingido
+     quase não se distinguia. */
+  background: #fffdfb;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
 }
 
-.header {
-  padding: 20px;
-  background-color: var(--surface, #ffffff);
-  /* Sticky continua funcionando dentro do container com overflow */
+/* Coluna de conteúdo. No celular ocupa a tela toda; no desktop centraliza
+   em --coluna para o cardápio não virar uma linha de 1400px. */
+.coluna {
+  max-width: var(--coluna);
+  margin: 0 auto;
+}
+
+/* ------------------------------------------------------------------ BUSCA */
+/* A busca é o topo agora. Fica grudada no rolar: em cardápio longo, ter
+   que voltar ao começo só para buscar é atrito bobo. */
+
+/* Cavalga a borda da capa: puxada 26px para cima, ela costura as duas
+   faixas. Sem isso ficam dois retângulos empilhados. */
+/* Degradê em vez de faixa sólida: a barra de fundo inteira ficava pesada
+   e cortava a página em duas. Assim o conteúdo dissolve por baixo da
+   pílula e só ela parece flutuar. */
+.buscaFaixa {
   position: sticky;
   top: 0;
-  z-index: 10;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.02);
-  flex-shrink: 0; /* Impede que o header seja esmagado */
+  z-index: 20;
+  padding: 14px 20px 14px;
+  background: linear-gradient(
+    to bottom,
+    #fffdfb 0%,
+    #fffdfb 62%,
+    rgba(255, 253, 251, 0.88) 82%,
+    rgba(255, 253, 251, 0) 100%
+  );
 }
 
-.welcome { margin-bottom: 16px; }
-.welcome small { color: var(--text-light, #6b7280); font-size: 0.9rem; }
-.welcome h1 { color: var(--primary-color, #e11d48); font-size: 1.5rem; font-weight: 800; line-height: 1.2; }
-
-.searchBar {
-  display: flex; align-items: center;
-  background-color: var(--background, #f9fafb);
-  padding: 12px 16px; border-radius: 12px; gap: 12px;
-  border: 1px solid transparent; transition: all 0.2s;
-}
-.searchBar:focus-within {
-  border-color: var(--primary-color, #e11d48); background-color: white;
-  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.05);
-}
-.searchBar input {
-  border: none; background: transparent; flex: 1; font-size: 1rem; color: #333; outline: none;
+.busca {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--papel);
+  border: 1.5px solid transparent;
+  border-radius: var(--r-pill);
+  padding: 14px 18px;
+  color: var(--tinta-3);
+  box-shadow: 0 6px 20px -6px rgba(120, 60, 20, 0.28), 0 2px 4px rgba(28, 25, 23, 0.05);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-/* CATEGORIAS */
-.categories {
-  margin-top: 16px; padding-left: 20px; flex-shrink: 0;
-}
-.scrollContainer {
-  display: flex; gap: 12px; overflow-x: auto; padding-right: 20px; padding-bottom: 8px;
-  scrollbar-width: none; -ms-overflow-style: none;
-}
-.scrollContainer::-webkit-scrollbar { display: none; }
-
-.catPill {
-  white-space: nowrap; padding: 8px 16px; border-radius: 20px;
-  background-color: white; color: var(--text-light, #6b7280);
-  font-weight: 600; font-size: 0.9rem; border: 1px solid transparent;
-  transition: all 0.2s; cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-}
-.catActive {
-  background-color: var(--primary-color, #e11d48); color: white;
-  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.3);
+.busca:focus-within {
+  border-color: var(--laranja);
+  box-shadow: 0 6px 22px -6px rgba(249, 115, 22, 0.4);
 }
 
-/* FEED DE PRODUTOS */
+.busca input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 0.95rem;
+  font-family: inherit;
+  color: var(--tinta);
+}
+
+.busca input::placeholder {
+  color: var(--tinta-3);
+}
+
+.limparBusca {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: var(--tinta-3);
+  color: var(--papel);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ------------------------------------------------------- AVISO DE FECHADO */
+.avisoFechado {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 20px 0;
+  padding: 13px 15px;
+  border-radius: var(--r-m);
+  background: var(--laranja-tint);
+  color: var(--laranja-escuro);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.avisoFechado svg {
+  flex-shrink: 0;
+}
+
+/* ------------------------------------------------------------ CATEGORIAS */
+/* Sem sticky aqui de propósito: o header já é sticky com top:0 e os dois
+   disputavam a mesma faixa — os chips passavam POR BAIXO do header ao
+   rolar. Grudar os chips exigiria saber a altura exata do header, que
+   muda com o nome da loja e com o selo de aberto/fechado. */
+.categorias {
+  padding: 18px 0 4px;
+}
+
+.trilho {
+  display: flex;
+  gap: 9px;
+  overflow-x: auto;
+  padding: 2px 20px 10px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.trilho::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  white-space: nowrap;
+  padding: 9px 17px;
+  border-radius: var(--r-pill);
+  border: 1.5px solid var(--linha);
+  background: var(--papel);
+  color: var(--tinta-2);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.chipAtivo {
+  background: var(--laranja);
+  border-color: var(--laranja);
+  color: #fff;
+  box-shadow: var(--sombra-laranja);
+}
+
+/* ------------------------------------------------------------------ FEED */
 .feed {
-  padding: 20px;
-  /* IMPORTANTE: Espaço extra no fim para a BottomNav não cobrir o último item */
-  padding-bottom: 120px; 
+  padding: 8px 20px 118px;
 }
 
-.sectionTitle {
-  font-size: 1.1rem; font-weight: 700; color: #111; margin-bottom: 16px;
+.tituloSecao {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--tinta);
+  margin: 10px 0 14px;
 }
 
-.productList {
-  display: flex; flex-direction: column; gap: 16px;
+.contador {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--laranja-escuro);
+  background: var(--laranja-tint);
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
 }
 
-.productCard {
-  background-color: white; border-radius: 16px; padding: 16px;
-  display: flex; justify-content: space-between; gap: 16px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.02); border: 1px solid #f3f4f6;
-  transition: transform 0.1s; cursor: pointer;
+.grade {
+  display: grid;
+  gap: 11px;
 }
-.productCard:active { transform: scale(0.98); }
 
-.prodInfo { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-.prodInfo h3 { font-size: 1rem; font-weight: 700; color: #111; margin-bottom: 4px; }
-.prodInfo p {
-  font-size: 0.85rem; color: #666; line-height: 1.4; margin-bottom: 8px;
-  display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+/* ------------------------------------------------------------------ CARD */
+/* Linha horizontal: foto quadrada à esquerda, texto à direita. Card com
+   foto gigante e texto por cima era bonito de print, mas cabia 1,5 item
+   na tela — num cardápio de 12 itens o cliente rolava demais para comparar. */
+.card {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 11px;
+  /* Tint laranja no lugar do branco. Sombra mais discreta junto: com o
+     card colorido, a sombra forte de antes empastelava o tom. */
+  background: var(--laranja-tint);
+  border: 1px solid #ffe0c4;
+  border-radius: var(--r-m);
+  box-shadow: 0 1px 2px rgba(120, 60, 20, 0.04);
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
 }
-.price { font-weight: 700; color: #166534; font-size: 0.95rem; }
 
-.prodRight { display: flex; flex-direction: column; justify-content: center; }
-.imageWrapper {
-  width: 100px; height: 100px; position: relative; border-radius: 12px; overflow: hidden; flex-shrink: 0;
+.card:active {
+  transform: scale(0.99);
 }
-.productImage { object-fit: cover; }
-.imgPlaceholder { width: 100%; height: 100%; background-color: #f3f4f6; }
 
-/* LOADING / EMPTY */
-.loadingState {
-  text-align: center; padding: 40px 0; color: #666;
-  display: flex; flex-direction: column; align-items: center; gap: 12px;
+.card:focus-visible {
+  outline: 2.5px solid var(--laranja);
+  outline-offset: 3px;
 }
-.spinner {
-  width: 24px; height: 24px; border: 3px solid #ddd;
-  border-top-color: var(--primary-color, #e11d48); border-radius: 50%;
-  animation: spin 1s infinite linear;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
 
-.emptyState {
-  text-align: center; padding: 40px 0; color: #666;
-  display: flex; flex-direction: column; align-items: center; gap: 16px;
+/* 1:1 fixo. Com align-self:stretch a foto crescia junto com o texto, e
+   item de nome curto ficava com miniatura menor que o de nome longo —
+   a coluna de fotos saía desalinhada. */
+.foto {
+  position: relative;
+  flex-shrink: 0;
+  align-self: center;
+  width: 92px;
+  height: 92px;
+  aspect-ratio: 1 / 1;
+  border-radius: 13px;
+  overflow: hidden;
+  background: var(--laranja-tint);
+}
+
+.fotoImg {
+  object-fit: cover;
+}
+
+.fotoVazia {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(150deg, #fb923c, #ea580c);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.conteudo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 3px 3px 3px 0;
+}
+
+.nome {
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--tinta);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.descricao {
+  font-size: 0.76rem;
+  line-height: 1.4;
+  color: var(--tinta-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.base {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.preco {
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: var(--tinta);
+  letter-spacing: -0.01em;
+}
+
+/* Só o "+", sem a palavra: numa linha estreita o rótulo roubava espaço
+   do nome do produto, que é o que o cliente lê primeiro. */
+.botao {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--laranja);
+  color: #fff;
+  box-shadow: var(--sombra-laranja);
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+.card:hover .botao {
+  background: var(--laranja-escuro);
+  transform: scale(1.07);
+}
+
+/* -------------------------------------------------------------- ESQUELETO */
+/* Mesma proporção do card real (4/5), senão a lista pula de altura
+   quando os produtos chegam. */
+.esqueleto {
+  display: flex;
+  gap: 13px;
+  padding: 11px;
+  background: var(--laranja-tint);
+  border: 1px solid #ffe0c4;
+  border-radius: var(--r-m);
+}
+
+.esqueletoFoto {
+  width: 92px;
+  height: 92px;
+  flex-shrink: 0;
+  border-radius: 13px;
+}
+
+.esqueletoLinha {
+  height: 12px;
+  border-radius: 6px;
+  margin: 10px 0 0;
+  flex: 1;
+  align-self: flex-start;
+}
+
+.curta {
+  width: 45%;
+}
+
+.esqueletoFoto,
+.esqueletoLinha {
+  background: linear-gradient(90deg, #f2ede9 25%, #e9e2dc 37%, #f2ede9 63%);
+  background-size: 400% 100%;
+  animation: brilho 1.3s ease-in-out infinite;
+}
+
+@keyframes brilho {
+  from { background-position: 100% 50%; }
+  to { background-position: 0 50%; }
+}
+
+/* ------------------------------------------------------------------ VAZIO */
+.vazio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 44px 24px;
+  background: var(--papel);
+  border-radius: var(--r-g);
+  box-shadow: var(--sombra);
+}
+
+.vazioIcone {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  background: var(--laranja-tint);
+  color: var(--laranja);
+  margin-bottom: 14px;
+}
+
+.vazio strong {
+  font-size: 1rem;
+  color: var(--tinta);
+  margin-bottom: 5px;
+}
+
+.vazio p {
+  font-size: 0.86rem;
+  color: var(--tinta-2);
+  line-height: 1.5;
+}
+
+.vazioBotao {
+  margin-top: 16px;
+  padding: 11px 22px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: var(--laranja);
+  color: #fff;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.86rem;
+  cursor: pointer;
+  box-shadow: var(--sombra-laranja);
+}
+
+/* ---------------------------------------------------------------- DESKTOP */
+@media (min-width: 700px) {
+  .header {
+    border-radius: 0 0 var(--r-g) var(--r-g);
+    padding: 26px 24px 20px;
+  }
+
+  .marca {
+    font-size: 1.6rem;
+  }
+
+  .feed {
+    padding: 8px 24px 130px;
+  }
+
+  /* Duas colunas: com a foto em 16/10, mais que isso deixa o card baixo
+     demais e a foto perde o impacto. */
+  .grade {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+
+  .trilho {
+    padding-left: 24px;
+    padding-right: 24px;
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--sombra-alta);
+  }
+
+  .avisoFechado {
+    margin-left: 24px;
+    margin-right: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .grade {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ---------------------------------------------------- FILEIRAS POR CATEGORIA */
+/* Uma fileira deslizante por categoria, no lugar da lista corrida. Com 12
+   itens em 7 categorias, a lista única obrigava a rolar tudo para saber o
+   que existia; assim cada faixa mostra o que a categoria tem. */
+.fileiras {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.fileiraTopo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 11px;
+}
+
+.fileiraTopo h3 {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--tinta);
+}
+
+.verTudo {
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--laranja-escuro);
+  cursor: pointer;
+  padding: 4px 2px;
+}
+
+/* Sangra até a borda da tela: cartão cortado na lateral é o que sinaliza
+   que a fileira desliza. Contido na margem, parece lista que acabou. */
+.fileiraTrilho {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 3px 20px 6px;
+  margin: 0 -20px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  scroll-snap-type: x mandatory;
+  scroll-padding-left: 20px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.fileiraTrilho::-webkit-scrollbar {
+  display: none;
+}
+
+.cardFileira {
+  flex: 0 0 auto;
+  width: 168px;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  background: var(--laranja-tint);
+  border: 1px solid #ffe0c4;
+  border-radius: var(--r-m);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.16s ease;
+}
+
+.cardFileira:active {
+  transform: scale(0.985);
+}
+
+.cardFileira:focus-visible {
+  outline: 2.5px solid var(--laranja);
+  outline-offset: 3px;
+}
+
+.fotoFileira {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: var(--laranja-tint-2);
+}
+
+.conteudoFileira {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 11px 12px 12px;
+  flex: 1;
+}
+
+.cardFileira .nome {
+  font-size: 0.84rem;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.cardFileira .base {
+  margin-top: auto;
+}
+
+.cardFileira .preco {
+  font-size: 0.95rem;
+}
+
+.cardFileira .botao {
+  width: 30px;
+  height: 30px;
+}
+
+/* Selo sobre a foto. Só sai para quem está no top de vendas de verdade
+   (RPC top_produtos) — "mais vendida" chutado é propaganda enganosa. */
+.selo {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2;
+  padding: 4px 9px;
+  border-radius: var(--r-pill);
+  background: var(--laranja);
+  color: #fff;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  box-shadow: 0 3px 10px -2px rgba(0, 0, 0, 0.4);
+}
+
+/* Fileira: card branco, foto maior e descrição visível, como na
+   referência. O tint laranja ficou só na lista filtrada. */
+.cardFileira {
+  width: 176px;
+  background: var(--papel);
+  border-color: var(--linha);
+  box-shadow: var(--sombra);
+}
+
+.cardFileira .descricao {
+  font-size: 0.7rem;
+  line-height: 1.35;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.cardFileira .base {
+  margin-top: 8px;
+}
+
+/* --- Cabeçalho da página de categoria --- */
+.voltarCategoria {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  color: var(--tinta);
+  flex-shrink: 0;
+}
+
+.tituloCategoria {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--tinta);
 }

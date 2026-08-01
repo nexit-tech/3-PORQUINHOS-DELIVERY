@@ -1,6 +1,13 @@
+/* =====================================================================
+   Meus Pedidos
+   =====================================================================
+   Estava com as cores chumbadas (#f9fafb, #f97316, #25D366) de antes do
+   loja.css existir — por isso destoava do resto da loja. Agora usa os
+   mesmos tokens das outras telas do cliente.
+   ===================================================================== */
+
 .container {
-  background-color: #f9fafb;
-  /* Fixa altura e habilita scroll interno */
+  background: var(--fundo);
   height: 100vh;
   height: 100dvh;
   overflow-y: auto;
@@ -11,61 +18,181 @@
 }
 
 .header {
-  background-color: white; height: 60px;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 16px; position: sticky; top: 0; z-index: 50;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--fundo);
   flex-shrink: 0;
 }
-.header h1 { font-size: 1.1rem; font-weight: 700; color: #333; }
-.iconBtn { color: #333; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; }
+
+.header h1 { font-size: 1.1rem; font-weight: 800; color: var(--tinta); }
+.headerSpacer { width: 38px; flex-shrink: 0; }
+
+.iconBtn {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--papel);
+  border: 1px solid var(--linha);
+  color: var(--tinta);
+  flex-shrink: 0;
+}
 
 .content {
-  padding: 16px; max-width: 600px; margin: 0 auto; width: 100%;
-  /* Espaço para o menu inferior não cortar o último card */
-  padding-bottom: 120px; 
+  width: 100%;
+  max-width: var(--coluna);
+  margin: 0 auto;
+  padding: 4px 20px 130px;
 }
 
-.loading { text-align: center; padding: 40px; color: #666; }
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 20px;
+  color: var(--tinta-2);
+  font-size: 0.88rem;
+}
+
+/* ---- Vazio ---- */
 .emptyState {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 60px 20px; text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 56px 20px;
 }
-.emptyIcon { color: #d1d5db; margin-bottom: 16px; }
-.emptyState h2 { font-size: 1.25rem; color: #374151; margin-bottom: 8px; }
-.emptyState p { color: #6b7280; margin-bottom: 24px; }
+.emptyIcon {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: var(--laranja-tint);
+  color: var(--laranja);
+  margin-bottom: 18px;
+}
+.emptyState h2 { font-size: 1.15rem; font-weight: 800; color: var(--tinta); margin-bottom: 6px; }
+.emptyState p { color: var(--tinta-2); font-size: 0.88rem; margin-bottom: 22px; }
+
 .ctaBtn {
-  background-color: #e11d48; color: white; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; transition: opacity 0.2s;
+  padding: 13px 26px;
+  border-radius: var(--r-pill);
+  background: var(--laranja);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.92rem;
+  box-shadow: var(--sombra-laranja);
 }
-.ctaBtn:active { opacity: 0.8; }
 
-.list { display: flex; flex-direction: column; gap: 16px; }
+/* ---- Cards ---- */
+.list { display: flex; flex-direction: column; gap: 14px; }
+
 .card {
-  background-color: white; border-radius: 12px; padding: 16px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #f3f4f6;
+  background: var(--papel);
+  border: 1.5px solid var(--linha);
+  border-radius: var(--r-m);
+  padding: 16px;
+  box-shadow: var(--sombra);
 }
 
-.cardHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-.orderId { font-weight: 700; color: #e11d48; font-size: 1rem; }
-.date { font-size: 0.85rem; color: #9ca3af; }
-.statusRow { margin-bottom: 16px; }
-.statusBadge { display: inline-block; font-size: 0.8rem; font-weight: 600; padding: 4px 10px; border-radius: 6px; }
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.orderId { font-weight: 800; color: var(--tinta); font-size: 0.98rem; letter-spacing: -0.01em; }
+.date { font-size: 0.78rem; color: var(--tinta-3); }
 
-.itemsList { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  padding: 5px 11px;
+  border-radius: var(--r-pill);
+  margin-bottom: 14px;
+}
+
+.tomAmbar    { color: #92400e; background: #fef3c7; }
+.tomAzul     { color: #1e40af; background: #dbeafe; }
+.tomRoxo     { color: #5b21b6; background: #ede9fe; }
+.tomVerde    { color: #065f46; background: var(--verde-tint); }
+.tomVermelho { color: #991b1b; background: var(--vermelho-tint); }
+.tomNeutro   { color: var(--tinta-2); background: var(--linha); }
+
+.itemsList { display: flex; flex-direction: column; gap: 10px; }
 .itemWrapper { display: flex; flex-direction: column; }
-.itemRow { display: flex; align-items: center; gap: 8px; }
-.qtd { font-weight: 700; color: #333; font-size: 0.95rem; min-width: 24px; }
-.prodName { font-size: 0.95rem; color: #4b5563; line-height: 1.4; }
-.itemObs { font-size: 0.8rem; color: #9ca3af; margin-left: 32px; margin-top: 2px; line-height: 1.3; }
-
-.divider { height: 1px; background-color: #f3f4f6; margin-bottom: 12px; }
-.cardFooter { display: flex; justify-content: flex-end; }
-.totalInfo { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; color: #374151; }
-.totalInfo strong { font-size: 1.1rem; color: #111; }
-
-.helpBtn {
-  width: 100%; margin-top: 16px; background-color: #25D366; color: white;
-  border: none; border-radius: 8px; padding: 10px; font-size: 0.9rem; font-weight: 600;
-  display: flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; transition: opacity 0.2s;
+.itemRow { display: flex; align-items: baseline; gap: 8px; }
+.qtd {
+  font-weight: 800;
+  color: var(--laranja-escuro);
+  font-size: 0.85rem;
+  min-width: 22px;
+  flex-shrink: 0;
 }
-.helpBtn:active { opacity: 0.8; }
+.prodName { font-size: 0.9rem; font-weight: 600; color: var(--tinta); line-height: 1.35; }
+.itemObs {
+  font-size: 0.76rem;
+  color: var(--tinta-2);
+  margin-left: 30px;
+  margin-top: 3px;
+  line-height: 1.4;
+}
+
+/* ---- Resumo ---- */
+.resumo {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--linha);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.resumoLinha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.82rem;
+  color: var(--tinta-2);
+}
+.linhaCupom { color: var(--verde); font-weight: 700; }
+.linhaTotal { font-size: 0.9rem; font-weight: 700; color: var(--tinta); margin-top: 2px; }
+.linhaTotal strong { font-size: 1.08rem; font-weight: 800; letter-spacing: -0.02em; }
+
+/* WhatsApp mantém a cor da marca: é o único botão que leva para fora. */
+.helpBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 13px;
+  border: none;
+  border-radius: var(--r-pill);
+  background: #25d366;
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.16s ease;
+}
+.helpBtn:active { transform: scale(0.985); }
+
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }

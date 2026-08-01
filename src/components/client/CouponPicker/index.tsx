@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Ticket, ChevronDown, Check, X, Loader2, Lock } from 'lucide-react';
+import { Ticket, ChevronRight, Check, X, Loader2, Lock } from 'lucide-react';
 import { supabase } from '@/services/supabase';
 import type { AvailableCoupon } from '@/types/coupon';
 import { formatMoney } from '@/types/coupon';
@@ -149,8 +149,13 @@ export default function CouponPicker({
   // O rodapé desta tela é fixo. Um dropdown inline ficava escondido atrás
   // dele assim que a lista passava de um item, e nenhum ajuste de padding
   // resolve isso para uma lista de tamanho variável.
+  // A folha vai para o document.body, fora da árvore do layout da loja.
+  // Sem a classe .loja aqui, nenhum token de loja.css existe dentro dela.
   const sheet = (
-    <div className={styles.sheetOverlay} onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
+    <div
+      className={`loja ${styles.sheetOverlay}`}
+      onClick={(e) => e.target === e.currentTarget && setOpen(false)}
+    >
       <div className={styles.sheet} role="dialog" aria-label="Cupons de desconto">
         <div className={styles.sheetGrip} />
 
@@ -208,10 +213,12 @@ export default function CouponPicker({
                     disabled={!c.qualifies || checking}
                     onClick={() => applyCode(c.code)}
                   >
+                    <span className={styles.itemIcon}>
+                      {c.qualifies ? <Ticket size={18} /> : <Lock size={16} />}
+                    </span>
+
                     <div className={styles.itemLeft}>
-                      <span className={styles.itemCode}>
-                        {!c.qualifies && <Lock size={11} />} {c.code}
-                      </span>
+                      <span className={styles.itemCode}>{c.code}</span>
                       <span className={styles.itemDesc}>
                         {c.description ||
                           (c.discount_type === 'FREE_DELIVERY'
@@ -249,7 +256,7 @@ export default function CouponPicker({
       <div className={styles.appliedBox}>
         <div className={styles.appliedInfo}>
           <div className={styles.appliedIcon}><Check size={16} /></div>
-          <div>
+          <div className={styles.appliedText}>
             <strong>{applied.code}</strong>
             <span>Você economizou {formatMoney(applied.discount)}</span>
           </div>
@@ -268,11 +275,12 @@ export default function CouponPicker({
   return (
     <div className={styles.wrapper}>
       <button type="button" className={styles.trigger} onClick={() => setOpen(true)}>
-        <div className={styles.triggerLeft}>
-          <Ticket size={20} />
-          <span>Tem um cupom de desconto?</span>
-        </div>
-        <ChevronDown size={20} className={styles.chevron} />
+        <span className={styles.triggerIcon}><Ticket size={18} /></span>
+        <span className={styles.triggerText}>
+          <strong>Tem um cupom?</strong>
+          <small>Ver descontos disponíveis</small>
+        </span>
+        <ChevronRight size={18} className={styles.chevron} />
       </button>
 
       {error && !open && (

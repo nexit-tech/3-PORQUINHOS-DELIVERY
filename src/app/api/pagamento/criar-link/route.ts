@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import {
+  buildAddress,
   buildItemsFromOrder,
   createPaymentLink,
   isPaymentEnabled,
+  toE164BR,
 } from '@/lib/infinitepay';
 
 /**
@@ -23,7 +25,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { orderId } = await request.json();
+    const { orderId, email, address } = await request.json();
 
     if (!orderId) {
       return NextResponse.json({ error: 'Informe o pedido' }, { status: 400 });
@@ -81,10 +83,24 @@ export async function POST(request: Request) {
       items: buildItemsFromOrder(order),
       redirectUrl: `${baseUrl}/pedido/pagamento/retorno`,
       webhookUrl: `${baseUrl}/api/pagamento/infinitepay`,
+      // Nome e telefone vêm do banco, como todo o resto. O e-mail é a única
+      // exceção: não é gravado no pedido e existe só para o checkout da
+      // operadora abrir com o contato preenchido. Como não influencia
+      // valor nenhum, aceitar do cliente aqui não abre o buraco que a
+      // regra "valor é assunto do banco" fecha — mas ainda assim só passa
+      // se tiver cara de e-mail.
       customer: {
         name: order.customer_name || undefined,
-        phone_number: order.customer_phone || undefined,
+        phone_number: toE164BR(order.customer_phone),
+        email:
+          typeof email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())
+            ? email.trim()
+            : undefined,
       },
+      // Mesma lógica do e-mail: só pré-preenche a etapa de entrega lá.
+      // O endereço que a cozinha usa continua sendo o do pedido no banco —
+      // este aqui não sobrescreve nada.
+      address: buildAddress(address),
     });
 
     // Devolve o total que a operadora VAI cobrar, lido do banco. A tela

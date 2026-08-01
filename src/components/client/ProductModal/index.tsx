@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom'; 
 import Image from 'next/image'; 
-import { Minus, Plus, Check } from 'lucide-react';
+import { Minus, Plus, Check, ChevronLeft } from 'lucide-react';
 import { useCart, CartItem } from '@/context/CartContext';
 import { Product, ComplementOption, ComplementGroup } from '@/types/product';
 import styles from './styles.module.css';
@@ -62,6 +62,15 @@ export default function ProductModal({ product, onClose, initialData }: ProductM
     });
   }, [product, selections]);
 
+  // Quanto da foto ainda aparece: 1 = inteira, 0 = escondida. Encolhe
+  // conforme o cliente rola a lista de sabores, liberando tela para a
+  // escolha — que é o que ele veio fazer.
+  const [fotoVisivel, setFotoVisivel] = useState(1);
+
+  // Referências dos grupos, para pular ao próximo depois de escolher.
+  const gruposRef = useRef<Record<string, HTMLDivElement | null>>({});
+  const corpoRef = useRef<HTMLDivElement | null>(null);
+
   // --- 2. AGORA SIM O RETURN CONDICIONAL ---
   if (!product || !mounted) return null;
 
@@ -74,12 +83,47 @@ export default function ProductModal({ product, onClose, initialData }: ProductM
         return { ...prev, [group.id]: currentSelected.filter(o => o.id !== option.id) };
       }
       if (group.max === 1) {
+        // Escolha única: já está resolvido, então leva ao próximo grupo.
+        // Só quando é uma NOVA escolha — se o cliente está trocando de
+        // ideia num grupo lá atrás, pular seria sequestrar a rolagem.
+        if (!isSelected) irParaProximoGrupo(group.id);
         return { ...prev, [group.id]: [option] };
       } else {
         if (currentSelected.length >= group.max) return prev; 
         return { ...prev, [group.id]: [...currentSelected, option] };
       }
     });
+  };
+
+  /** Rola até o grupo seguinte ao informado. */
+  const irParaProximoGrupo = (grupoAtualId: string) => {
+    const grupos = product.complements || [];
+    const i = grupos.findIndex((g) => g.id === grupoAtualId);
+    const proximo = grupos[i + 1];
+    if (!proximo || !corpoRef.current) return;
+
+    const alvo = gruposRef.current[proximo.id];
+    if (!alvo) return;
+
+    // Espera o React pintar a marcação antes de rolar, senão a animação
+    // começa da posição antiga e dá um solavanco.
+    requestAnimationFrame(() => {
+      const corpo = corpoRef.current;
+      if (!corpo) return;
+      corpo.scrollTo({
+        top: alvo.offsetTop - corpo.offsetTop - 8,
+        behavior: 'smooth',
+      });
+    });
+  };
+
+  /** Encolhe a foto conforme a lista rola. */
+  const aoRolar = (e: React.UIEvent<HTMLDivElement>) => {
+    const y = e.currentTarget.scrollTop;
+    // 190px de rolagem consomem a foto inteira. Menos que isso e ela
+    // sumia com um toque de scroll; mais, e nunca terminava de sair.
+    const restante = Math.min(1, Math.max(0, 1 - y / 190));
+    setFotoVisivel((antes) => (Math.abs(antes - restante) > 0.01 ? restante : antes));
   };
 
   const handleSave = () => {
@@ -151,13 +195,34 @@ export default function ProductModal({ product, onClose, initialData }: ProductM
     <div className={`${styles.overlay} ${isClosing ? styles.fadeOut : ''}`} onClick={(e) => e.target === e.currentTarget && handleClose()}>
       {showToast && <div className={styles.toast}><Check size={20} /><span>Adicionado!</span></div>}
       
-      <div className={styles.modal} style={{ transform: `translateY(${isClosing ? '100%' : `${offsetY}px`})`, transition: isDragging ? 'none' : 'transform 0.3s ease-out' }}>
-        
-        <div className={styles.dragHeader} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
+      {/* Página cheia: sem transform de arrasto. O gesto de puxar para
+          baixo saiu junto com a alça — em página, arrastar o conteúdo
+          para fechar não é comportamento esperado. Quem fecha é o
+          botão de voltar. */}
+      <div className={styles.modal}>
+
+        <div className={styles.dragHeader}>
           <div className={styles.dragHandle} />
           
           <div className={styles.imageHeader}>
-             <div className={styles.imgPlaceholder}>
+             {/* Voltar sobre a foto. A alça de arrastar só existe no
+                 toque — no desktop não havia saída além do clique fora,
+                 que ninguém adivinha. */}
+             <button
+               className={styles.voltar}
+               onClick={handleClose}
+               aria-label="Voltar ao cardápio"
+             >
+               <ChevronLeft size={22} strokeWidth={2.6} />
+             </button>
+
+             <div
+               className={styles.imgPlaceholder}
+               style={{
+                 height: `${320 * fotoVisivel}px`,
+                 opacity: 0.25 + 0.75 * fotoVisivel,
+               }}
+             >
                {product.image && (
                  <Image 
                    src={product.image} 
@@ -172,16 +237,24 @@ export default function ProductModal({ product, onClose, initialData }: ProductM
              </div>
           </div>
 
-          <div className={styles.headerInfo}>
+          <div
+            className={styles.headerInfo}
+            style={{
+              // A folha só precisa subir por cima da foto ENQUANTO existe
+              // foto. Com -24px fixo, ao encolher ela puxava o conteúdo
+              // para fora do topo e cortava o título.
+              marginTop: `${-24 * fotoVisivel}px`,
+              // E abre espaço para o botão de voltar conforme a foto some,
+              // senão ele fica em cima da descrição.
+              paddingTop: `${22 + (1 - fotoVisivel) * 30}px`,
+            }}
+          >
             <h2>{product.name}</h2>
             <p className={styles.desc}>{product.description}</p>
-            <div className={styles.priceBadge}>
-              {product.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-            </div>
           </div>
         </div>
 
-        <div className={styles.body}>
+        <div className={styles.body} ref={corpoRef} onScroll={aoRolar}>
           {product.complements?.map(group => {
             const currentSelected = selections[group.id] || [];
             const count = currentSelected.length;
@@ -189,7 +262,13 @@ export default function ProductModal({ product, onClose, initialData }: ProductM
             const isMaxReached = count >= group.max;
 
             return (
-              <div key={group.id} className={styles.group}>
+              <div
+                key={group.id}
+                className={styles.group}
+                ref={(el) => {
+                  gruposRef.current[group.id] = el;
+                }}
+              >
                 <div className={styles.groupHeader}>
                   <div className={styles.groupTitleRow}>
                     <h3>{group.name}</h3>

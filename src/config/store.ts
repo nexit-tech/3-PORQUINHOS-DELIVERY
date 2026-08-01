@@ -22,6 +22,20 @@ export const STORE_NAME = process.env.NEXT_PUBLIC_STORE_NAME || '3 Porquinhos';
 export const STORE_SITE = process.env.NEXT_PUBLIC_STORE_SITE || 'www.3porquinhos.com.br';
 
 /**
+ * CEP da cidade onde a loja entrega, usado como valor inicial do campo.
+ *
+ * Arraial do Cabo inteira usa 28930-000: não é o CEP de uma rua, é o da
+ * cidade. Como a loja só entrega nos bairros de lá, praticamente todo
+ * cliente digitaria esse mesmo número — então ele já vem preenchido, e
+ * quem mora fora troca.
+ *
+ * O campo existe porque o checkout da InfinitePay exige CEP na etapa de
+ * entrega; sem ele o cliente teria que preencher isso lá.
+ */
+export const STORE_DEFAULT_CEP =
+  process.env.NEXT_PUBLIC_STORE_DEFAULT_CEP || '28930-000';
+
+/**
  * Números que o bot sempre responde, mesmo com a loja fechada.
  * Configure com NUMEROS separados por vírgula: VIP_NUMBERS=5522998151575,5521999999999
  */

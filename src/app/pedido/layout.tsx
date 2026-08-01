@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import BottomNav from "@/components/client/BottomNav";
-import { CartProvider } from "@/context/CartContext"; // Importe o Provider criado
+import { CartProvider } from "@/context/CartContext";
+import "./loja.css";
 
 export const metadata: Metadata = {
   title: "3 Porquinhos - Pedido",
@@ -13,8 +14,11 @@ export default function ClientLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <CartProvider> {/* ENVOLVENDO AQUI */}
-      <div style={{ paddingBottom: '80px', minHeight: '100vh', background: 'var(--background)' }}>
+    <CartProvider>
+      {/* A classe .loja carrega os tokens visuais da loja (ver loja.css).
+          O painel admin não passa por aqui e segue com as variáveis
+          antigas do globals.css. */}
+      <div className="loja">
         {children}
         <BottomNav />
       </div>

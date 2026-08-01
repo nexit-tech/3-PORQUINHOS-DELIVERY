@@ -32,6 +32,9 @@ interface CartContextType {
   setCustomerName: (name: string) => void;
   customerPhone: string;
   setCustomerPhone: (phone: string) => void;
+  /** Só serve para pré-preencher o checkout da operadora. Não vai para o banco. */
+  customerEmail: string;
+  setCustomerEmail: (email: string) => void;
   address: Address;
   setAddress: (addr: Address) => void;
   deliveryType: DeliveryType;
@@ -45,6 +48,8 @@ interface Address {
   number: string;
   complement?: string;
   neighborhood: string;
+  /** Só para pré-preencher a entrega no checkout da operadora. */
+  cep?: string;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -54,6 +59,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
   const [address, setAddress] = useState<Address>({ street: '', number: '', neighborhood: '' });
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('delivery');
 
@@ -138,6 +144,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setCustomerName,
         customerPhone,
         setCustomerPhone,
+        customerEmail,
+        setCustomerEmail,
         address,
         setAddress,
         deliveryType,
