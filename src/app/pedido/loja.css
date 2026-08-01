@@ -77,6 +77,35 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* =====================================================================
+   16px em campo de formulário NÃO é escolha estética
+   =====================================================================
+   O Safari no iOS dá zoom automático ao focar qualquer input com
+   font-size menor que 16px. Os campos estavam em 0.95rem (15.2px), e
+   faltavam 0.8px para o iPhone ampliar a página inteira no toque: o
+   cabeçalho saía de vista e o resumo fixo do rodapé ia parar no meio da
+   tela, por cima dos campos. Parecia layout quebrado, mas era o zoom.
+
+   O zoom não volta sozinho depois — o cliente fica com a tela ampliada
+   pelo resto do checkout.
+
+   A alternativa comum é `maximum-scale=1` no viewport, que resolve
+   proibindo o usuário de ampliar a página. Isso quebra a acessibilidade
+   de quem precisa do zoom para ler. Subir a fonte custa 0.8px e não tira
+   nada de ninguém.
+
+   Vale para toda a loja, não só para o checkout: busca do cardápio,
+   seletor de bairro, código de cupom e observação do produto estavam
+   todos abaixo do limite.
+
+   O :not() está aqui pela especificidade (0,2,1), que precisa ganhar de
+   seletores como `.busca input` (0,1,1) nos CSS modules. */
+.loja input:not([type='checkbox']):not([type='radio']),
+.loja select,
+.loja textarea {
+  font-size: 16px;
+}
+
 /* Barra de rolagem discreta no desktop; no celular nem aparece. */
 .loja *::-webkit-scrollbar {
   width: 10px;

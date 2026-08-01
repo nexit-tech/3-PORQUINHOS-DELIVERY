@@ -191,8 +191,12 @@ export default function ProductModal({ product, onClose, initialData }: ProductM
   };
 
   // --- RENDERIZAÇÃO VIA PORTAL ---
+  // A classe .loja precisa vir junto: o portal monta no document.body, fora
+  // da árvore do layout, então nenhum token de loja.css chega aqui sozinho —
+  // inclusive a regra que mantém os campos em 16px para o Safari do iOS não
+  // dar zoom ao focar a observação.
   return createPortal(
-    <div className={`${styles.overlay} ${isClosing ? styles.fadeOut : ''}`} onClick={(e) => e.target === e.currentTarget && handleClose()}>
+    <div className={`loja ${styles.overlay} ${isClosing ? styles.fadeOut : ''}`} onClick={(e) => e.target === e.currentTarget && handleClose()}>
       {showToast && <div className={styles.toast}><Check size={20} /><span>Adicionado!</span></div>}
       
       {/* Página cheia: sem transform de arrasto. O gesto de puxar para
