@@ -22,9 +22,10 @@ mas não carrega dado nenhum.
 
 | Área | Rotas | Quem usa |
 |---|---|---|
-| Painel | `/`, `/products`, `/finance`, `/settings`, `/notifications` | Loja (protegido por login) |
+| Painel | `/`, `/products`, `/finance`, `/settings`, `/notifications`, `/coupons` | Loja (protegido por login) |
 | Cliente | `/pedido/*` | Público |
-| API | `/api/auth/*`, `/api/webhook`, `/api/evolution`, `/api/cron/*` | Navegador e Evolution API |
+| API | `/api/webhook`, `/api/evolution`, `/api/cron/*` | Evolution API e agendador |
+| Pagamento | `/api/pagamento/{status,criar-link,verificar,infinitepay}` | Navegador e InfinitePay |
 
 ```
 src/
@@ -32,8 +33,9 @@ src/
 ├── components/     admin/, client/, common/, layout/
 ├── config/store.ts nome, telefone e números VIP da loja
 ├── context/        AuthContext, CartContext
-├── hooks/          useProducts, useAdminOrders, useOrders, useFinance, useStoreStatus
-├── lib/            storeHours, session, printerSettings, apiAuth, env, isElectron
+├── hooks/          useProducts, useAdminOrders, useOrders, useFinance, useStoreStatus, useCoupons
+├── lib/            storeHours, printerSettings, apiAuth, env, isElectron,
+│                   supabaseAdmin, infinitepay, confirmarPagamento
 ├── services/       supabase, evolution, notifications, messageBuffer, botSettings
 ├── utils/          printReceipt
 └── middleware.ts   protege as rotas do painel
@@ -54,25 +56,35 @@ Projeto: **Delivery 3 porquinhos** (`tgugjefgwwluycrkhcss`, sa-east-1).
 | `02-order-notifications.sql` | Trava que impede notificação de WhatsApp duplicada | ✅ aplicado |
 | `03-create-order-rpc.sql` | Cria `is_store_open()` e `create_order()` | ✅ aplicado |
 | `03b-get-orders-by-phone.sql` | Cria `get_orders_by_phone()` | ✅ aplicado |
-| `05-admin-user.sql` | Cria o usuário admin no Supabase Auth | ⏳ pendente |
-| `04-rls-pedidos.sql` | Liga a RLS e tranca o acesso | ⏳ pendente — **só depois do deploy** |
+| `05-admin-user.sql` | Cria o usuário admin no Supabase Auth | ✅ aplicado (1 usuário em `auth.users`) |
+| `07-cupons.sql` | Cria `coupons`, `coupon_redemptions` e `evaluate_coupon()` | ✅ aplicado |
+| `08-pagamento-online.sql` | Eixo `payment_status`, `get_order_for_payment()` e `mark_order_paid()` | ✅ aplicado |
+| `09-pagamento-correcoes.sql` | Correções da revisão adversarial + `payment_attempts` | ✅ aplicado |
+| `04-rls-pedidos.sql` | Liga a RLS e tranca o acesso | ⏳ **pendente** — só depois do deploy |
 | `06-service-role.sql` | Conferência: RLS, políticas e Realtime | — |
 
 Os aplicados são todos **aditivos**: criam função ou tabela e não mudam o comportamento
 do código que já está em produção.
 
-> ⚠️ **O `04` não pode ser aplicado antes do deploy do código novo.** Ele bloqueia o
-> INSERT direto em `orders`, e o código atualmente em produção insere direto — a loja
-> pararia de aceitar pedidos na hora.
+> 🔓 **Enquanto o `04` não roda, `orders` e `order_items` estão abertos.** A policy que
+> existe hoje é a original — `Acesso total público [ALL → public]` — e vale para a chave
+> `anon`, que vai no bundle do navegador e é pública por definição. Na prática: qualquer
+> pessoa consegue ler nome, telefone e endereço de todos os pedidos, e também alterá-los.
+> `products`, `categories`, `delivery_zones` e `bot_settings` estão com RLS desligada.
 >
-> Ordem correta: `05` (criar usuário) → deploy do código novo → confirmar que o login
-> funciona → preencher `SUPABASE_SERVICE_ROLE_KEY` → `04`.
+> ⚠️ **Mas o `04` não pode ser aplicado antes do deploy do código novo.** Ele bloqueia o
+> INSERT direto em `orders`, e o código hoje em produção insere direto — a loja pararia
+> de aceitar pedidos na hora.
+>
+> Ordem correta: deploy do código novo → confirmar que o login e os pedidos funcionam →
+> preencher `SUPABASE_SERVICE_ROLE_KEY` → `04`.
 
 ### Tabelas
 
 `orders`, `order_items`, `products`, `categories`, `complement_groups`, `complement_options`,
 `product_complements`, `delivery_zones`, `store_settings`, `bot_settings`,
-`bot_paused_numbers`, `bot_notifications`, `order_notifications`.
+`bot_paused_numbers`, `bot_notifications`, `order_notifications`,
+`coupons`, `coupon_redemptions`, `payment_attempts`.
 
 ---
 
@@ -86,6 +98,9 @@ do código que já está em produção.
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | só no desktop | Credenciais do Supabase Auth com que o app Electron entra sozinho |
 | `WEBHOOK_SECRET` | recomendado | Protege `/api/webhook`. Vazio = endpoint aberto |
 | `CRON_SECRET` | recomendado | Protege `/api/cron/*`. Vazio = endpoint aberto |
+| `INFINITEPAY_HANDLE` | só p/ pagamento online | Sua InfiniteTag, **sem o `$`**. Vazia = a opção "Pagar agora" nem aparece no checkout |
+| `NEXT_PUBLIC_APP_URL` | só p/ pagamento online | Domínio público da loja. É dele que saem a `webhook_url` e a `redirect_url` |
+| `INFINITEPAY_API_URL` | opcional | Sobrescreve a base da API (padrão `https://api.checkout.infinitepay.io`) |
 | `EVOLUTION_API_URL` / `_KEY` / `_INSTANCE_NAME` | opcional | Envio de WhatsApp |
 | `N8N_WEBHOOK_URL` | opcional | Destino das mensagens agrupadas pelo bot |
 | `NEXT_PUBLIC_STORE_*` | opcional | Nome, telefone e site da loja no cupom e nas mensagens |
@@ -100,6 +115,52 @@ Authorization: Bearer <WEBHOOK_SECRET>
 x-webhook-secret: <WEBHOOK_SECRET>
 https://SEU-DOMINIO/api/webhook?secret=<WEBHOOK_SECRET>
 ```
+
+---
+
+## Pagamento online (InfinitePay)
+
+Para ligar, basta preencher as duas variáveis e reiniciar. Não há nada a cadastrar no
+painel da InfinitePay: a `webhook_url` vai junto em cada link de cobrança criado.
+
+```
+INFINITEPAY_HANDLE=suatag        # sem o "$"
+NEXT_PUBLIC_APP_URL=https://seu-dominio.com.br
+```
+
+`/api/pagamento/status` responde `{"enabled": false}` enquanto a handle estiver vazia, e
+o checkout esconde a opção "Pagar agora" — o cliente não chega a escolher algo que falharia
+no fim do fluxo.
+
+**Não funciona em `localhost`**: a InfinitePay chama o webhook de fora. Para testar local,
+suba um túnel (`ngrok http 3000`) e ponha a URL do túnel em `NEXT_PUBLIC_APP_URL`.
+
+### Como o fluxo se sustenta
+
+| Etapa | Onde |
+|---|---|
+| Pedido nasce em `AWAITING` — invisível para a cozinha | `create_order()` |
+| Link de cobrança, com itens lidos **do banco** | [`api/pagamento/criar-link`](src/app/api/pagamento/criar-link/route.ts) |
+| Aviso da operadora (não confiável, sem assinatura) | [`api/pagamento/infinitepay`](src/app/api/pagamento/infinitepay/route.ts) |
+| Cliente volta do checkout e a tela pergunta | [`api/pagamento/verificar`](src/app/api/pagamento/verificar/route.ts) |
+| Confirmação real, servidor-a-servidor | [`confirmarPagamento.ts`](src/lib/confirmarPagamento.ts) → `payment_check` |
+| Reconferência de valor e gravação idempotente | `mark_order_paid()` |
+
+Dois detalhes que parecem redundância e não são:
+
+- **O webhook não prova nada.** Ele chega sem assinatura, então qualquer um poderia postar
+  `{"order_nsu": 1408, "paid": true}`. Quem diz se está pago é o `payment_check`, numa
+  chamada que sai do nosso servidor para o deles.
+- **Webhook e tela de retorno chamam a mesma função.** O webhook pode falhar em entregar
+  e o cliente pode fechar a aba antes de voltar. Como `confirmarPagamento` é idempotente,
+  os dois chegarem é o caso normal, não um problema.
+
+`payment_status` é um eixo separado de `status`: um responde "o dinheiro entrou?" e o outro,
+"onde está na cozinha?". Existem estados que um campo só não representa — pago mas não
+aceito, aceito mas não pago, criado e abandonado no checkout.
+
+Pedido pago que acabar cancelado levanta `payment_needs_refund` com `payment_conflict_reason`,
+em vez de sumir do painel. Toda tentativa fica registrada em `payment_attempts`.
 
 ---
 
