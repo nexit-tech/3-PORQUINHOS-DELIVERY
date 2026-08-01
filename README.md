@@ -211,6 +211,31 @@ No Electron o [`server.js`](server.js) sobe um Express na porta 3001 que serve a
 injeta as variáveis de ambiente via `/runtime-config.js` e reimplementa as rotas que o
 desktop precisa. Não há login: o app roda na máquina do balcão.
 
+#### Por que o `dist` passa `CSC_IDENTITY_AUTO_DISCOVERY=false`
+
+Sem isso o electron-builder procura um certificado de assinatura, baixa o pacote
+`winCodeSign` e tenta extraí-lo. Esse pacote traz symlinks de bibliotecas **do macOS**
+(`libcrypto.dylib`, `libssl.dylib`), que nem são usadas no Windows — e o Windows recusa
+criar symlink sem Modo de Desenvolvedor ou privilégio de administrador. O build morre em
+`Cannot create symbolic link` depois de já ter gerado o `win-unpacked`, e o instalador
+nunca sai. Não adianta pré-extrair o cache: cada execução sorteia um diretório novo.
+
+Como o projeto não tem certificado configurado (o electron-builder responde
+`no signing info identified`), a assinatura já não acontecia de todo jeito. A variável só
+evita a busca inútil que quebrava o build.
+
+**Consequência para quem instala:** o `.exe` não é assinado, então o SmartScreen mostra
+"O Windows protegeu o seu computador". O caminho é *Mais informações → Executar assim
+mesmo*. Para acabar com o aviso, só com um certificado de code signing.
+
+#### Rota dinâmica no export estático
+
+`output: 'export'` recusa qualquer `[param]` sem `generateStaticParams()`, e essa função
+não pode ser exportada de um arquivo `'use client'`. É por isso que
+`/pedido/categoria/[id]` tem um `page.tsx` de servidor com o conteúdo em
+`CategoriaCliente.tsx`. Ao criar outra rota dinâmica na loja, siga o mesmo formato — senão
+o build do desktop quebra, mesmo com o build do Railway passando.
+
 ---
 
 ## Autenticação
