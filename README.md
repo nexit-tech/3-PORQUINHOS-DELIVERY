@@ -60,24 +60,17 @@ Projeto: **Delivery 3 porquinhos** (`tgugjefgwwluycrkhcss`, sa-east-1).
 | `07-cupons.sql` | Cria `coupons`, `coupon_redemptions` e `evaluate_coupon()` | ✅ aplicado |
 | `08-pagamento-online.sql` | Eixo `payment_status`, `get_order_for_payment()` e `mark_order_paid()` | ✅ aplicado |
 | `09-pagamento-correcoes.sql` | Correções da revisão adversarial + `payment_attempts` | ✅ aplicado |
-| `04-rls-pedidos.sql` | Liga a RLS e tranca o acesso | ⏳ **pendente** — só depois do deploy |
+| `04-rls-pedidos.sql` | Liga a RLS e tranca o acesso | ✅ aplicado |
+| `10-somente-pagamento-online.sql` | Trigger que recusa pedido "pagar na entrega" | ✅ aplicado |
 | `06-service-role.sql` | Conferência: RLS, políticas e Realtime | — |
 
 Os aplicados são todos **aditivos**: criam função ou tabela e não mudam o comportamento
 do código que já está em produção.
 
-> 🔓 **Enquanto o `04` não roda, `orders` e `order_items` estão abertos.** A policy que
-> existe hoje é a original — `Acesso total público [ALL → public]` — e vale para a chave
-> `anon`, que vai no bundle do navegador e é pública por definição. Na prática: qualquer
-> pessoa consegue ler nome, telefone e endereço de todos os pedidos, e também alterá-los.
-> `products`, `categories`, `delivery_zones` e `bot_settings` estão com RLS desligada.
->
-> ⚠️ **Mas o `04` não pode ser aplicado antes do deploy do código novo.** Ele bloqueia o
-> INSERT direto em `orders`, e o código hoje em produção insere direto — a loja pararia
-> de aceitar pedidos na hora.
->
-> Ordem correta: deploy do código novo → confirmar que o login e os pedidos funcionam →
-> preencher `SUPABASE_SERVICE_ROLE_KEY` → `04`.
+> ⚠️ **O `04` bloqueia o INSERT direto em `orders`** — todo pedido tem que passar por
+> `create_order()`. Se algum dia restaurar um backup anterior, a ordem é: `05` (criar
+> usuário) → deploy do código novo → confirmar que o login e os pedidos funcionam →
+> preencher `SUPABASE_SERVICE_ROLE_KEY` → `04`. Aplicar antes do deploy derruba a loja.
 
 ### Tabelas
 
@@ -119,6 +112,13 @@ https://SEU-DOMINIO/api/webhook?secret=<WEBHOOK_SECRET>
 ---
 
 ## Pagamento online (InfinitePay)
+
+> 💳 **A loja aceita SOMENTE pagamento pelo site.** Não existe "pagar na entrega" — nem
+> maquininha, nem dinheiro. O checkout oferece uma opção só, e o
+> [`10-somente-pagamento-online.sql`](supabase/10-somente-pagamento-online.sql) recusa no
+> banco qualquer pedido `ON_DELIVERY`, porque a tela sozinha não segura quem abre o
+> console. Consequência: **se a InfinitePay cair, a loja não registra pedido nenhum.**
+> Para reverter, veja o cabeçalho daquele arquivo.
 
 Para ligar, basta preencher as duas variáveis e reiniciar. Não há nada a cadastrar no
 painel da InfinitePay: a `webhook_url` vai junto em cada link de cobrança criado.

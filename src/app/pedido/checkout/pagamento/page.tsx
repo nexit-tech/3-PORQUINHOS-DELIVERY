@@ -2,12 +2,25 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, CreditCard, Banknote, QrCode, X, Loader2, Smartphone } from 'lucide-react';
+import { ArrowLeft, Loader2, Smartphone, AlertCircle, ShieldCheck } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import Link from 'next/link';
 import { supabase } from '@/services/supabase';
 import CouponPicker, { type AppliedCoupon } from '@/components/client/CouponPicker';
+import { whatsappLink } from '@/config/store';
 import styles from './page.module.css';
+
+/**
+ * A loja aceita SOMENTE pagamento pelo site. Não existe mais "pagar na
+ * entrega": nem Pix ou cartão na maquininha do entregador, nem dinheiro.
+ *
+ * Por isso esta tela não é mais uma escolha entre formas de pagamento — é
+ * uma confirmação. O que ela ainda precisa decidir é se dá para pagar
+ * AGORA: sem a InfinitePay configurada não existe caminho nenhum, e é
+ * melhor dizer isso aqui do que deixar o cliente montar o pedido e tomar
+ * erro no fim.
+ */
+type StatusPagamento = 'verificando' | 'ok' | 'indisponivel';
 
 export default function PagamentoPage() {
   const router = useRouter();
@@ -19,24 +32,17 @@ export default function PagamentoPage() {
     deliveryType,
     customerName,
     customerPhone,
-    clearCart
   } = useCart();
-  
-  const [method, setMethod] = useState('pix');
-  const [isCashModalOpen, setIsCashModalOpen] = useState(false);
-  const [changeValue, setChangeValue] = useState('');
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
-
-  // A opção "pagar agora" só aparece se a loja tiver a InfinitePay
-  // configurada no servidor. Sem isso o botão levaria a um erro.
-  const [onlineHabilitado, setOnlineHabilitado] = useState(false);
+  const [statusPagamento, setStatusPagamento] = useState<StatusPagamento>('verificando');
 
   useEffect(() => {
     fetch('/api/pagamento/status')
       .then((r) => r.json())
-      .then((d) => setOnlineHabilitado(Boolean(d.enabled)))
-      .catch(() => setOnlineHabilitado(false));
+      .then((d) => setStatusPagamento(d.enabled ? 'ok' : 'indisponivel'))
+      .catch(() => setStatusPagamento('indisponivel'));
   }, []);
 
   // Mesma conta do banco: total = subtotal + frete - desconto.
@@ -64,43 +70,6 @@ export default function PagamentoPage() {
     return null;
   }
 
-  const handlePreFinish = () => {
-    if (method === 'online') {
-      processOrder('Pago online', '', 'online');
-    } else if (method === 'cash') {
-      setIsCashModalOpen(true);
-    } else {
-      processOrder(getMethodLabel(method));
-    }
-  };
-
-  const getMethodLabel = (key: string) => {
-    switch (key) {
-      case 'online': return 'Pago online';
-      case 'pix': return 'Pix';
-      case 'card': return 'Cartão';
-      case 'cash': return 'Dinheiro';
-      default: return 'Dinheiro';
-    }
-  };
-
-  const confirmChange = () => {
-    if (!changeValue) return alert('Digite o valor para o troco');
-    
-    const valString = changeValue.replace(/\./g, '').replace(',', '.');
-    const val = parseFloat(valString);
-
-    if (isNaN(val) || val < total) {
-      return alert(`O valor deve ser maior ou igual ao total do pedido (${total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})`);
-    }
-    
-    processOrder('Dinheiro', `Troco para R$ ${changeValue}`);
-  };
-
-  const confirmNoChange = () => {
-    processOrder('Dinheiro', 'Sem troco');
-  };
-
   const buildAddressLine = () => {
     if (deliveryType === 'pickup') return 'RETIRADA NO LOCAL';
 
@@ -108,19 +77,11 @@ export default function PagamentoPage() {
     return `${address.street}, ${address.number}${complement} - ${address.neighborhood}`;
   };
 
-  const processOrder = async (
-    paymentMethodLabel: string,
-    changeInfo: string = '',
-    paymentFlow: 'on_delivery' | 'online' = 'on_delivery'
-  ) => {
-    if (isSubmitting) return;
+  const processOrder = async () => {
+    if (isSubmitting || statusPagamento !== 'ok') return;
     setIsSubmitting(true);
 
     try {
-      const finalPaymentMethod = changeInfo
-        ? `${paymentMethodLabel} - ${changeInfo}`
-        : paymentMethodLabel;
-
       // Monta a descrição legível de cada item ("Pizza 1: Calabresa, Mussarela")
       const orderItems = items.map((item: any) => {
         const detailsParts: string[] = [];
@@ -171,13 +132,13 @@ export default function PagamentoPage() {
         p_customer_name: customerName,
         p_customer_phone: customerPhone,
         p_customer_address: buildAddressLine(),
-        p_payment_method: finalPaymentMethod,
+        p_payment_method: 'Pago online',
         p_delivery_type: deliveryType,
         p_neighborhood: deliveryType === 'delivery' ? address.neighborhood : null,
         p_items: orderItems,
         // Só o código. O desconto quem calcula é o banco.
         p_coupon_code: coupon?.code ?? null,
-        p_payment_flow: paymentFlow,
+        p_payment_flow: 'online',
       });
 
       if (error) throw error;
@@ -190,51 +151,44 @@ export default function PagamentoPage() {
       }
       localStorage.setItem('customer_phone', customerPhone);
 
-      if (paymentFlow === 'online') {
-        // O pedido existe, mas em AWAITING: não vale nada até o dinheiro
-        // entrar. O carrinho SÓ é limpo depois do pagamento confirmar, na
-        // tela de retorno — senão quem desiste no checkout perde tudo.
-        const resposta = await fetch('/api/pagamento/criar-link', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId }),
-        });
+      // O pedido existe, mas em AWAITING: não vale nada até o dinheiro
+      // entrar. O carrinho SÓ é limpo depois do pagamento confirmar, na
+      // tela de retorno — senão quem desiste no checkout perde tudo.
+      const resposta = await fetch('/api/pagamento/criar-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
+      });
 
-        const dados = await resposta.json();
+      const dados = await resposta.json();
 
-        if (!resposta.ok || !dados.url) {
-          throw new Error(dados.error || 'Não foi possível iniciar o pagamento.');
-        }
-
-        // O total desta tela vem do carrinho no localStorage; o que a
-        // operadora vai cobrar vem do banco. Se divergirem (preço mudou
-        // com a aba aberta), o cliente precisa aprovar antes — senão ele
-        // clica achando que paga X e cai num checkout de Y.
-        const cobrado = Number(dados.total ?? 0);
-
-        if (Math.abs(cobrado - total) > 0.005) {
-          const fmt = (v: number) =>
-            v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-          const segue = window.confirm(
-            `O valor do seu pedido foi atualizado.\n\n` +
-            `Nesta tela: ${fmt(total)}\nA pagar: ${fmt(cobrado)}\n\n` +
-            `Deseja continuar para o pagamento?`
-          );
-
-          if (!segue) {
-            setIsSubmitting(false);
-            return;
-          }
-        }
-
-        window.location.href = dados.url;
-        return;
+      if (!resposta.ok || !dados.url) {
+        throw new Error(dados.error || 'Não foi possível iniciar o pagamento.');
       }
 
-      clearCart();
-      router.push('/pedido/historico');
+      // O total desta tela vem do carrinho no localStorage; o que a
+      // operadora vai cobrar vem do banco. Se divergirem (preço mudou
+      // com a aba aberta), o cliente precisa aprovar antes — senão ele
+      // clica achando que paga X e cai num checkout de Y.
+      const cobrado = Number(dados.total ?? 0);
 
+      if (Math.abs(cobrado - total) > 0.005) {
+        const fmt = (v: number) =>
+          v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+        const segue = window.confirm(
+          `O valor do seu pedido foi atualizado.\n\n` +
+          `Nesta tela: ${fmt(total)}\nA pagar: ${fmt(cobrado)}\n\n` +
+          `Deseja continuar para o pagamento?`
+        );
+
+        if (!segue) {
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      window.location.href = dados.url;
     } catch (error: any) {
       console.error('Erro ao processar pedido:', error);
       // O banco devolve mensagens já em português ("A loja está fechada no momento")
@@ -242,6 +196,9 @@ export default function PagamentoPage() {
       setIsSubmitting(false);
     }
   };
+
+  const moeda = (v: number) =>
+    v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
   return (
     <main className={styles.container}>
@@ -254,40 +211,60 @@ export default function PagamentoPage() {
       </header>
 
       <div className={styles.content}>
-        <h2 className={styles.sectionTitle}>Como você quer pagar?</h2>
-        <p className={styles.subtitle}>Pague agora pelo site ou na hora de receber.</p>
+        <h2 className={styles.sectionTitle}>Pagamento pelo site</h2>
+        <p className={styles.subtitle}>
+          O pagamento é feito agora, na finalização. Assim que confirmar, seu pedido
+          vai direto para a cozinha.
+        </p>
 
         <div className={styles.options}>
-          {onlineHabilitado && (
-            <button
-              className={`${styles.option} ${styles.optionOnline} ${method === 'online' ? styles.active : ''}`}
-              onClick={() => setMethod('online')}
-            >
+          {statusPagamento === 'verificando' && (
+            <div className={styles.option}>
+              <div className={styles.iconBox}><Loader2 size={24} className={styles.spin} /></div>
+              <div className={styles.info}>
+                <span>Carregando formas de pagamento...</span>
+              </div>
+            </div>
+          )}
+
+          {statusPagamento === 'ok' && (
+            <div className={`${styles.option} ${styles.optionOnline} ${styles.active}`}>
               <div className={styles.iconBox}><Smartphone size={24} /></div>
               <div className={styles.info}>
                 <span>Pagar agora <small className={styles.badgeOnline}>Pix ou cartão</small></span>
-                <small>Confirmação na hora, pedido vai direto pra cozinha</small>
+                <small>Você escolhe entre Pix e cartão na próxima tela</small>
               </div>
-              <div className={styles.radio}>{method === 'online' && <div className={styles.dot} />}</div>
-            </button>
+            </div>
           )}
 
-          <button className={`${styles.option} ${method === 'pix' ? styles.active : ''}`} onClick={() => setMethod('pix')}>
-            <div className={styles.iconBox}><QrCode size={24} /></div>
-            <div className={styles.info}><span>Pix</span><small>Pague ao entregador</small></div>
-            <div className={styles.radio}>{method === 'pix' && <div className={styles.dot}/>}</div>
-          </button>
-          <button className={`${styles.option} ${method === 'card' ? styles.active : ''}`} onClick={() => setMethod('card')}>
-            <div className={styles.iconBox}><CreditCard size={24} /></div>
-            <div className={styles.info}><span>Cartão</span><small>Levamos a maquininha</small></div>
-            <div className={styles.radio}>{method === 'card' && <div className={styles.dot}/>}</div>
-          </button>
-          <button className={`${styles.option} ${method === 'cash' ? styles.active : ''}`} onClick={() => setMethod('cash')}>
-            <div className={styles.iconBox}><Banknote size={24} /></div>
-            <div className={styles.info}><span>Dinheiro</span><small>Precisa de troco?</small></div>
-            <div className={styles.radio}>{method === 'cash' && <div className={styles.dot}/>}</div>
-          </button>
+          {statusPagamento === 'indisponivel' && (
+            <div className={styles.aviso}>
+              <div className={styles.avisoIcone}><AlertCircle size={22} /></div>
+              <div>
+                <strong>Pagamento indisponível no momento</strong>
+                <p>
+                  Não conseguimos abrir o pagamento agora. Seu carrinho está salvo —
+                  tente de novo em alguns minutos ou fale com a gente.
+                </p>
+                <a
+                  href={whatsappLink('Oi! Quero fazer um pedido mas o pagamento não abriu no site')}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={styles.avisoLink}
+                >
+                  Falar com a loja no WhatsApp
+                </a>
+              </div>
+            </div>
+          )}
         </div>
+
+        {statusPagamento === 'ok' && (
+          <p className={styles.seguranca}>
+            <ShieldCheck size={15} /> Pagamento processado pela InfinitePay. A loja não
+            recebe os dados do seu cartão.
+          </p>
+        )}
 
         <div className={styles.couponSection}>
           <h2 className={styles.sectionTitle}>Cupom de desconto</h2>
@@ -305,53 +282,41 @@ export default function PagamentoPage() {
       <div className={styles.footer}>
         <div className={styles.summaryLine}>
           <span>Subtotal</span>
-          <span>{cartSubtotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+          <span>{moeda(cartSubtotal)}</span>
         </div>
         <div className={styles.summaryLine}>
           <span>{deliveryType === 'pickup' ? 'Retirada no local' : 'Taxa de entrega'}</span>
-          <span>{deliveryFee > 0 ? `+ ${deliveryFee.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}` : 'Grátis'}</span>
+          <span>{deliveryFee > 0 ? `+ ${moeda(deliveryFee)}` : 'Grátis'}</span>
         </div>
         {discount > 0 && (
           <div className={`${styles.summaryLine} ${styles.discountLine}`}>
             <span>Cupom {coupon?.code}</span>
-            <span>- {discount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+            <span>- {moeda(discount)}</span>
           </div>
         )}
         <div className={styles.totalRow}>
           <span>Total a pagar</span>
-          <span className={styles.totalValue}>{total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+          <span className={styles.totalValue}>{moeda(total)}</span>
         </div>
-        <button 
-          className={styles.finishBtn} 
-          onClick={handlePreFinish}
-          disabled={isSubmitting}
-          style={{ opacity: isSubmitting ? 0.7 : 1 }}
+        <button
+          className={styles.finishBtn}
+          onClick={processOrder}
+          disabled={isSubmitting || statusPagamento !== 'ok'}
+          style={{ opacity: isSubmitting || statusPagamento !== 'ok' ? 0.6 : 1 }}
         >
           {isSubmitting ? (
             <span style={{display: 'flex', alignItems: 'center', gap: 8}}>
               <Loader2 className={styles.spin} size={20} /> Enviando...
             </span>
-          ) : 'Fazer Pedido'}
+          ) : statusPagamento === 'verificando' ? (
+            'Aguarde...'
+          ) : statusPagamento === 'indisponivel' ? (
+            'Pagamento indisponível'
+          ) : (
+            `Pagar ${moeda(total)}`
+          )}
         </button>
       </div>
-
-      {isCashModalOpen && (
-        <div className={styles.modalOverlay} onClick={(e) => { if(e.target === e.currentTarget) setIsCashModalOpen(false); }}>
-          <div className={styles.modal}>
-            <div className={styles.modalHeader}><h3>Pagamento em Dinheiro</h3><button onClick={() => setIsCashModalOpen(false)}><X size={24} /></button></div>
-            <div className={styles.modalBody}>
-              <p>Você vai precisar de troco?</p>
-              <button className={styles.noChangeBtn} onClick={confirmNoChange} disabled={isSubmitting}>Não preciso de troco</button>
-              <div className={styles.divider}><span>OU</span></div>
-              <div className={styles.changeInputGroup}>
-                <label>Preciso de troco para:</label>
-                <div className={styles.inputWrapper}><span>R$</span><input type="text" placeholder="Ex: 50,00" value={changeValue} onChange={(e) => setChangeValue(e.target.value)} autoFocus inputMode="decimal"/></div>
-                <button className={styles.confirmChangeBtn} onClick={confirmChange} disabled={isSubmitting}>{isSubmitting ? 'Confirmando...' : 'Confirmar Valor'}</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </main>
   );
 }

@@ -63,25 +63,6 @@
 .info span { font-weight: 700; color: var(--text-main); font-size: 1rem; }
 .info small { color: var(--text-light); font-size: 0.8rem; margin-top: 2px; }
 
-/* RADIO */
-.radio {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 2px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.active .radio { border-color: var(--primary-color); }
-
-.dot {
-  width: 12px;
-  height: 12px;
-  background: var(--primary-color);
-  border-radius: 50%;
-}
-
 /* FOOTER */
 .footer {
   position: fixed;
@@ -128,113 +109,63 @@
 }
 .finishBtn:active { transform: scale(0.98); }
 
-/* --- MODAL DE TROCO --- */
-.modalOverlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.6);
-  z-index: 2000;
+.finishBtn:disabled { cursor: not-allowed; transform: none; }
+
+/* --- PAGAMENTO INDISPONÍVEL --- */
+/* Só aparece quando /api/pagamento/status responde enabled:false. Como a
+   loja não aceita mais pagar na entrega, sem isso não há caminho nenhum —
+   então o aviso precisa ser explícito e oferecer uma saída (WhatsApp). */
+.aviso {
   display: flex;
-  align-items: center; /* Centraliza verticalmente */
-  justify-content: center;
-  backdrop-filter: blur(2px);
-  padding: 24px;
-  animation: fadeIn 0.2s ease-out;
-}
-
-.modal {
-  background: var(--surface);
-  width: 100%;
-  max-width: 340px;
-  border-radius: 24px;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.2);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  animation: scaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes fadeIn { from {opacity: 0;} to {opacity: 1;} }
-@keyframes scaleUp { from {transform: scale(0.9);} to {transform: scale(1);} }
-
-.modalHeader {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.modalHeader h3 { font-size: 1rem; font-weight: 700; color: var(--text-main); }
-.modalHeader button { background: transparent; border: none; color: var(--text-light); cursor: pointer; }
-
-.modalBody {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.modalBody p { text-align: center; color: var(--text-main); font-weight: 600; margin-bottom: 8px; }
-
-.noChangeBtn {
-  width: 100%;
-  padding: 14px;
-  background: var(--surface);
-  border: 1px solid var(--border-color);
-  color: var(--text-main);
-  font-weight: 600;
-  border-radius: 12px;
-  cursor: pointer;
-}
-.noChangeBtn:active { background: var(--surface-hover); }
-
-.divider {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-light);
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-.divider::before, .divider::after {
-  content: ''; flex: 1; height: 1px; background: var(--border-color); margin: 0 10px;
-}
-
-.changeInputGroup {
-  background: #f4f4f5;
-  padding: 16px;
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
   gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
 }
 
-.changeInputGroup label { font-size: 0.85rem; color: var(--text-light); font-weight: 600; }
+.avisoIcone {
+  flex-shrink: 0;
+  color: #dc2626;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 2px;
+}
 
-.inputWrapper {
+.aviso strong {
+  display: block;
+  color: #991b1b;
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+
+.aviso p {
+  color: #b91c1c;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.avisoLink {
+  display: inline-block;
+  margin-top: 10px;
+  color: #991b1b;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
+/* --- SELO DE SEGURANÇA --- */
+.seguranca {
   display: flex;
   align-items: center;
-  background: var(--surface);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 10px;
-  gap: 8px;
-}
-.inputWrapper span { font-weight: 700; color: var(--text-light); }
-.inputWrapper input {
-  border: none; width: 100%; outline: none; font-size: 1.1rem; color: var(--text-main); font-weight: 700;
+  gap: 6px;
+  margin-top: 12px;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-light);
 }
 
-.confirmChangeBtn {
-  width: 100%;
-  padding: 12px;
-  background: var(--primary-color);
-  color: white;
-  font-weight: 700;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
-.confirmChangeBtn:active { opacity: 0.9; }
+.seguranca svg { flex-shrink: 0; color: #059669; }
 
 .subtitle {
   font-size: 0.9rem;
