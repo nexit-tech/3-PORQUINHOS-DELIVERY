@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    Ícone do 3 Porquinhos Delivery.
+    Fonte de verdade do .ico: gerado por scripts/gerar-icone.js.
+    Se a loja mandar a logo oficial, troque este arquivo e rode o script de novo.
+  -->
+  <defs>
+    <linearGradient id="fundo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fb923c"/>
+      <stop offset="1" stop-color="#ea580c"/>
+    </linearGradient>
+    <linearGradient id="focinho" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe4c4"/>
+      <stop offset="1" stop-color="#fdba74"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Fundo: quadrado arredondado no estilo do Windows 11 -->
+  <rect width="512" height="512" rx="116" fill="url(#fundo)"/>
+
+  <!-- Orelhas -->
+  <path d="M143 178 L120 92 Q117 74 134 82 L206 120 Z" fill="#ffffff"/>
+  <path d="M369 178 L392 92 Q395 74 378 82 L306 120 Z" fill="#ffffff"/>
+
+  <!-- Cabeça -->
+  <ellipse cx="256" cy="288" rx="154" ry="136" fill="#ffffff"/>
+
+  <!-- Olhos -->
+  <circle cx="197" cy="258" r="18" fill="#9a3412"/>
+  <circle cx="315" cy="258" r="18" fill="#9a3412"/>
+
+  <!-- Focinho -->
+  <ellipse cx="256" cy="334" rx="68" ry="50" fill="url(#focinho)"/>
+  <ellipse cx="256" cy="334" rx="68" ry="50" fill="none" stroke="#f97316" stroke-width="4" opacity="0.45"/>
+  <ellipse cx="233" cy="334" rx="12" ry="18" fill="#9a3412"/>
+  <ellipse cx="279" cy="334" rx="12" ry="18" fill="#9a3412"/>
+</svg>
