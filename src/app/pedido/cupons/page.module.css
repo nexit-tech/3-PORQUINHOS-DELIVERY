@@ -2,10 +2,9 @@
    Cupons da loja
    ===================================================================== */
 
+/* min-height e sem rolagem própria: quem rola é o documento (ver loja.css) */
 .container {
-  height: 100vh;
-  height: 100dvh;
-  overflow-y: auto;
+  min-height: 100dvh;
   overflow-x: hidden;
   background: var(--fundo);
 }

@@ -1,13 +1,11 @@
+/* min-height e sem rolagem própria: quem rola é o documento (ver loja.css) */
 .container {
-  height: 100vh;
-  height: 100dvh;
-  overflow-y: auto;
+  min-height: 100dvh;
   overflow-x: hidden;
   /* Fundo quase branco: contra o off-white de antes, o card tingido
      quase não se distinguia. */
   background: #fffdfb;
   scroll-behavior: smooth;
-  -webkit-overflow-scrolling: touch;
 }
 
 /* Coluna de conteúdo. No celular ocupa a tela toda; no desktop centraliza

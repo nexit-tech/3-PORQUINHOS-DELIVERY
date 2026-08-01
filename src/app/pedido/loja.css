@@ -71,6 +71,36 @@
   color: var(--tinta);
 }
 
+/* =====================================================================
+   Quem rola é a página, não uma caixa dentro dela
+   =====================================================================
+   O globals.css trava `html, body { height: 100%; overflow: hidden }`.
+   Faz sentido para o painel admin, que é um app de tela cheia rodando no
+   Electron e não deve rolar. Na loja, isso obrigava cada tela a virar uma
+   caixa própria com `height: 100dvh; overflow-y: auto` — e no celular
+   esse arranjo quebra.
+
+   O motivo é que o iOS NÃO encolhe o layout viewport quando o teclado
+   sobe: ele só desenha o teclado por cima. Uma caixa de 100dvh continua
+   com a altura da tela inteira, mas metade dela fica atrás do teclado.
+   O resultado é o que o cliente via ao tocar num campo do endereço: a
+   página não descia até o final do formulário, e o rodapé de total —
+   `position: fixed`, ancorado ao viewport que não mudou — parecia subir
+   sozinho enquanto o dedo arrastava.
+
+   Devolvendo a rolagem para o documento, o Safari volta a fazer o que
+   sabe: acompanhar o campo em foco, colapsar a barra de endereço e
+   manter o elemento fixo colado embaixo.
+
+   `:has()` para não tocar no admin, que continua com a regra do globals.
+   Onde ele não existir, o comportamento é o de hoje — nada piora. */
+html:has(.loja),
+body:has(.loja) {
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+
 /* Área de toque: alvo mínimo confortável no celular. */
 .loja button,
 .loja a[role='button'] {

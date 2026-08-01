@@ -11,10 +11,11 @@
    Tokens em src/app/pedido/loja.css.
    ===================================================================== */
 
+/* min-height, não height: a tela ocupa a altura toda quando o conteúdo é
+   curto, mas cresce junto com o formulário em vez de virar uma caixa de
+   rolagem própria. Quem rola é o documento — ver loja.css. */
 .container {
-  height: 100vh;
-  height: 100dvh;
-  overflow-y: auto;
+  min-height: 100dvh;
   overflow-x: hidden;
   background: var(--fundo);
 }
