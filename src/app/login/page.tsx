@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { isElectron } from '@/lib/isElectron';
-import { Lock, Mail, Loader2 } from 'lucide-react';
+import { Lock, Loader2 } from 'lucide-react';
 import { STORE_NAME } from '@/config/store';
 import styles from './page.module.css';
 
@@ -12,7 +12,6 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -30,18 +29,20 @@ function LoginForm() {
     setError('');
     setLoading(true);
 
-    const result = await login(email, password);
+    const result = await login(password);
 
     if (!result.ok) {
-      setError(result.message || 'E-mail ou senha incorretos');
+      setError(result.message || 'Senha incorreta');
       setLoading(false);
       return;
     }
 
-    // Volta para a página que o middleware bloqueou, se houver
+    // Volta para a página que o middleware bloqueou, se houver.
+    // Navegação cheia, não router.replace: o cookie da sessão foi gravado pelo
+    // servidor, e é ele que o middleware lê na próxima requisição.
     const from = searchParams.get('from');
-    router.replace(from && from.startsWith('/') ? from : '/');
-    router.refresh();
+    const destino = from && from.startsWith('/') ? from : '/';
+    window.location.replace(destino);
   };
 
   // 🔥 NÃO RENDERIZA NADA SE FOR ELECTRON (vai redirecionar)
@@ -67,21 +68,6 @@ function LoginForm() {
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.inputGroup}>
             <div className={styles.inputIcon}>
-              <Mail size={18} />
-            </div>
-            <input
-              type="email"
-              placeholder="E-mail"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={loading}
-              autoComplete="email"
-            />
-          </div>
-
-          <div className={styles.inputGroup}>
-            <div className={styles.inputIcon}>
               <Lock size={18} />
             </div>
             <input
@@ -90,7 +76,9 @@ function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoFocus
               disabled={loading}
+              autoComplete="current-password"
             />
           </div>
 

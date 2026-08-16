@@ -7,7 +7,7 @@ import { getEnv } from '@/lib/env';
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ ok: boolean; message?: string }>;
+  login: (password: string) => Promise<{ ok: boolean; message?: string }>;
   logout: () => Promise<void>;
   loading: boolean;
 }
@@ -66,20 +66,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+  // A tela pede só a senha. Quem confere é /api/auth/login, no servidor, porque
+  // o .env não existe no navegador. A rota devolve os cookies da sessão do
+  // Supabase já gravados.
+  const login = async (password: string) => {
+    let res: Response;
 
-    if (error) {
-      console.error('Erro no login:', error.message);
-      return {
-        ok: false,
-        message:
-          error.message === 'Invalid login credentials'
-            ? 'E-mail ou senha incorretos'
-            : error.message,
-      };
+    try {
+      res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+    } catch (err) {
+      console.error('[Auth] Não consegui falar com /api/auth/login:', err);
+      return { ok: false, message: 'Servidor fora do ar.' };
     }
 
+    const data = await res.json().catch(() => ({}) as { ok?: boolean; message?: string });
+
+    if (!res.ok || !data.ok) {
+      return { ok: false, message: data.message || 'Senha incorreta' };
+    }
+
+    // Faz o cliente do navegador enxergar o cookie que a rota acabou de gravar
+    await supabase.auth.getSession();
     setIsAuthenticated(true);
     return { ok: true };
   };

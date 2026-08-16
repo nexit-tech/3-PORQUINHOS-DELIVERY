@@ -88,7 +88,7 @@ do código que já está em produção.
 | `NEXT_PUBLIC_SUPABASE_URL` | sim | Conexão com o Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | sim | idem |
 | `SUPABASE_SERVICE_ROLE_KEY` | sim, após a RLS | Usada pelo webhook e pelo cron, que rodam sem usuário logado |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | só no desktop | Credenciais do Supabase Auth com que o app Electron entra sozinho |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | sim | Login do painel. `ADMIN_PASSWORD` é a senha digitada na tela; o desktop usa as duas para entrar sozinho |
 | `WEBHOOK_SECRET` | recomendado | Protege `/api/webhook`. Vazio = endpoint aberto |
 | `CRON_SECRET` | recomendado | Protege `/api/cron/*`. Vazio = endpoint aberto |
 | `INFINITEPAY_HANDLE` | só p/ pagamento online | Sua InfiniteTag, **sem o `$`**. Vazia = a opção "Pagar agora" nem aparece no checkout |
@@ -250,6 +250,25 @@ O painel usa **Supabase Auth** (e-mail + senha). É isso que dá ao banco a info
 
 A sessão fica num cookie (`@supabase/ssr`), lido pelo [`middleware.ts`](src/middleware.ts).
 Diferente do esquema antigo, não dá para entrar escrevendo nada no console.
+
+### Como se entra no painel
+
+A tela de login pede **só a senha**: a `ADMIN_PASSWORD` do `.env`. Não há campo de usuário
+e não se digita e-mail.
+
+Quem confere é [`/api/auth/login`](src/app/api/auth/login/route.ts), no servidor — o
+navegador não lê o `.env`, e uma senha em `NEXT_PUBLIC_*` estaria à vista no código-fonte
+da página. Confirmada a senha, a própria rota entra no Supabase Auth com `ADMIN_EMAIL` +
+`ADMIN_PASSWORD` e grava o cookie da sessão. Esse passo é obrigatório: com a RLS ligada,
+sem sessão o banco devolve vazio e o painel abre em branco.
+
+Consequência prática: **`ADMIN_PASSWORD` e a senha do usuário no Supabase têm que ser a
+mesma coisa.** Trocar em um lugar só faz o login falhar com uma mensagem dizendo
+exatamente isso. Para trocar: Authentication → Users → o usuário → mudar a senha, e o mesmo
+valor no `.env` (e nas variáveis do Railway, se estiver publicado).
+
+A rota aguenta 10 tentativas erradas por IP a cada 5 minutos. É uma trava por processo,
+que zera no restart — não substitui um rate limit na frente do app.
 
 > Em **Authentication → Providers → Email**, desligue **"Enable Sign Ups"**. Senão qualquer
 > pessoa cria conta, vira `authenticated` e ganha acesso total ao painel.

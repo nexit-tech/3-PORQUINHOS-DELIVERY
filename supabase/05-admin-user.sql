@@ -3,9 +3,10 @@
 -- =====================================================================
 -- RODE ESTE ARQUIVO ANTES DO 04.
 --
--- O painel deixou de usar ADMIN_USERNAME/ADMIN_PASSWORD do .env e passou a
--- fazer login no Supabase Auth. É esse login que dá ao banco a informação de
--- "esta pessoa é o admin" — sem ele, a RLS do 04 bloqueia o painel inteiro.
+-- A tela de login do painel pede só a senha (ADMIN_PASSWORD do .env), mas por
+-- baixo quem autentica é este usuário do Supabase Auth: é ele que dá ao banco
+-- a informação de "esta pessoa é o admin" — sem ele, a RLS do 04 bloqueia o
+-- painel inteiro.
 -- =====================================================================
 
 
@@ -22,8 +23,9 @@
 -- Depois coloque as MESMAS credenciais no .env:
 --   ADMIN_EMAIL=admin@3porquinhos.com.br
 --   ADMIN_PASSWORD=...
--- (o .env só é usado pelo app desktop, que entra sozinho; no navegador você
---  digita na tela de login)
+-- Tem que ser a MESMA senha nos dois lugares. A tela de login do painel pede
+-- só a senha e compara com ADMIN_PASSWORD; em seguida o servidor usa as duas
+-- para abrir a sessão aqui no Auth. Se divergirem, o login falha avisando.
 
 
 -- ---------------------------------------------------------------------
