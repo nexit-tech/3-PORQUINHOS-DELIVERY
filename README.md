@@ -88,7 +88,8 @@ do código que já está em produção.
 | `NEXT_PUBLIC_SUPABASE_URL` | sim | Conexão com o Supabase |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | sim | idem |
 | `SUPABASE_SERVICE_ROLE_KEY` | sim, após a RLS | Usada pelo webhook e pelo cron, que rodam sem usuário logado |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | sim | Login do painel. `ADMIN_PASSWORD` é a senha digitada na tela; o desktop usa as duas para entrar sozinho |
+| `ADMIN_EMAIL` | sim | Quem o painel autentica. A tela de login pede só a senha porque o e-mail sai daqui |
+| `ADMIN_PASSWORD` | só no desktop | O Electron entra sozinho com ela. Não é usada para validar o login no navegador |
 | `WEBHOOK_SECRET` | recomendado | Protege `/api/webhook`. Vazio = endpoint aberto |
 | `CRON_SECRET` | recomendado | Protege `/api/cron/*`. Vazio = endpoint aberto |
 | `INFINITEPAY_HANDLE` | só p/ pagamento online | Sua InfiniteTag, **sem o `$`**. Vazia = a opção "Pagar agora" nem aparece no checkout |
@@ -253,19 +254,30 @@ Diferente do esquema antigo, não dá para entrar escrevendo nada no console.
 
 ### Como se entra no painel
 
-A tela de login pede **só a senha**: a `ADMIN_PASSWORD` do `.env`. Não há campo de usuário
-e não se digita e-mail.
+A tela pede **só a senha** — não há campo de usuário. O e-mail vem do `ADMIN_EMAIL`, então
+o servidor já sabe quem autenticar.
 
-Quem confere é [`/api/auth/login`](src/app/api/auth/login/route.ts), no servidor — o
-navegador não lê o `.env`, e uma senha em `NEXT_PUBLIC_*` estaria à vista no código-fonte
-da página. Confirmada a senha, a própria rota entra no Supabase Auth com `ADMIN_EMAIL` +
-`ADMIN_PASSWORD` e grava o cookie da sessão. Esse passo é obrigatório: com a RLS ligada,
-sem sessão o banco devolve vazio e o painel abre em branco.
+Quem recebe é [`/api/auth/login`](src/app/api/auth/login/route.ts): ele manda a senha
+digitada para o Supabase Auth e, dando certo, grava o cookie da sessão. Esse cookie não é
+detalhe — com a RLS ligada, sem sessão o banco devolve vazio para tudo e o painel abre em
+branco.
 
-Consequência prática: **`ADMIN_PASSWORD` e a senha do usuário no Supabase têm que ser a
-mesma coisa.** Trocar em um lugar só faz o login falhar com uma mensagem dizendo
-exatamente isso. Para trocar: Authentication → Users → o usuário → mudar a senha, e o mesmo
-valor no `.env` (e nas variáveis do Railway, se estiver publicado).
+**A senha é a do usuário no Supabase**, e só. `ADMIN_PASSWORD` não é comparada com o que
+se digita; ela existe para o app desktop, que entra sozinho. Para trocar a senha do painel:
+Authentication → Users → o usuário → mudar a senha. Atualize o `.env` depois, para o
+desktop continuar entrando.
+
+Duas decisões que valem explicação:
+
+- **Por que o servidor e não o navegador.** O `supabase-js` do navegador sincroniza a
+  sessão entre abas com uma trava. Quando ela fica presa, o login trava em "Entrando..."
+  para sempre, sem erro nenhum no console — foi o que aconteceu em 16/08/2026. No servidor
+  não existe essa trava. Do lado do cliente ainda há um timeout de 20s, para a tela nunca
+  ficar girando à toa.
+- **Por que a senha não é conferida contra o `.env`.** Isso criaria a mesma senha em três
+  lugares (`.env`, variáveis do Railway, Supabase), e um deles ficar para trás derrubaria o
+  login. Aconteceu: o Railway estava com uma senha antiga e ninguém entrava. Com um dono só
+  da verdade, não se repete.
 
 A rota aguenta 10 tentativas erradas por IP a cada 5 minutos. É uma trava por processo,
 que zera no restart — não substitui um rate limit na frente do app.

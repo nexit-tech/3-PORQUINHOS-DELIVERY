@@ -66,9 +66,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // A tela pede só a senha. Quem confere é /api/auth/login, no servidor, porque
-  // o .env não existe no navegador. A rota devolve os cookies da sessão do
-  // Supabase já gravados.
+  // A tela pede só a senha. Quem valida é /api/auth/login, no servidor: de lá
+  // sai o e-mail (do .env) e volta o cookie da sessão já gravado.
+  //
+  // Nada de chamar o supabase-js aqui. A trava que ele usa para sincronizar a
+  // sessão entre abas pode ficar presa, e aí o login trava em "Entrando..."
+  // para sempre, sem erro nenhum no console. O timeout abaixo é a segunda
+  // garantia: preso ou não, a tela volta a responder.
   const login = async (password: string) => {
     let res: Response;
 
@@ -77,20 +81,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
+        signal: AbortSignal.timeout(20_000),
       });
     } catch (err) {
-      console.error('[Auth] Não consegui falar com /api/auth/login:', err);
-      return { ok: false, message: 'Servidor fora do ar.' };
+      const expirou = err instanceof DOMException && err.name === 'TimeoutError';
+      console.error('[Auth] Falha ao chamar /api/auth/login:', err);
+      return {
+        ok: false,
+        message: expirou
+          ? 'O servidor não respondeu em 20s. Tente de novo.'
+          : 'Não consegui falar com o servidor.',
+      };
     }
 
-    const data = await res.json().catch(() => ({}) as { ok?: boolean; message?: string });
+    const data = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string };
 
     if (!res.ok || !data.ok) {
       return { ok: false, message: data.message || 'Senha incorreta' };
     }
 
-    // Faz o cliente do navegador enxergar o cookie que a rota acabou de gravar
-    await supabase.auth.getSession();
     setIsAuthenticated(true);
     return { ok: true };
   };

@@ -20,12 +20,13 @@
 --      "Email not confirmed", porque a instância self-hosted provavelmente
 --      não tem SMTP configurado.
 --
--- Depois coloque as MESMAS credenciais no .env:
---   ADMIN_EMAIL=admin@3porquinhos.com.br
---   ADMIN_PASSWORD=...
--- Tem que ser a MESMA senha nos dois lugares. A tela de login do painel pede
--- só a senha e compara com ADMIN_PASSWORD; em seguida o servidor usa as duas
--- para abrir a sessão aqui no Auth. Se divergirem, o login falha avisando.
+-- Depois coloque no .env:
+--   ADMIN_EMAIL=admin@3porquinhos.com.br    <- o painel autentica este usuário
+--   ADMIN_PASSWORD=...                      <- só o app desktop usa
+--
+-- A senha do painel é a DESTE usuário, definida aqui. A tela pede só a senha
+-- (o e-mail sai do ADMIN_EMAIL) e manda para o Auth. Trocar ADMIN_PASSWORD no
+-- .env não troca a senha do painel: troque aqui, em Authentication -> Users.
 
 
 -- ---------------------------------------------------------------------

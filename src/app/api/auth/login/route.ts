@@ -1,39 +1,45 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
-import { timingSafeEqual } from 'node:crypto';
 
 /**
- * Login do painel: a tela pede só a senha, e ela é a ADMIN_PASSWORD do .env.
+ * Login do painel. A tela pede só a senha: não há campo de usuário.
  *
- * A conferência é feita aqui, no servidor, porque o navegador não enxerga o
- * .env: variável sem o prefixo NEXT_PUBLIC_ não entra no bundle — e se
- * entrasse, a senha estaria à vista no código-fonte da página.
+ * O e-mail sai do .env (ADMIN_EMAIL) — é por isso que a tela não precisa
+ * perguntar. A senha digitada vai para o Supabase Auth, que é quem valida.
  *
- * Conferida a senha, o servidor abre uma sessão de verdade no Supabase Auth
- * com ADMIN_EMAIL/ADMIN_PASSWORD e grava os cookies dela na resposta. Essa
- * parte não é enfeite: desde que a RLS foi ligada, sem sessão o banco devolve
- * vazio para tudo (pedidos, produtos, financeiro) e o painel abre em branco.
- * É o mesmo caminho que o app desktop já faz sozinho.
+ * Por que quem valida é o Supabase e não uma comparação com ADMIN_PASSWORD:
+ * o painel só funciona com uma sessão de verdade (com a RLS ligada, sem sessão
+ * o banco devolve vazio para tudo e a tela abre em branco), e quem emite essa
+ * sessão é o Supabase. Se o servidor conferisse a senha contra o .env, passaria
+ * a existir a mesma senha em três lugares — .env, variáveis do Railway e
+ * Supabase — e bastaria um deles ficar para trás para o login parar. Foi
+ * exatamente isso que aconteceu em 16/08/2026: o Railway tinha uma senha antiga
+ * e ninguém entrava. Com um dono só da verdade, isso não se repete.
+ *
+ * ADMIN_PASSWORD continua no .env porque o app desktop usa: lá não há tela de
+ * login, o Electron entra sozinho.
+ *
+ * Rodar isto no servidor, e não no navegador, tem um segundo motivo: a chamada
+ * do supabase-js no navegador usa uma trava compartilhada entre abas, e quando
+ * ela fica presa o login trava em "Entrando..." para sempre, sem erro nenhum.
+ * Do lado do servidor esse problema não existe.
  */
 
-// Sem isso a rota vira estática no build e a senha do .env fica congelada
-// dentro dela.
+// Sem isso a rota vira estática no build e o e-mail do .env fica congelado nela
 export const dynamic = 'force-dynamic';
 
-// Trava simples de força bruta. A rota é pública (o middleware não pode
-// protegê-la, é ela que dá acesso) e a senha do .env não passa pelo limite de
-// tentativas do Supabase. É por processo e some no restart — não substitui um
-// rate limit de verdade na frente do app, mas evita o caso óbvio.
+// Trava simples de força bruta, por processo, que zera no restart. Não
+// substitui um rate limit na frente do app — o Supabase também tem o dele,
+// mas esta responde antes e sem custo de rede.
 const JANELA_MS = 5 * 60 * 1000;
 const MAX_TENTATIVAS = 10;
 const tentativas = new Map<string, { erros: number; desde: number }>();
 
 function excedeuTentativas(ip: string) {
-  const agora = Date.now();
   const registro = tentativas.get(ip);
 
-  if (!registro || agora - registro.desde > JANELA_MS) return false;
+  if (!registro || Date.now() - registro.desde > JANELA_MS) return false;
   return registro.erros >= MAX_TENTATIVAS;
 }
 
@@ -49,28 +55,18 @@ function registrarErro(ip: string) {
   registro.erros += 1;
 }
 
-function senhaConfere(digitada: string, esperada: string) {
-  const a = Buffer.from(digitada, 'utf8');
-  const b = Buffer.from(esperada, 'utf8');
-
-  // timingSafeEqual joga se os tamanhos diferem, então compara antes
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
-}
-
 export async function POST(request: Request) {
-  const senhaEsperada = process.env.ADMIN_PASSWORD;
   const email = process.env.ADMIN_EMAIL;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (!senhaEsperada || !email || !supabaseUrl || !supabaseKey) {
+  if (!email || !supabaseUrl || !supabaseKey) {
     console.error(
-      '[Login] .env incompleto. Precisa de ADMIN_EMAIL, ADMIN_PASSWORD, ' +
-        'NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY.'
+      '[Login] Faltam variáveis de ambiente: ADMIN_EMAIL, ' +
+        'NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY são obrigatórias.'
     );
     return NextResponse.json(
-      { ok: false, message: 'Servidor sem as variáveis do .env. Veja o log.' },
+      { ok: false, message: 'Servidor sem as variáveis de ambiente. Veja o log.' },
       { status: 500 }
     );
   }
@@ -95,12 +91,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: 'Requisição inválida.' }, { status: 400 });
   }
 
-  if (!senha || !senhaConfere(senha, senhaEsperada)) {
-    registrarErro(ip);
-    return NextResponse.json({ ok: false, message: 'Senha incorreta' }, { status: 401 });
+  if (!senha) {
+    return NextResponse.json({ ok: false, message: 'Digite a senha.' }, { status: 400 });
   }
 
-  // Senha do .env confere. Agora a sessão de verdade, para a RLS liberar.
   const cookieStore = await cookies();
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
@@ -116,22 +110,20 @@ export async function POST(request: Request) {
     },
   });
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password: senhaEsperada });
+  const { error } = await supabase.auth.signInWithPassword({ email, password: senha });
 
   if (error) {
-    // A senha bateu com o .env mas o Supabase recusou: o usuário do Auth está
-    // com outra senha, ou não existe. Sem isso o painel entraria e abriria
-    // vazio, o que é bem pior de diagnosticar.
-    console.error('[Login] .env ok, mas o Supabase Auth recusou:', error.message);
-    return NextResponse.json(
-      {
-        ok: false,
-        message:
-          'A senha do .env não abre o usuário no Supabase Auth. ' +
-          'Confira ADMIN_EMAIL/ADMIN_PASSWORD e o usuário em Authentication -> Users.',
-      },
-      { status: 500 }
-    );
+    registrarErro(ip);
+
+    // "Email not confirmed" não é senha errada: é o usuário criado sem o
+    // Auto Confirm, num projeto sem SMTP. Dizer "senha incorreta" aí manda a
+    // pessoa procurar no lugar errado.
+    const mensagem =
+      error.message === 'Invalid login credentials'
+        ? 'Senha incorreta'
+        : `Supabase recusou: ${error.message}`;
+
+    return NextResponse.json({ ok: false, message: mensagem }, { status: 401 });
   }
 
   tentativas.delete(ip);
