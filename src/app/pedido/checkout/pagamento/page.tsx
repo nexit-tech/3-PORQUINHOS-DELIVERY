@@ -2,7 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2, Smartphone, AlertCircle, ShieldCheck, Check } from 'lucide-react';
+import {
+  ArrowLeft,
+  Loader2,
+  Smartphone,
+  AlertCircle,
+  ShieldCheck,
+  Check,
+  Banknote,
+} from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import Link from 'next/link';
 import { supabase } from '@/services/supabase';
@@ -11,16 +19,48 @@ import { whatsappLink } from '@/config/store';
 import styles from './page.module.css';
 
 /**
- * A loja aceita SOMENTE pagamento pelo site. Não existe mais "pagar na
- * entrega": nem Pix ou cartão na maquininha do entregador, nem dinheiro.
+ * A loja aceita duas formas de pagamento:
  *
- * Por isso esta tela não é mais uma escolha entre formas de pagamento — é
- * uma confirmação. O que ela ainda precisa decidir é se dá para pagar
- * AGORA: sem a InfinitePay configurada não existe caminho nenhum, e é
- * melhor dizer isso aqui do que deixar o cliente montar o pedido e tomar
- * erro no fim.
+ *   ONLINE (Pix/cartão pela InfinitePay) — o pedido nasce em AWAITING e só
+ *   chega à cozinha quando o dinheiro entra.
+ *
+ *   DINHEIRO na entrega/retirada — o pedido nasce em ON_DELIVERY e cai na
+ *   cozinha na hora; quem cobra é o entregador.
+ *
+ * Pix e cartão NA MÃO DO ENTREGADOR não existem: dependem de maquininha e
+ * de conferência que ninguém faz na porta. Quem garante isso não é esta
+ * tela (ela roda no navegador do cliente) e sim o trigger da migration 12
+ * — ver supabase/12-aceitar-dinheiro.sql.
+ *
+ * Consequência: o pagamento online pode estar indisponível (handle da
+ * InfinitePay não configurada) sem travar a loja — o dinheiro segue de pé.
  */
-type StatusPagamento = 'verificando' | 'ok' | 'indisponivel';
+type StatusOnline = 'verificando' | 'ok' | 'indisponivel';
+type Forma = 'online' | 'dinheiro';
+type Troco = 'sem' | 'com';
+
+/**
+ * Lê o valor do troco digitado pelo cliente.
+ *
+ * "50,00" e "1.500,00" seguem o padrão daqui: a vírgula é o decimal e o
+ * ponto é milhar. Mas quem digita no teclado do computador escreve
+ * "50.00" — tratar esse ponto como milhar virava 5000, e o pedido saía
+ * pedindo troco para R$ 5.000.
+ */
+const parseMoedaBR = (texto: string): number => {
+  const limpo = texto.replace(/[^\d.,]/g, '');
+  if (!limpo) return NaN;
+
+  const normalizado = limpo.includes(',')
+    ? limpo.replace(/\./g, '').replace(',', '.')
+    : limpo.replace(/\.(?=\d{3}(\D|$))/g, '');
+
+  const valor = Number(normalizado);
+  return Number.isFinite(valor) ? valor : NaN;
+};
+
+const moeda = (v: number) =>
+  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export default function PagamentoPage() {
   const router = useRouter();
@@ -33,17 +73,31 @@ export default function PagamentoPage() {
     customerName,
     customerPhone,
     customerEmail,
+    clearCart,
   } = useCart();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
-  const [statusPagamento, setStatusPagamento] = useState<StatusPagamento>('verificando');
+  const [statusOnline, setStatusOnline] = useState<StatusOnline>('verificando');
+
+  const [forma, setForma] = useState<Forma>('online');
+  const [troco, setTroco] = useState<Troco | null>(null);
+  const [trocoPara, setTrocoPara] = useState('');
 
   useEffect(() => {
     fetch('/api/pagamento/status')
       .then((r) => r.json())
-      .then((d) => setStatusPagamento(d.enabled ? 'ok' : 'indisponivel'))
-      .catch(() => setStatusPagamento('indisponivel'));
+      .then((d) => {
+        const habilitado = Boolean(d.enabled);
+        setStatusOnline(habilitado ? 'ok' : 'indisponivel');
+        // Sem online configurado, deixar 'online' pré-selecionado daria um
+        // botão que não leva a lugar nenhum. Cai para dinheiro.
+        if (!habilitado) setForma('dinheiro');
+      })
+      .catch(() => {
+        setStatusOnline('indisponivel');
+        setForma('dinheiro');
+      });
   }, []);
 
   // Mesma conta do banco: total = subtotal + frete - desconto.
@@ -78,8 +132,40 @@ export default function PagamentoPage() {
     return `${address.street}, ${address.number}${complement} - ${address.neighborhood}`;
   };
 
+  const trocoValor = parseMoedaBR(trocoPara);
+
+  /**
+   * O texto que vai para o cupom impresso e para o painel. O formato é
+   * lido de volta pelo printReceipt (`Troco para R$ ...` / `Sem troco`),
+   * então mexer aqui pede mexer lá.
+   */
+  const buildPaymentMethod = () => {
+    if (forma === 'online') return 'Pago online';
+    if (troco === 'com') {
+      return `Dinheiro - Troco para R$ ${trocoValor.toFixed(2).replace('.', ',')}`;
+    }
+    return 'Dinheiro - Sem troco';
+  };
+
   const processOrder = async () => {
-    if (isSubmitting || statusPagamento !== 'ok') return;
+    if (isSubmitting) return;
+    if (forma === 'online' && statusOnline !== 'ok') return;
+
+    // Sem escolha explícita de troco, o entregador sai sem saber se leva
+    // ou não. Era o que o modal antigo forçava — aqui o botão trava até
+    // o cliente responder.
+    if (forma === 'dinheiro' && !troco) {
+      alert('Diga se você precisa de troco.');
+      return;
+    }
+
+    if (forma === 'dinheiro' && troco === 'com' && !(trocoValor >= total)) {
+      alert(
+        `O valor do troco precisa ser maior ou igual ao total do pedido (${moeda(total)}).`
+      );
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -133,13 +219,13 @@ export default function PagamentoPage() {
         p_customer_name: customerName,
         p_customer_phone: customerPhone,
         p_customer_address: buildAddressLine(),
-        p_payment_method: 'Pago online',
+        p_payment_method: buildPaymentMethod(),
         p_delivery_type: deliveryType,
         p_neighborhood: deliveryType === 'delivery' ? address.neighborhood : null,
         p_items: orderItems,
         // Só o código. O desconto quem calcula é o banco.
         p_coupon_code: coupon?.code ?? null,
-        p_payment_flow: 'online',
+        p_payment_flow: forma === 'online' ? 'online' : 'on_delivery',
       });
 
       if (error) throw error;
@@ -152,9 +238,19 @@ export default function PagamentoPage() {
       }
       localStorage.setItem('customer_phone', customerPhone);
 
-      // O pedido existe, mas em AWAITING: não vale nada até o dinheiro
-      // entrar. O carrinho SÓ é limpo depois do pagamento confirmar, na
-      // tela de retorno — senão quem desiste no checkout perde tudo.
+      // DINHEIRO: o pedido já nasce valendo (ON_DELIVERY) e cai na cozinha.
+      // Não há checkout de operadora para esperar, então o carrinho pode
+      // ser limpo aqui mesmo.
+      if (forma === 'dinheiro') {
+        clearCart();
+        router.push('/pedido/historico');
+        return;
+      }
+
+      // ONLINE: o pedido existe, mas em AWAITING: não vale nada até o
+      // dinheiro entrar. O carrinho SÓ é limpo depois do pagamento
+      // confirmar, na tela de retorno — senão quem desiste no checkout
+      // perde tudo.
       const resposta = await fetch('/api/pagamento/criar-link', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -181,12 +277,9 @@ export default function PagamentoPage() {
       const cobrado = Number(dados.total ?? 0);
 
       if (Math.abs(cobrado - total) > 0.005) {
-        const fmt = (v: number) =>
-          v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
         const segue = window.confirm(
           `O valor do seu pedido foi atualizado.\n\n` +
-          `Nesta tela: ${fmt(total)}\nA pagar: ${fmt(cobrado)}\n\n` +
+          `Nesta tela: ${moeda(total)}\nA pagar: ${moeda(cobrado)}\n\n` +
           `Deseja continuar para o pagamento?`
         );
 
@@ -205,8 +298,21 @@ export default function PagamentoPage() {
     }
   };
 
-  const moeda = (v: number) =>
-    v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const naEntrega = deliveryType === 'pickup' ? 'na retirada' : 'na entrega';
+
+  const textoBotao = () => {
+    if (isSubmitting) return null;
+    if (statusOnline === 'verificando') return 'Aguarde...';
+    if (forma === 'dinheiro') return 'Fazer pedido';
+    return `Pagar ${moeda(total)}`;
+  };
+
+  // O troco NÃO trava o botão de propósito: botão cinza sem explicação é
+  // beco sem saída. Quem barra é o processOrder, dizendo o que falta.
+  const botaoTravado =
+    isSubmitting ||
+    statusOnline === 'verificando' ||
+    (forma === 'online' && statusOnline !== 'ok');
 
   return (
     <main className={styles.container}>
@@ -219,13 +325,13 @@ export default function PagamentoPage() {
       </header>
 
       <div className={styles.content}>
+        <h2 className={styles.sectionTitle}>Como você quer pagar?</h2>
         <p className={styles.subtitle}>
-          Você paga agora, pelo site. Assim que confirmar, seu pedido vai direto
-          para a cozinha.
+          Pague agora pelo site ou em dinheiro {naEntrega}.
         </p>
 
         <div className={styles.options}>
-          {statusPagamento === 'verificando' && (
+          {statusOnline === 'verificando' && (
             <div className={styles.option}>
               <div className={styles.iconBox}><Loader2 size={22} className={styles.spin} /></div>
               <div className={styles.info}>
@@ -234,12 +340,16 @@ export default function PagamentoPage() {
             </div>
           )}
 
-          {/* Só existe uma forma de pagamento, então o card não é uma escolha:
-              é a confirmação do que vai acontecer. O selo da InfinitePay mora
-              dentro dele — solto embaixo, lia como aviso avulso. */}
-          {statusPagamento === 'ok' && (
-            <div className={styles.payCard}>
-              <div className={styles.payMain}>
+          {/* PAGAR AGORA — o selo da InfinitePay mora dentro do card; solto
+              embaixo, lia como aviso avulso. */}
+          {statusOnline === 'ok' && (
+            <div className={`${styles.payCard} ${forma === 'online' ? styles.payCardAtivo : ''}`}>
+              <button
+                type="button"
+                className={styles.payMain}
+                onClick={() => setForma('online')}
+                aria-pressed={forma === 'online'}
+              >
                 <div className={styles.iconBox}><Smartphone size={22} /></div>
                 <div className={styles.info}>
                   <span>Pagar agora</span>
@@ -249,8 +359,10 @@ export default function PagamentoPage() {
                     <span className={styles.chip}>Cartão</span>
                   </div>
                 </div>
-                <div className={styles.check}><Check size={13} strokeWidth={3.5} /></div>
-              </div>
+                <div className={styles.radio}>
+                  {forma === 'online' && <Check size={13} strokeWidth={3.5} />}
+                </div>
+              </button>
               <p className={styles.payFoot}>
                 <ShieldCheck size={14} /> Processado pela InfinitePay — a loja não
                 recebe os dados do seu cartão.
@@ -258,14 +370,92 @@ export default function PagamentoPage() {
             </div>
           )}
 
-          {statusPagamento === 'indisponivel' && (
+          {/* DINHEIRO — existe sempre, inclusive quando o online está fora.
+              É o plano B que a loja não tinha. */}
+          {statusOnline !== 'verificando' && (
+            <div className={`${styles.payCard} ${forma === 'dinheiro' ? styles.payCardAtivo : ''}`}>
+              <button
+                type="button"
+                className={styles.payMain}
+                onClick={() => setForma('dinheiro')}
+                aria-pressed={forma === 'dinheiro'}
+              >
+                <div className={styles.iconBox}><Banknote size={22} /></div>
+                <div className={styles.info}>
+                  <span>Dinheiro</span>
+                  <small>Você paga {naEntrega}, em espécie</small>
+                </div>
+                <div className={styles.radio}>
+                  {forma === 'dinheiro' && <Check size={13} strokeWidth={3.5} />}
+                </div>
+              </button>
+
+              {forma === 'dinheiro' && (
+                <div className={styles.trocoBox}>
+                  <p className={styles.trocoPergunta}>Precisa de troco?</p>
+
+                  <div className={styles.trocoOpcoes}>
+                    <button
+                      type="button"
+                      className={`${styles.trocoBtn} ${troco === 'sem' ? styles.trocoBtnAtivo : ''}`}
+                      onClick={() => { setTroco('sem'); setTrocoPara(''); }}
+                    >
+                      Não preciso
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.trocoBtn} ${troco === 'com' ? styles.trocoBtnAtivo : ''}`}
+                      onClick={() => setTroco('com')}
+                    >
+                      Preciso de troco
+                    </button>
+                  </div>
+
+                  {troco === 'com' && (
+                    <div className={styles.trocoCampo}>
+                      <label htmlFor="troco-para">Vou pagar com</label>
+                      <div className={styles.trocoInput}>
+                        <span>R$</span>
+                        <input
+                          id="troco-para"
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="Ex: 100,00"
+                          value={trocoPara}
+                          onChange={(e) => setTrocoPara(e.target.value)}
+                        />
+                      </div>
+
+                      {/* O cliente vê a conta antes de mandar o pedido: sem
+                          isso, digitar menos que o total só aparecia como
+                          erro no clique do botão. */}
+                      {trocoPara.trim() !== '' && (
+                        Number.isFinite(trocoValor) && trocoValor >= total ? (
+                          <small className={styles.trocoOk}>
+                            Troco de {moeda(trocoValor - total)}
+                          </small>
+                        ) : (
+                          <small className={styles.trocoErro}>
+                            Precisa ser pelo menos {moeda(total)}
+                          </small>
+                        )
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {statusOnline === 'indisponivel' && (
             <div className={styles.aviso}>
               <div className={styles.avisoIcone}><AlertCircle size={22} /></div>
               <div>
-                <strong>Pagamento indisponível no momento</strong>
+                <strong>Pagamento pelo site indisponível agora</strong>
                 <p>
-                  Não conseguimos abrir o pagamento agora. Seu carrinho está salvo —
-                  tente de novo em alguns minutos ou fale com a gente.
+                  Não conseguimos abrir o Pix/cartão neste momento — dá para
+                  fechar o pedido em dinheiro. Se preferir pagar pelo site,
+                  tente de novo em alguns minutos.
                 </p>
                 <a
                   href={whatsappLink('Oi! Quero fazer um pedido mas o pagamento não abriu no site')}
@@ -315,19 +505,15 @@ export default function PagamentoPage() {
         <button
           className={styles.finishBtn}
           onClick={processOrder}
-          disabled={isSubmitting || statusPagamento !== 'ok'}
-          style={{ opacity: isSubmitting || statusPagamento !== 'ok' ? 0.6 : 1 }}
+          disabled={botaoTravado}
+          style={{ opacity: botaoTravado ? 0.6 : 1 }}
         >
           {isSubmitting ? (
             <span style={{display: 'flex', alignItems: 'center', gap: 8}}>
               <Loader2 className={styles.spin} size={20} /> Enviando...
             </span>
-          ) : statusPagamento === 'verificando' ? (
-            'Aguarde...'
-          ) : statusPagamento === 'indisponivel' ? (
-            'Pagamento indisponível'
           ) : (
-            `Pagar ${moeda(total)}`
+            textoBotao()
           )}
         </button>
       </div>

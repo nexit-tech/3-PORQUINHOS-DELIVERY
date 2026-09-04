@@ -70,20 +70,39 @@
   color: var(--tinta);
 }
 
-/* ---- Card do pagamento online ----
+/* ---- Cards de forma de pagamento (online e dinheiro) ----
    Raio menor que o --r-g original: num card raso, 26px deixava as bordas
-   estufadas e o conteúdo espremido no meio. */
+   estufadas e o conteúdo espremido no meio.
+
+   Voltaram a ser uma ESCOLHA (online ou dinheiro), então o card só veste
+   o laranja quando está selecionado — antes era card único e vinha tinto
+   de fábrica. */
 .payCard {
   border-radius: var(--r-m);
-  border: 1.5px solid #ffd9b8;
-  background: var(--laranja-tint);
+  border: 1.5px solid var(--linha);
+  background: var(--papel);
   overflow: hidden;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.payCardAtivo {
+  border-color: #ffd9b8;
+  background: var(--laranja-tint);
 }
 
 .payMain {
   display: flex;
   align-items: flex-start;
   gap: 13px;
+  /* É <button>: sem os resets, o UA joga fundo cinza, borda e a fonte do
+     sistema em cima do card. */
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  font-family: inherit;
+  color: inherit;
+  cursor: pointer;
   padding: 15px;
 }
 
@@ -97,6 +116,13 @@
   color: #fff;
   flex-shrink: 0;
   box-shadow: var(--sombra-laranja);
+}
+
+/* Card não escolhido não puxa a atenção com ícone laranja cheio e sombra */
+.payCard:not(.payCardAtivo) .iconBox {
+  background: var(--laranja-tint);
+  color: var(--laranja-escuro);
+  box-shadow: none;
 }
 
 .info {
@@ -140,16 +166,25 @@
   letter-spacing: 0.01em;
 }
 
-.check {
+/* Bolinha de escolha: vazia no card não selecionado, laranja com o
+   check no escolhido. */
+.radio {
   display: grid;
   place-items: center;
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: var(--laranja);
-  color: #fff;
+  border: 1.5px solid var(--linha);
+  background: var(--papel);
+  color: transparent;
   flex-shrink: 0;
   margin-top: 2px;
+}
+
+.payCardAtivo .radio {
+  border-color: var(--laranja);
+  background: var(--laranja);
+  color: #fff;
 }
 
 .payFoot {
@@ -157,14 +192,112 @@
   align-items: flex-start;
   gap: 7px;
   padding: 11px 15px;
-  border-top: 1px solid #ffd9b8;
+  border-top: 1px solid var(--linha);
   background: rgba(255, 255, 255, 0.55);
   font-size: 0.74rem;
   line-height: 1.4;
   color: var(--tinta-2);
 }
 
+.payCardAtivo .payFoot { border-top-color: #ffd9b8; }
+
 .payFoot svg { flex-shrink: 0; margin-top: 1px; color: var(--verde); }
+
+/* ---- Troco ----
+   Mora dentro do card do dinheiro e só aparece com ele escolhido. Era um
+   modal antes; como bloco, o cliente responde sem perder de vista o total
+   que está logo abaixo. */
+.trocoBox {
+  padding: 0 15px 15px;
+  border-top: 1px dashed #ffd9b8;
+  margin-top: 2px;
+  padding-top: 13px;
+}
+
+.trocoPergunta {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--tinta);
+  margin-bottom: 9px;
+}
+
+.trocoOpcoes {
+  display: flex;
+  gap: 8px;
+}
+
+.trocoBtn {
+  flex: 1;
+  padding: 10px 8px;
+  border-radius: var(--r-pill);
+  border: 1.5px solid var(--linha);
+  background: var(--papel);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--tinta-2);
+  cursor: pointer;
+  transition: border-color 0.16s ease, color 0.16s ease;
+}
+
+.trocoBtnAtivo {
+  border-color: var(--laranja);
+  color: var(--laranja-escuro);
+  background: var(--papel);
+}
+
+.trocoCampo {
+  margin-top: 12px;
+}
+
+.trocoCampo label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--tinta-2);
+  margin-bottom: 6px;
+}
+
+.trocoInput {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  border-radius: var(--r-p);
+  border: 1.5px solid var(--linha);
+  background: var(--papel);
+}
+
+.trocoInput span {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--tinta-2);
+}
+
+.trocoInput input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: none;
+  font-family: inherit;
+  /* 16px cravados: abaixo disso o Safari do iOS dá zoom no foco e
+     quebra o layout do checkout (mesmo motivo do resto do fluxo). */
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--tinta);
+}
+
+.trocoOk,
+.trocoErro {
+  display: block;
+  margin-top: 7px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.trocoOk { color: var(--verde); }
+.trocoErro { color: var(--vermelho); }
 
 /* FOOTER */
 .footer {
@@ -229,10 +362,11 @@
 }
 
 
-/* --- PAGAMENTO INDISPONÍVEL --- */
-/* Só aparece quando /api/pagamento/status responde enabled:false. Como a
-   loja não aceita mais pagar na entrega, sem isso não há caminho nenhum —
-   então o aviso precisa ser explícito e oferecer uma saída (WhatsApp). */
+/* --- PAGAMENTO ONLINE INDISPONÍVEL --- */
+/* Só aparece quando /api/pagamento/status responde enabled:false. Já não é
+   beco sem saída — o dinheiro continua ali em cima —, mas o cliente que
+   contava com Pix precisa entender por que a opção sumiu, e ter o WhatsApp
+   da loja à mão. */
 .aviso {
   display: flex;
   gap: 12px;

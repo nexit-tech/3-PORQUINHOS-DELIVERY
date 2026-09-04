@@ -61,7 +61,8 @@ Projeto: **Delivery 3 porquinhos** (`tgugjefgwwluycrkhcss`, sa-east-1).
 | `08-pagamento-online.sql` | Eixo `payment_status`, `get_order_for_payment()` e `mark_order_paid()` | ✅ aplicado |
 | `09-pagamento-correcoes.sql` | Correções da revisão adversarial + `payment_attempts` | ✅ aplicado |
 | `04-rls-pedidos.sql` | Liga a RLS e tranca o acesso | ✅ aplicado |
-| `10-somente-pagamento-online.sql` | Trigger que recusa pedido "pagar na entrega" | ✅ aplicado |
+| `10-somente-pagamento-online.sql` | Trigger que recusa pedido "pagar na entrega" | ⚠️ substituída pela `12` |
+| `12-aceitar-dinheiro.sql` | Libera dinheiro na entrega; recusa as outras formas fora do site | ⏳ **rodar no banco** |
 | `06-service-role.sql` | Conferência: RLS, políticas e Realtime | — |
 
 Os aplicados são todos **aditivos**: criam função ou tabela e não mudam o comportamento
@@ -114,12 +115,16 @@ https://SEU-DOMINIO/api/webhook?secret=<WEBHOOK_SECRET>
 
 ## Pagamento online (InfinitePay)
 
-> 💳 **A loja aceita SOMENTE pagamento pelo site.** Não existe "pagar na entrega" — nem
-> maquininha, nem dinheiro. O checkout oferece uma opção só, e o
-> [`10-somente-pagamento-online.sql`](supabase/10-somente-pagamento-online.sql) recusa no
-> banco qualquer pedido `ON_DELIVERY`, porque a tela sozinha não segura quem abre o
-> console. Consequência: **se a InfinitePay cair, a loja não registra pedido nenhum.**
-> Para reverter, veja o cabeçalho daquele arquivo.
+> 💳 **A loja aceita pagamento pelo site (Pix/cartão) ou DINHEIRO na entrega/retirada.**
+> Pix e cartão na mão do entregador não existem: dependem de maquininha e de uma
+> conferência que ninguém faz na porta. Quem garante isso é o
+> [`12-aceitar-dinheiro.sql`](supabase/12-aceitar-dinheiro.sql), que recusa no banco
+> qualquer pedido `ON_DELIVERY` cujo `payment_method` não comece com "Dinheiro" — a tela
+> sozinha não segura quem abre o console. Ele substitui a regra da
+> [`10`](supabase/10-somente-pagamento-online.sql), que recusava *todo* `ON_DELIVERY`.
+>
+> Efeito colateral bem-vindo: **InfinitePay fora do ar não para mais a loja** — o checkout
+> cai para dinheiro e o pedido entra igual.
 
 Para ligar, basta preencher as duas variáveis e reiniciar. Não há nada a cadastrar no
 painel da InfinitePay: a `webhook_url` vai junto em cada link de cobrança criado.

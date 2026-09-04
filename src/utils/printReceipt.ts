@@ -66,13 +66,21 @@ export const printReceipt = async (order: any, settings: PrinterSettings, copies
   const metodoPagamento = order.payment_method || order.paymentMethod || '';
   const isDinheiro = metodoPagamento.toLowerCase().includes('dinheiro') || metodoPagamento.toLowerCase().includes('cash');
   
+  // O texto vem montado pelo checkout: "Dinheiro - Troco para R$ 50,00" ou
+  // "Dinheiro - Sem troco". A guarda antiga era sensível a maiúscula
+  // (`includes('Troco')`), então o "Sem troco" NUNCA era impresso e o
+  // entregador saía sem saber se precisava levar troco.
   let trocoTexto = null;
-  if (isDinheiro && metodoPagamento.includes('Troco')) {
-    const match = metodoPagamento.match(/Troco para R\$\s*([\d,.]+)/i);
+  if (isDinheiro) {
+    const match = metodoPagamento.match(/Troco para R\$\s*([\d.,]+)/i);
+
     if (match) {
-      trocoTexto = `Troco para ${formatMoney(match[1])}`;
-    } else if (metodoPagamento.includes('Sem troco')) {
-      trocoTexto = 'Sem troco';
+      // "1.500,00" -> 1500: sem tirar o ponto de milhar antes, o parse
+      // do formatMoney lia isso como R$ 1,50
+      const valor = Number(match[1].replace(/\./g, '').replace(',', '.'));
+      trocoTexto = `TROCO PARA ${formatMoney(Number.isFinite(valor) ? valor : 0)}`;
+    } else if (/sem troco/i.test(metodoPagamento)) {
+      trocoTexto = 'SEM TROCO';
     }
   }
   
@@ -147,12 +155,16 @@ export const printReceipt = async (order: any, settings: PrinterSettings, copies
           width: 15%; 
           white-space: nowrap; 
         }
-        .col-nome { 
-          width: 55%; 
+        .col-nome {
+          width: 55%;
           padding-right: 3px;
           word-wrap: break-word;
           word-break: break-word;
           overflow: hidden;
+          /* Nome e ingredientes no mesmo peso: o bloco de itens inteiro é
+             para ser lido de longe, não só o cabeçalho. */
+          font-weight: 900;
+          text-transform: uppercase;
         }
         .col-valor { 
           width: 30%; 
@@ -161,12 +173,21 @@ export const printReceipt = async (order: any, settings: PrinterSettings, copies
           padding-right: 2px; /* Pequeno afastamento da borda */
         }
 
-        .obs { 
-          font-size: 0.85em; 
-          font-weight: normal; 
-          margin-top: 1px; 
+        /* Os ingredientes (sabores, adicionais, observações) são o que a
+           cozinha mais precisa ler de relance. Saíam menores e sem negrito,
+           e em impressora térmica com bobina fraca viravam borrão: agora vão
+           em CAIXA ALTA e no peso máximo, como o resto do cupom. */
+        .obs {
+          font-size: 0.92em;
+          font-weight: 900;
+          text-transform: uppercase;
+          margin-top: 2px;
           display: block;
           word-wrap: break-word;
+          /* O checkout separa os grupos com \n ("Sabores: ...", "Adicionais:
+             ...", "Obs: ..."). Sem o pre-wrap o HTML colapsava tudo numa
+             linha só e o sabor da segunda pizza grudava no adicional. */
+          white-space: pre-wrap;
         }
         
         .big { font-size: 1.2em; font-weight: 900; }
@@ -225,7 +246,7 @@ export const printReceipt = async (order: any, settings: PrinterSettings, copies
           return `
             <tr>
               <td class="col-qtd bold">${esc(qtd)}x</td>
-              <td class="col-nome">${esc(nome)}${obs ? `<span class="obs">(${esc(obs)})</span>` : ''}</td>
+              <td class="col-nome">${esc(nome)}${obs ? `<span class="obs">${esc(obs)}</span>` : ''}</td>
               <td class="col-valor">${formatMoney(preco)}</td>
             </tr>
           `;
@@ -277,7 +298,7 @@ export const printReceipt = async (order: any, settings: PrinterSettings, copies
       <div class="section">
         <div class="label">PAGAMENTO</div>
         <div class="value">${esc(metodoPagamento.split(' - ')[0])}</div>
-        ${trocoTexto ? `<div class="value" style="margin-top: 2px; font-size: 0.9em;">${esc(trocoTexto)}</div>` : ''}
+        ${trocoTexto ? `<div class="value bold" style="margin-top: 2px;">${esc(trocoTexto)}</div>` : ''}
         <!-- O entregador precisa saber, em letra grande, se cobra ou não -->
         <div class="value big" style="margin-top: 4px;">
           ${(order.payment_status || order.paymentStatus) === 'PAID' ? '*** JA PAGO ***' : '*** COBRAR NA ENTREGA ***'}
