@@ -120,6 +120,47 @@ export function toE164BR(phone?: string | null): string | undefined {
 }
 
 /**
+ * Erro vindo da operadora, já com o código que ela devolveu.
+ *
+ * Existe para separar dois casos que o catch da rota tratava igual: a
+ * chamada falhou na rede (tentar de novo resolve) e a conta não está
+ * habilitada (não resolve nunca, enquanto ninguém mexer no painel da
+ * InfinitePay). Sem essa distinção o cliente leva "tente novamente" para
+ * sempre, num erro que só o dono da loja consegue corrigir.
+ */
+export class PaymentProviderError extends Error {
+  readonly status: number;
+  /** Código da operadora, ex.: "external_checkout_not_enabled". */
+  readonly code?: string;
+  /** true quando só um humano mexendo na conta resolve. */
+  readonly isConfig: boolean;
+
+  constructor(status: number, body: string) {
+    let code: string | undefined;
+    let mensagem: string | undefined;
+
+    try {
+      const json = JSON.parse(body);
+      code = typeof json?.error === 'string' ? json.error : undefined;
+      mensagem = typeof json?.message === 'string' ? json.message : undefined;
+    } catch {
+      // Corpo não era JSON: sobra o status, que já diz bastante.
+    }
+
+    super(mensagem || `InfinitePay respondeu ${status}`);
+    this.name = 'PaymentProviderError';
+    this.status = status;
+    this.code = code;
+
+    // 401/403 é credencial. 404 aqui não é rota inexistente — /links
+    // existe — e sim a conta sem checkout externo ligado, ou um handle
+    // que não corresponde a merchant nenhum. Nenhum dos três melhora
+    // com nova tentativa.
+    this.isConfig = status === 401 || status === 403 || status === 404;
+  }
+}
+
+/**
  * Cria o link de cobrança e devolve a URL do checkout.
  *
  * Os itens vêm montados a partir do BANCO, nunca do navegador — mesma
@@ -149,7 +190,7 @@ export async function createPaymentLink(input: CreateLinkInput): Promise<string>
 
   if (!response.ok) {
     console.error('[InfinitePay] Falha ao criar link:', response.status, text);
-    throw new Error(`InfinitePay respondeu ${response.status}`);
+    throw new PaymentProviderError(response.status, text);
   }
 
   let data: any;

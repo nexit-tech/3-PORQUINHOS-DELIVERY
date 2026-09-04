@@ -5,6 +5,7 @@ import {
   buildItemsFromOrder,
   createPaymentLink,
   isPaymentEnabled,
+  PaymentProviderError,
   toE164BR,
 } from '@/lib/infinitepay';
 
@@ -114,6 +115,27 @@ export async function POST(request: Request) {
       total: Number(order.total),
     });
   } catch (error: any) {
+    // Conta sem checkout externo, ou credencial errada. Repetir não muda
+    // nada, então mandar o cliente "tentar novamente" só o faz rodar em
+    // círculo e perder a compra. Este erro é recado para o dono da loja.
+    if (error instanceof PaymentProviderError && error.isConfig) {
+      console.error(
+        '🚨 [InfinitePay] Cobrança recusada pela configuração da conta ' +
+          `(${error.status}${error.code ? ` ${error.code}` : ''}): ${error.message}` +
+          '\n   Ative o Checkout Externo em ' +
+          'https://app.infinitepay.io/external-checkout#configuracoes?enabled=true ' +
+          'e confira o INFINITEPAY_HANDLE.'
+      );
+      return NextResponse.json(
+        {
+          error:
+            'O pagamento online está indisponível no momento. ' +
+            'Fale com a loja pelo WhatsApp para concluir seu pedido.',
+        },
+        { status: 503 }
+      );
+    }
+
     console.error('Erro ao criar link de pagamento:', error);
     return NextResponse.json(
       { error: 'Não foi possível iniciar o pagamento. Tente novamente.' },
