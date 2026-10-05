@@ -65,6 +65,45 @@ const nextConfig: NextConfig = {
 export default nextConfig;
 `;
 
+// O instalador NÃO leva o .env inteiro. Antes levava, e junto ia a
+// SUPABASE_SERVICE_ROLE_KEY (acesso total ao banco, passando por cima da
+// RLS), os segredos do webhook/cron e as chaves de API: qualquer um com o
+// .exe extraía tudo. O desktop só precisa disto — o resto é do servidor web.
+const ENV_FILE = path.join(ROOT, '.env');
+const ENV_DESKTOP = path.join(ROOT, '.env.desktop');
+const ENV_DESKTOP_KEYS = [
+  'NEXT_PUBLIC_SUPABASE_URL',
+  'NEXT_PUBLIC_SUPABASE_ANON_KEY',
+  'ADMIN_EMAIL',
+  'ADMIN_PASSWORD',
+  'NEXT_PUBLIC_STORE_NAME',
+  'NEXT_PUBLIC_STORE_PHONE_DISPLAY',
+  'NEXT_PUBLIC_STORE_PHONE_E164',
+  'NEXT_PUBLIC_STORE_SITE',
+  'NEXT_PUBLIC_APP_URL',
+];
+
+function writeDesktopEnv() {
+  if (!fs.existsSync(ENV_FILE)) {
+    throw new Error('.env não encontrado: o desktop precisa dele para conectar no Supabase.');
+  }
+
+  const vars = require('dotenv').parse(fs.readFileSync(ENV_FILE));
+  const lines = ENV_DESKTOP_KEYS.filter((k) => vars[k]).map((k) => `${k}=${vars[k]}`);
+  const missing = ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'ADMIN_EMAIL', 'ADMIN_PASSWORD'].filter(
+    (k) => !vars[k]
+  );
+  if (missing.length) throw new Error(`Faltam no .env: ${missing.join(', ')}`);
+
+  fs.writeFileSync(
+    ENV_DESKTOP,
+    '# Gerado por build-electron.js. É ESTE arquivo que vai no instalador, não o .env.\n' +
+      lines.join('\n') +
+      '\n'
+  );
+  console.log(`✅ .env.desktop gerado (${lines.length} variáveis; segredos de servidor ficam de fora)`);
+}
+
 let restored = false;
 
 function restore() {
@@ -133,7 +172,10 @@ try {
   }
 
   fs.writeFileSync(CONFIG_FILE, ELECTRON_CONFIG);
-  console.log('✅ Config temporário criado\n');
+  console.log('✅ Config temporário criado');
+
+  writeDesktopEnv();
+  console.log('');
 
   const nextCacheDir = path.join(ROOT, '.next');
   if (fs.existsSync(nextCacheDir)) {

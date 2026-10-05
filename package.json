@@ -1,6 +1,6 @@
 {
   "name": "anota-delivery",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Sistema de Gestão de Delivery - 3 Porquinhos",
   "author": "3 Porquinhos <contato@3porquinhos.com.br>",
   "private": true,
@@ -61,12 +61,11 @@
       "out/**/*",
       "public/**/*",
       "node_modules/**/*",
-      "package.json",
-      ".env"
+      "package.json"
     ],
     "extraResources": [
       {
-        "from": ".env",
+        "from": ".env.desktop",
         "to": ".env"
       }
     ],

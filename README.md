@@ -268,6 +268,12 @@ O [`build-electron.js`](build-electron.js) troca temporariamente o `next.config.
 (nenhum dos dois é compatível com export estático). Tudo é restaurado no final — inclusive
 se você der Ctrl+C ou o build falhar.
 
+**O instalador não leva o `.env`.** O build gera um `.env.desktop` só com o que o desktop
+usa (URL e chave pública do Supabase, login do painel, dados da loja) e é ele que vai como
+`resources/.env`. Antes ia o `.env` inteiro, com a `SUPABASE_SERVICE_ROLE_KEY` e os segredos
+do servidor — qualquer um com o `.exe` extraía. Variável nova que o desktop precise tem que
+entrar em `ENV_DESKTOP_KEYS` no [`build-electron.js`](build-electron.js).
+
 No Electron o [`server.js`](server.js) sobe um Express na porta 3001 que serve a pasta `out`,
 injeta as variáveis de ambiente via `/runtime-config.js` e reimplementa as rotas que o
 desktop precisa. Não há login: o app roda na máquina do balcão.
