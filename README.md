@@ -24,7 +24,7 @@ mas não carrega dado nenhum.
 |---|---|---|
 | Painel | `/`, `/products`, `/finance`, `/settings`, `/notifications`, `/coupons` | Loja (protegido por login) |
 | Cliente | `/pedido/*` | Público |
-| API | `/api/webhook`, `/api/evolution`, `/api/cron/*` | Evolution API e agendador |
+| API | `/api/whatsapp`, `/api/loja/*`, `/api/cron/*` | Painel, loja e agendador |
 | Pagamento | `/api/pagamento/{status,criar-link,verificar,infinitepay}` | Navegador e InfinitePay |
 
 ```
@@ -36,7 +36,9 @@ src/
 ├── hooks/          useProducts, useAdminOrders, useOrders, useFinance, useStoreStatus, useCoupons
 ├── lib/            storeHours, printerSettings, apiAuth, env, isElectron,
 │                   supabaseAdmin, infinitepay, confirmarPagamento
-├── services/       supabase, evolution, notifications, messageBuffer, botSettings
+├── lib/whatsapp/   conexão por QR (Baileys) e envio do andamento do pedido
+├── lib/bot/        atendente do WhatsApp (ChatGPT) e suas ferramentas
+├── services/       supabase, botSettings
 ├── utils/          printReceipt
 └── middleware.ts   protege as rotas do painel
 ```
@@ -64,6 +66,7 @@ Projeto: **Delivery 3 porquinhos** (`tgugjefgwwluycrkhcss`, sa-east-1).
 | `10-somente-pagamento-online.sql` | Trigger que recusa pedido "pagar na entrega" | ⚠️ substituída pela `12` |
 | `12-aceitar-dinheiro.sql` | Libera dinheiro na entrega; recusa as outras formas fora do site | ⏳ **rodar no banco** |
 | `13-whatsapp-sessao.sql` | Tabela `whatsapp_auth`, onde fica a sessão do WhatsApp conectado por QR | ✅ aplicado |
+| `14-bot-conversas.sql` | Tabela `bot_conversas`: histórico e carrinho do atendente do WhatsApp | ⏳ **rodar no banco** |
 | `06-service-role.sql` | Conferência: RLS, políticas e Realtime | — |
 
 Os aplicados são todos **aditivos**: criam função ou tabela e não mudam o comportamento
@@ -99,20 +102,10 @@ do código que já está em produção.
 | `INFINITEPAY_API_URL` | opcional | Sobrescreve a base da API (padrão `https://api.checkout.infinitepay.io`) |
 | `WHATSAPP_ENABLED` | opcional | Liga o WhatsApp por QR neste servidor. Padrão: ligado em produção, desligado no `npm run dev` |
 | `WHATSAPP_SESSION` | opcional | Nome da sessão em `whatsapp_auth` (padrão `principal`). Use outro nome para testar local |
-| `EVOLUTION_API_URL` / `_KEY` / `_INSTANCE_NAME` | opcional | Bot de atendimento (webhook da Evolution). O andamento do pedido **não** usa mais |
-| `N8N_WEBHOOK_URL` | opcional | Destino das mensagens agrupadas pelo bot |
+| `OPENAI_API_KEY` | p/ o bot | Atendente do WhatsApp (ChatGPT). Vazia = o bot não responde ninguém |
+| `OPENAI_MODEL` | opcional | Modelo do atendente (padrão `gpt-4.1-mini`) |
+| `OPENAI_TRANSCRIBE_MODEL` | opcional | Transcrição das mensagens de voz (padrão `whisper-1`) |
 | `NEXT_PUBLIC_STORE_*` | opcional | Nome, telefone e site da loja no cupom e nas mensagens |
-| `VIP_NUMBERS` | opcional | Números que o bot responde mesmo fora do horário |
-
-### Webhook da Evolution API
-
-Configure a URL com o segredo, de qualquer uma destas formas:
-
-```
-Authorization: Bearer <WEBHOOK_SECRET>
-x-webhook-secret: <WEBHOOK_SECRET>
-https://SEU-DOMINIO/api/webhook?secret=<WEBHOOK_SECRET>
-```
 
 ---
 
@@ -200,6 +193,29 @@ WhatsApp → Aparelhos conectados → Conectar um aparelho.
   funciona, e duas instâncias com a mesma sessão derrubam uma à outra.
 - **Não é a API oficial.** Para avisar quem fez pedido o risco é baixo; disparo em massa
   para quem não pediu pode banir o número.
+
+### Atendente (ChatGPT)
+
+Toda mensagem que chega no WhatsApp conectado vai para o atendente de
+[`lib/bot`](src/lib/bot), que conversa, monta o carrinho e fecha o pedido pelo mesmo
+`create_order` do site. Pagamento: dinheiro (pergunta o troco) ou link da InfinitePay.
+
+- **Ele não tem acesso livre ao banco**, só às ferramentas de
+  [`ferramentas.ts`](src/lib/bot/ferramentas.ts): ver opções, mexer no carrinho, consultar
+  bairro e cupom, fechar pedido, ver os pedidos *do próprio número* e chamar atendente.
+  Uma conversa maliciosa não consegue ler dado de outro cliente nem mudar preço.
+- **O telefone do pedido é o de quem está falando**, nunca um que ele digitou.
+- Cardápio, taxas e horário são lidos do banco a cada resposta; a conversa e o carrinho
+  ficam em `bot_conversas` e são esquecidos depois de 6h parados.
+- Espera 8s de silêncio antes de responder, para juntar "oi" / "quero pizza" / "de
+  calabresa" numa resposta só. Mensagem de voz é transcrita.
+- **Sai da conversa sozinho**: quando o cliente pede atendente (24h), quando o próprio bot
+  chama (24h) ou quando alguém da loja responde pelo celular (3h). Despausar e pausar à mão:
+  Configurações → Controle de Bot. Desligar geral: o mesmo painel.
+- Loja fechada: avisa quando abre e tira dúvidas, mas não fecha pedido.
+
+O caminho antigo (Evolution → `/api/webhook` → n8n) foi desligado. A rota responde 200 e
+ignora, para a instância antiga não insistir nem responder em dobro.
 
 ### Tempo de entrega
 
@@ -336,7 +352,6 @@ desktop.
 
 ## Pendência conhecida
 
-O buffer de mensagens do bot ([`messageBuffer.ts`](src/services/messageBuffer.ts)) guarda
-as mensagens em memória com `setTimeout` de 30s. No Railway funciona, mas o buffer se perde
-a cada redeploy ou restart, e não sobrevive a múltiplas instâncias. Se for escalar, precisa
-sair para Redis ou uma tabela.
+A espera de 8s do atendente ([`atendimento.ts`](src/lib/bot/atendimento.ts)) fica em
+memória. Um restart bem no meio desses 8s perde a mensagem (o histórico e o carrinho não,
+esses estão no banco). Como o WhatsApp exige uma instância só, não há problema de várias.

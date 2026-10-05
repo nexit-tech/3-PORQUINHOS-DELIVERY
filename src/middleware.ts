@@ -70,10 +70,9 @@ export const config = {
     '/finance/:path*',
     '/settings/:path*',
     '/notifications/:path*',
-    // /api/evolution envia mensagem de WhatsApp para qualquer número:
-    // estava aberto para a internet inteira
-    '/api/evolution/:path*',
-    // Mesma coisa: conecta e desconecta o WhatsApp da loja
+    // Conecta e desconecta o WhatsApp da loja. A antiga /api/evolution, que
+    // mandava mensagem para qualquer número, ficou aberta para a internet
+    // inteira por um tempo; esta nasce trancada.
     '/api/whatsapp/:path*',
   ],
 };

@@ -10,7 +10,7 @@
 //
 // ⚠️ Não é a API oficial do WhatsApp. Para avisar quem fez pedido o risco é
 // baixo, mas disparo em massa para quem não pediu derruba o número.
-import type { WASocket } from 'baileys';
+import type { WAMessage, WASocket } from 'baileys';
 import QRCode from 'qrcode';
 import { apagarSessao, carregarSessao } from './authState';
 
@@ -67,6 +67,128 @@ const logger = {
   },
 };
 
+/** O que chega no WhatsApp da loja, já traduzido para o que interessa. */
+export interface MensagemRecebida {
+  /** Só dígitos, com DDI. */
+  phone: string;
+  /** Nome que o cliente usa no WhatsApp. */
+  nome: string | null;
+  texto: string | null;
+  /** Áudio (mensagem de voz), para transcrever. */
+  audio: Buffer | null;
+  /** Foto, figurinha, documento... que o bot não lê. */
+  outraMidia: boolean;
+}
+
+export interface Receptor {
+  mensagem(m: MensagemRecebida): Promise<void>;
+  /** Alguém da loja escreveu para este número pelo celular. */
+  lojaRespondeu(phone: string): Promise<void>;
+}
+
+let receptor: Receptor | null = null;
+
+/** Quem trata as mensagens recebidas (o bot). Sem receptor, elas são ignoradas. */
+export function definirReceptor(r: Receptor) {
+  receptor = r;
+}
+
+/**
+ * IDs das mensagens que o próprio servidor mandou. O WhatsApp devolve
+ * essas mensagens como "fromMe" igual às que o dono digita no celular;
+ * é por aqui que se sabe qual foi qual.
+ */
+const enviadasPeloServidor = new Set<string>();
+function lembrarEnvio(id: string | null | undefined) {
+  if (!id) return;
+  enviadasPeloServidor.add(id);
+  if (enviadasPeloServidor.size > 2000) {
+    const primeira = enviadasPeloServidor.values().next().value;
+    if (primeira) enviadasPeloServidor.delete(primeira);
+  }
+}
+
+/** Mensagem mais velha que isto é replay de reconexão, não conversa. */
+const IDADE_MAXIMA_S = 5 * 60;
+
+/**
+ * Telefone de quem mandou. No WhatsApp novo o remetente pode vir como LID
+ * (um id anônimo, "123@lid"); o número de verdade vem no remoteJidAlt.
+ */
+function telefoneDe(msg: WAMessage): string | null {
+  const key = msg.key as WAMessage['key'] & { remoteJidAlt?: string };
+  for (const jid of [key.remoteJid, key.remoteJidAlt]) {
+    if (jid?.endsWith('@s.whatsapp.net')) return jid.split('@')[0].split(':')[0];
+  }
+  return null;
+}
+
+function textoDe(msg: WAMessage): string | null {
+  const m = msg.message;
+  if (!m) return null;
+  return (
+    m.conversation ||
+    m.extendedTextMessage?.text ||
+    m.imageMessage?.caption ||
+    m.videoMessage?.caption ||
+    m.ephemeralMessage?.message?.conversation ||
+    m.ephemeralMessage?.message?.extendedTextMessage?.text ||
+    null
+  )?.trim() || null;
+}
+
+async function tratarMensagens(baileys: typeof import('baileys'), sock: WASocket, mensagens: WAMessage[], tipo: string) {
+  if (!receptor) return;
+
+  for (const msg of mensagens) {
+    const jid = msg.key.remoteJid || '';
+    // Grupo, status, canal: o bot não se mete
+    if (!jid || jid.endsWith('@g.us') || jid === 'status@broadcast' || jid.endsWith('@newsletter')) continue;
+    if (!msg.message || msg.message.protocolMessage || msg.message.reactionMessage) continue;
+
+    const enviadaEm = Number(msg.messageTimestamp || 0);
+    if (enviadaEm && Date.now() / 1000 - enviadaEm > IDADE_MAXIMA_S) continue;
+
+    const phone = telefoneDe(msg);
+    if (!phone) {
+      console.warn('[whatsapp] Mensagem sem número de telefone (só LID), ignorada:', jid);
+      continue;
+    }
+
+    if (msg.key.fromMe) {
+      // O eco da mensagem que o servidor mandou chega ANTES do sendMessage
+      // devolver o id. Esperar um pouco evita pausar o bot pela própria fala.
+      const id = msg.key.id;
+      const r = receptor;
+      setTimeout(() => {
+        if (id && enviadasPeloServidor.has(id)) return;
+        r.lojaRespondeu(phone).catch((e) => console.error('Erro ao pausar bot:', e));
+      }, 5_000);
+      continue;
+    }
+
+    // 'append' é histórico sincronizado, não mensagem nova
+    if (tipo !== 'notify') continue;
+
+    const m = msg.message;
+    let audio: Buffer | null = null;
+    if (m.audioMessage) {
+      try {
+        audio = (await baileys.downloadMediaMessage(msg, 'buffer', {})) as Buffer;
+      } catch (erro) {
+        console.error('[whatsapp] Não consegui baixar o áudio:', erro);
+      }
+    }
+
+    const texto = textoDe(msg);
+    const outraMidia = !texto && !m.audioMessage;
+
+    await receptor
+      .mensagem({ phone, nome: msg.pushName || null, texto, audio, outraMidia })
+      .catch((e) => console.error('Erro ao tratar mensagem recebida:', e));
+  }
+}
+
 export function statusWhatsapp() {
   return { estado: conexao.estado, qr: conexao.qr, numero: conexao.numero };
 }
@@ -121,6 +243,11 @@ async function abrir(soComSessao: boolean) {
   conexao.sock = sock;
 
   sock.ev.on('creds.update', saveCreds);
+
+  sock.ev.on('messages.upsert', ({ messages, type }) => {
+    if (sock !== conexao.sock) return;
+    tratarMensagens(baileys, sock, messages, type).catch((e) => console.error('Erro em messages.upsert:', e));
+  });
 
   sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
     if (sock !== conexao.sock) return;
@@ -230,7 +357,8 @@ export async function enviarTexto(telefone: string, texto: string) {
   for (const numero of candidatos(telefone)) {
     const [resultado] = (await sock.onWhatsApp(numero)) ?? [];
     if (resultado?.exists) {
-      await sock.sendMessage(resultado.jid, { text: texto });
+      const enviada = await sock.sendMessage(resultado.jid, { text: texto });
+      lembrarEnvio(enviada?.key?.id);
       return { enviado: true as const, jid: resultado.jid };
     }
   }

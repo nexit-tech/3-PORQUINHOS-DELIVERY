@@ -2,7 +2,6 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const { app } = require('electron');
-const axios = require('axios');
 
 function startServer() {
   console.log('[Server] 🚀 Iniciando servidor Express...');
@@ -50,88 +49,9 @@ function startServer() {
       `);
     });
 
-    // ========================================
-    // 🔥 ROTA: /api/evolution
-    // ========================================
-    expressApp.post('/api/evolution', async (req, res) => {
-      const EVOLUTION_URL = process.env.EVOLUTION_API_URL || '';
-      const API_KEY = process.env.EVOLUTION_API_KEY || '';
-      const INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME || '';
-
-      const api = axios.create({
-        baseURL: EVOLUTION_URL,
-        headers: {
-          'apikey': API_KEY,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      try {
-        const { action, phone, message } = req.body;
-        let responseData;
-
-        switch (action) {
-          case 'check':
-            try {
-              const { data } = await api.get(`/instance/connectionState/${INSTANCE_NAME}`);
-              responseData = data;
-            } catch (error) {
-              if (error.response?.status === 404) {
-                responseData = { state: 'not_found' };
-              } else {
-                throw error;
-              }
-            }
-            break;
-
-          case 'create':
-            const { data: createData } = await api.post('/instance/create', {
-              instanceName: INSTANCE_NAME,
-              qrcode: true,
-              integration: 'WHATSAPP-BAILEYS',
-            });
-            responseData = createData;
-            break;
-
-          case 'connect':
-            const { data: connectData } = await api.get(`/instance/connect/${INSTANCE_NAME}`);
-            responseData = connectData;
-            break;
-
-          case 'logout':
-            await api.delete(`/instance/logout/${INSTANCE_NAME}`);
-            responseData = { success: true };
-            break;
-
-          case 'send':
-            if (!phone || !message) {
-              return res.status(400).json({ error: 'Phone e message são obrigatórios' });
-            }
-
-            const cleanPhone = phone.replace(/\D/g, '');
-            
-            const { data: sendData } = await api.post(`/message/sendText/${INSTANCE_NAME}`, {
-              number: `55${cleanPhone}@s.whatsapp.net`,
-              text: message
-            });
-            
-            responseData = sendData;
-            break;
-
-          default:
-            return res.status(400).json({ error: 'Ação inválida' });
-        }
-
-        res.json(responseData);
-
-      } catch (error) {
-        console.error('[API Evolution] Erro:', error.response?.data || error.message);
-        res.status(500).json({ 
-          error: 'Erro ao comunicar com a Evolution API',
-          details: error.response?.data || error.message
-        });
-      }
-    });
+    // A rota /api/evolution foi removida: o WhatsApp agora conecta pelo QR
+    // Code no servidor web (Railway), e quem manda as mensagens é ele.
+    // O desktop não fala com o WhatsApp.
 
     // A rota /api/auth/login foi removida: o login agora é do Supabase Auth,
     // feito direto pelo cliente. No desktop o app entra sozinho com as
@@ -161,7 +81,6 @@ function startServer() {
       console.log(`[Server] ✅ Servidor rodando em http://127.0.0.1:${port}`);
       console.log('[Server] 📋 Rotas ativas:');
       console.log('  - GET  /runtime-config.js');
-      console.log('  - POST /api/evolution');
     });
 
     server.on('error', (error) => {

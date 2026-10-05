@@ -1,8 +1,10 @@
 // src/lib/whatsapp/servidor.ts
-// Ponto único para ligar o WhatsApp do servidor: a conexão e o envio dos
-// status de pedido andam juntos.
-import { conectarWhatsapp } from './conexao';
+// Ponto único para ligar o WhatsApp do servidor: a conexão, o envio dos
+// status de pedido e o atendente (bot) andam juntos.
+import { conectarWhatsapp, definirReceptor } from './conexao';
 import { ligarNotificador } from './notificador';
+import { humanoAssumiu, receberMensagem } from '@/lib/bot/atendimento';
+import { botConfigurado, transcrever } from '@/lib/bot/agente';
 
 /**
  * Ligado por padrão só em produção. No `npm run dev`, o servidor local usa o
@@ -16,7 +18,33 @@ export function whatsappHabilitado(): boolean {
   return process.env.NODE_ENV === 'production';
 }
 
+function ligarAtendente() {
+  definirReceptor({
+    async mensagem({ phone, nome, texto, audio, outraMidia }) {
+      let conteudo = texto;
+
+      if (!conteudo && audio && botConfigurado()) {
+        try {
+          const transcrito = await transcrever(audio);
+          if (transcrito) conteudo = `[mensagem de voz] ${transcrito}`;
+        } catch (erro) {
+          console.error('Erro ao transcrever áudio:', erro);
+        }
+        if (!conteudo) conteudo = '[o cliente mandou um áudio que não deu para entender]';
+      }
+
+      if (!conteudo && outraMidia) {
+        conteudo = '[o cliente mandou uma foto, figurinha ou arquivo, sem texto — você só lê texto e áudio]';
+      }
+
+      if (conteudo) await receberMensagem(phone, conteudo, nome);
+    },
+    lojaRespondeu: humanoAssumiu,
+  });
+}
+
 export async function ligarWhatsapp(opcoes?: { soComSessao?: boolean }) {
   ligarNotificador();
+  ligarAtendente();
   return conectarWhatsapp(opcoes);
 }
