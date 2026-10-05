@@ -63,6 +63,7 @@ Projeto: **Delivery 3 porquinhos** (`tgugjefgwwluycrkhcss`, sa-east-1).
 | `04-rls-pedidos.sql` | Liga a RLS e tranca o acesso | ✅ aplicado |
 | `10-somente-pagamento-online.sql` | Trigger que recusa pedido "pagar na entrega" | ⚠️ substituída pela `12` |
 | `12-aceitar-dinheiro.sql` | Libera dinheiro na entrega; recusa as outras formas fora do site | ⏳ **rodar no banco** |
+| `13-whatsapp-sessao.sql` | Tabela `whatsapp_auth`, onde fica a sessão do WhatsApp conectado por QR | ✅ aplicado |
 | `06-service-role.sql` | Conferência: RLS, políticas e Realtime | — |
 
 Os aplicados são todos **aditivos**: criam função ou tabela e não mudam o comportamento
@@ -96,7 +97,9 @@ do código que já está em produção.
 | `INFINITEPAY_HANDLE` | só p/ pagamento online | Sua InfiniteTag, **sem o `$`**. Vazia = a opção "Pagar agora" nem aparece no checkout |
 | `NEXT_PUBLIC_APP_URL` | só p/ pagamento online | Domínio público da loja. É dele que saem a `webhook_url` e a `redirect_url` |
 | `INFINITEPAY_API_URL` | opcional | Sobrescreve a base da API (padrão `https://api.checkout.infinitepay.io`) |
-| `EVOLUTION_API_URL` / `_KEY` / `_INSTANCE_NAME` | opcional | Envio de WhatsApp |
+| `WHATSAPP_ENABLED` | opcional | Liga o WhatsApp por QR neste servidor. Padrão: ligado em produção, desligado no `npm run dev` |
+| `WHATSAPP_SESSION` | opcional | Nome da sessão em `whatsapp_auth` (padrão `principal`). Use outro nome para testar local |
+| `EVOLUTION_API_URL` / `_KEY` / `_INSTANCE_NAME` | opcional | Bot de atendimento (webhook da Evolution). O andamento do pedido **não** usa mais |
 | `N8N_WEBHOOK_URL` | opcional | Destino das mensagens agrupadas pelo bot |
 | `NEXT_PUBLIC_STORE_*` | opcional | Nome, telefone e site da loja no cupom e nas mensagens |
 | `VIP_NUMBERS` | opcional | Números que o bot responde mesmo fora do horário |
@@ -167,6 +170,42 @@ aceito, aceito mas não pago, criado e abandonado no checkout.
 
 Pedido pago que acabar cancelado levanta `payment_needs_refund` com `payment_conflict_reason`,
 em vez de sumir do painel. Toda tentativa fica registrada em `payment_attempts`.
+
+---
+
+## WhatsApp por QR Code (andamento do pedido)
+
+O servidor conecta no WhatsApp da loja como um "aparelho conectado", igual ao WhatsApp
+Web, usando a biblioteca [Baileys](https://github.com/WhiskeySockets/Baileys). Não passa
+por Evolution, Z-API nem API oficial.
+
+Para ligar: rodar o `13-whatsapp-sessao.sql`, fazer o deploy e, no painel web,
+**Configurações → Conectar WhatsApp → Gerar QR Code**. No celular da loja:
+WhatsApp → Aparelhos conectados → Conectar um aparelho.
+
+| Peça | Onde |
+|---|---|
+| Conexão, QR e reconexão automática | [`lib/whatsapp/conexao.ts`](src/lib/whatsapp/conexao.ts) |
+| Sessão salva no banco (sobrevive a deploy) | [`lib/whatsapp/authState.ts`](src/lib/whatsapp/authState.ts) |
+| Envio do status: aceito, saiu/pronto, finalizado, cancelado | [`lib/whatsapp/notificador.ts`](src/lib/whatsapp/notificador.ts) |
+| Liga tudo quando o servidor sobe | [`instrumentation.ts`](src/instrumentation.ts) |
+
+- **Quem envia é o servidor**, consultando o banco a cada 15s. Não depende de painel
+  aberto, e funciona igual se a loja usa o app desktop. Se o WhatsApp cair, as mensagens
+  dos pedidos das últimas 6h saem quando ele voltar.
+- **Não manda nada no `PENDING`.** O telefone é digitado sem verificação; mandar mensagem
+  quando o pedido nasce deixaria qualquer um disparar WhatsApp para o número de outra
+  pessoa. A primeira mensagem sai quando a loja aceita.
+- **Precisa de servidor sempre ligado** (Railway, uma instância só). Em serverless não
+  funciona, e duas instâncias com a mesma sessão derrubam uma à outra.
+- **Não é a API oficial.** Para avisar quem fez pedido o risco é baixo; disparo em massa
+  para quem não pediu pode banir o número.
+
+### Tempo de entrega
+
+Configurações → Tempo de entrega (padrão 40 min, salvo em `bot_settings.delivery_minutes`).
+Vira o cronômetro regressivo da tela [`/pedido/confirmado`](src/app/pedido/confirmado/page.tsx),
+que conta a partir da hora do pedido, e o "previsão: até as HH:MM" da mensagem de aceite.
 
 ---
 

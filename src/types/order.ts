@@ -30,6 +30,8 @@ export interface Order {
   paymentStatus?: PaymentStatus;
   paymentReceiptUrl?: string | null;
   createdAt: string;
+  /** created_at cru (ISO). É de onde o cronômetro de entrega conta. */
+  placedAt?: string;
   updatedAt: string;
 }
 

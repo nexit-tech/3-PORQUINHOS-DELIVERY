@@ -8,11 +8,12 @@ import OpeningHours from '@/components/admin/OpeningHours';
 import DeliveryFees from '@/components/admin/DeliveryFees';
 import WhatsappConnect from '@/components/admin/WhatsappConnect';
 import BotManagement from '@/components/admin/BotManagement';
-import { Clock, Bike, Printer, MessageCircle, Bot } from 'lucide-react';
+import DeliveryTime from '@/components/admin/DeliveryTime';
+import { Clock, Bike, Printer, MessageCircle, Bot, Timer } from 'lucide-react';
 import styles from './page.module.css';
 import { PrinterSettings } from '@/components/admin/PrinterSettings';
 
-type SettingType = 'HOURS' | 'FEES' | 'PRINTER' | 'WHATSAPP' | 'BOT' | null;
+type SettingType = 'HOURS' | 'FEES' | 'PRINTER' | 'WHATSAPP' | 'BOT' | 'DELIVERY_TIME' | null;
 
 export default function SettingsPage() {
   const [activeSetting, setActiveSetting] = useState<SettingType>(null);
@@ -24,6 +25,7 @@ export default function SettingsPage() {
       case 'WHATSAPP': return <WhatsappConnect />;
       case 'PRINTER': return <PrinterSettings />;
       case 'BOT': return <BotManagement />;
+      case 'DELIVERY_TIME': return <DeliveryTime />;
     }
   };
 
@@ -34,6 +36,7 @@ export default function SettingsPage() {
       case 'WHATSAPP': return 'Conexão WhatsApp';
       case 'PRINTER': return 'Impressoras';
       case 'BOT': return 'Controle de Bot';
+      case 'DELIVERY_TIME': return 'Tempo de Entrega';
       default: return '';
     }
   };
@@ -48,7 +51,7 @@ export default function SettingsPage() {
       <div className={styles.grid}>
         <SettingsCard 
           title="Conectar WhatsApp" 
-          description="Vincule seu número para receber pedidos automaticamente."
+          description="Conecte por QR Code e o cliente recebe o andamento do pedido."
           icon={MessageCircle}
           statusColor="green"
           onClick={() => setActiveSetting('WHATSAPP')}
@@ -70,6 +73,14 @@ export default function SettingsPage() {
           onClick={() => setActiveSetting('HOURS')}
         />
         
+        <SettingsCard
+          title="Tempo de Entrega"
+          description="Prazo do cronômetro que o cliente vê depois de pedir."
+          icon={Timer}
+          statusColor="green"
+          onClick={() => setActiveSetting('DELIVERY_TIME')}
+        />
+
         <SettingsCard 
           title="Taxas de Entrega" 
           description="Configure valores por bairro ou km."

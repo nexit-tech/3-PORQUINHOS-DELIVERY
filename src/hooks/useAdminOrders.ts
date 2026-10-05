@@ -4,11 +4,6 @@ import { supabase } from '@/services/supabase';
 import { Order, OrderStatus } from '@/types/order';
 import { printReceipt } from '@/utils/printReceipt';
 import { loadPrinterSettings, shouldAutoPrint } from '@/lib/printerSettings';
-import {
-  notifyOrderAccepted,
-  notifyOrderDelivering,
-  notifyOrderCanceled,
-} from '@/services/notifications';
 
 function mapOrder(raw: any): Order {
   return {
@@ -38,36 +33,6 @@ function mapOrder(raw: any): Order {
       customizations: item.customizations || {},
     })),
   };
-}
-
-/**
- * Tenta "reservar" o envio da notificação deste pedido/status.
- *
- * O listener realtime roda em TODO painel aberto, então sem isso o cliente
- * recebia uma mensagem de WhatsApp por aba/máquina aberta. A reserva é uma
- * linha com chave primária (order_id, status): só o primeiro consegue inserir.
- *
- * Se a tabela ainda não existir (SQL não rodado), segue em frente — melhor
- * duplicar do que deixar o cliente sem aviso nenhum.
- */
-async function claimNotification(orderId: number, status: string): Promise<boolean> {
-  const { error } = await supabase
-    .from('order_notifications')
-    .insert({ order_id: orderId, status });
-
-  if (!error) return true;
-
-  // 23505 = unique_violation: outro painel já enviou
-  if ((error as any).code === '23505') {
-    console.log(`↩️ Notificação de ${status} do pedido ${orderId} já foi enviada por outro painel.`);
-    return false;
-  }
-
-  console.warn(
-    '⚠️ Não consegui reservar a notificação (a tabela order_notifications existe?). Seguindo sem proteção contra duplicata:',
-    error
-  );
-  return true;
 }
 
 export function useAdminOrders() {
@@ -148,25 +113,15 @@ export function useAdminOrders() {
 
           if (!newStatus || !newId || newStatus === oldStatus) return;
 
-          // Pedido que nunca foi pago não gera notificação nem impressão.
-          //
-          // Sem isto, todo carrinho abandonado no checkout online virava
-          // CANCELED na expiração e disparava "Seu pedido foi CANCELADO"
-          // no WhatsApp de alguém que nunca fechou pedido. Como o telefone
-          // é digitado sem verificação, isso vira relay: qualquer um cria
-          // pedido com o número da vítima, não paga, e espera a loja
-          // mandar mensagem por ele.
+          // A mensagem de WhatsApp para o cliente NÃO sai mais daqui: quem
+          // envia é o servidor (src/lib/whatsapp/notificador.ts), que não
+          // depende de painel aberto. Aqui sobrou só a impressão automática,
+          // que é decisão de cada máquina.
+          if (newStatus !== 'PREPARING' || !shouldAutoPrint()) return;
+
+          // Pedido que nunca foi pago não vai para a impressora
           const paymentStatus = String(newRecord?.payment_status ?? 'ON_DELIVERY');
-          if (['AWAITING', 'EXPIRED', 'FAILED'].includes(paymentStatus)) {
-            console.log(`↩️ Pedido ${newId} sem pagamento confirmado: sem notificação.`);
-            return;
-          }
-
-          const isNotifiable =
-            newStatus === 'PREPARING' || newStatus === 'DELIVERING' || newStatus === 'CANCELED';
-          const wantsPrint = newStatus === 'PREPARING' && shouldAutoPrint();
-
-          if (!isNotifiable && !wantsPrint) return;
+          if (['AWAITING', 'EXPIRED', 'FAILED'].includes(paymentStatus)) return;
 
           const { data: fullOrder } = await supabase
             .from('orders')
@@ -176,28 +131,10 @@ export function useAdminOrders() {
 
           if (!fullOrder) return;
 
-          const order = mapOrder(fullOrder);
-
-          // IMPRESSÃO: decisão local. Só imprime a máquina que tem impressora
-          // configurada e o aceite automático de impressão ligado.
-          if (wantsPrint) {
-            try {
-              await printReceipt(order, loadPrinterSettings(), 1);
-            } catch (error) {
-              console.error('❌ Erro ao imprimir automaticamente:', error);
-            }
-          }
-
-          // NOTIFICAÇÃO: uma vez só, não importa quantos painéis estejam abertos.
-          if (!isNotifiable) return;
-          if (!(await claimNotification(newId, newStatus))) return;
-
-          if (newStatus === 'PREPARING') {
-            await notifyOrderAccepted(order);
-          } else if (newStatus === 'DELIVERING') {
-            await notifyOrderDelivering(order);
-          } else if (newStatus === 'CANCELED') {
-            await notifyOrderCanceled(order);
+          try {
+            await printReceipt(mapOrder(fullOrder), loadPrinterSettings(), 1);
+          } catch (error) {
+            console.error('❌ Erro ao imprimir automaticamente:', error);
           }
         }
       )

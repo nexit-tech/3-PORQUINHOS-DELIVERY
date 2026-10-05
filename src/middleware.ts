@@ -73,5 +73,7 @@ export const config = {
     // /api/evolution envia mensagem de WhatsApp para qualquer número:
     // estava aberto para a internet inteira
     '/api/evolution/:path*',
+    // Mesma coisa: conecta e desconecta o WhatsApp da loja
+    '/api/whatsapp/:path*',
   ],
 };

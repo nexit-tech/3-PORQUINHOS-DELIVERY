@@ -1,0 +1,109 @@
+.digitos {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* --- Grande: anel com o tempo no meio --- */
+
+.grande {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.anel {
+  width: min(220px, 62vw);
+  height: auto;
+  transform: rotate(-90deg);
+}
+
+.trilho {
+  fill: none;
+  stroke: var(--laranja-tint-2);
+  stroke-width: 12;
+}
+
+.progresso {
+  fill: none;
+  stroke: var(--laranja);
+  stroke-width: 12;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+
+.centro {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  aspect-ratio: 1;
+  width: min(220px, 62vw);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.tempo {
+  font-size: clamp(2.6rem, 13vw, 3.4rem);
+  font-weight: 900;
+  color: var(--tinta);
+  line-height: 1;
+}
+
+.legenda {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--tinta-2);
+}
+
+.aviso {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--laranja-escuro);
+  text-align: center;
+}
+
+.finalizado {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 20px;
+  border-radius: var(--r-m);
+  background: var(--verde-tint);
+  color: var(--verde);
+  font-weight: 800;
+}
+
+/* --- Compacto: uma linha, para o card de Meus Pedidos --- */
+
+.compacto {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  border-radius: var(--r-p);
+  background: var(--laranja-tint);
+  color: var(--laranja-escuro);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.compacto strong {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: var(--tinta);
+}
+
+.compactoEsgotado {
+  background: var(--laranja-tint-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progresso { transition: none; }
+}

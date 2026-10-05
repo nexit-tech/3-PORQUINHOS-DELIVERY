@@ -61,6 +61,7 @@ export function useOrders(onlyActive = true) {
         discount: Number(order.discount || 0),
         couponCode: order.coupon_code || null,
         createdAt: new Date(order.created_at).toLocaleDateString('pt-BR', { timeZone: STORE_TZ }),
+        placedAt: order.created_at,
         updatedAt: order.updated_at,
         items: (order.items || []).map((item: any) => ({
           id: item.id,

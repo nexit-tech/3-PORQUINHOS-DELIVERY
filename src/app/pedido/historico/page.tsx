@@ -3,6 +3,8 @@
 import { ArrowLeft, ShoppingBag, MessageCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useOrders } from '@/hooks/useOrders';
+import { useTempoEntrega } from '@/hooks/useTempoEntrega';
+import CronometroEntrega from '@/components/client/CronometroEntrega';
 import { whatsappLink } from '@/config/store';
 import styles from './page.module.css';
 
@@ -24,6 +26,7 @@ export default function HistoricoPage() {
   // Pedido sem pagamento nem chega aqui: o useOrders filtra os AWAITING e
   // manda expirar os abandonados antes de listar.
   const { orders, loading } = useOrders();
+  const minutosEntrega = useTempoEntrega();
 
   const handleHelpClick = (orderId: string | number) => {
     const cleanId = String(orderId).replace('#', '');
@@ -67,6 +70,16 @@ export default function HistoricoPage() {
                   <span className={`${styles.statusBadge} ${statusInfo.tom}`}>
                     {statusInfo.label}
                   </span>
+
+                  {order.placedAt && (
+                    <CronometroEntrega
+                      variante="compacto"
+                      inicio={order.placedAt}
+                      minutos={minutosEntrega}
+                      status={order.status}
+                      retirada={order.customerAddress?.toUpperCase().includes('RETIRADA')}
+                    />
+                  )}
 
                   <div className={styles.itemsList}>
                     {order.items.map((item, idx) => (

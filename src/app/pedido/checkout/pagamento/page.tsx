@@ -243,7 +243,7 @@ export default function PagamentoPage() {
       // ser limpo aqui mesmo.
       if (forma === 'dinheiro') {
         clearCart();
-        router.push('/pedido/historico');
+        router.push(`/pedido/confirmado?id=${orderId}`);
         return;
       }
 

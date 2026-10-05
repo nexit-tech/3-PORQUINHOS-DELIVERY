@@ -1,0 +1,210 @@
+/* =====================================================================
+   Pedido realizado
+   =====================================================================
+   O pedido pedia "PEDIDO REALIZADO grande": é a primeira coisa que o
+   cliente vê depois de pagar, e tem que acabar com a dúvida "deu certo?"
+   antes de qualquer outra informação. Por isso o título ocupa a largura da
+   tela e o resto vem embaixo, num card que sobe por cima do laranja.
+   ===================================================================== */
+
+.container {
+  min-height: 100dvh;
+  background: var(--fundo);
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+}
+
+.hero {
+  background: linear-gradient(160deg, var(--laranja-claro) 0%, var(--laranja) 45%, var(--laranja-escuro) 100%);
+  color: #fff;
+  padding: 56px 20px 88px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.heroCancelado {
+  background: linear-gradient(160deg, #78716c 0%, #57534e 100%);
+}
+
+.selo {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--laranja-escuro);
+  display: grid;
+  place-items: center;
+  margin-bottom: 20px;
+  box-shadow: 0 10px 30px -8px rgba(0, 0, 0, 0.35);
+  animation: carimbo 0.55s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+
+.heroCancelado .selo { color: #57534e; }
+
+.titulo {
+  font-size: clamp(2.6rem, 13vw, 4.2rem);
+  font-weight: 900;
+  text-transform: uppercase;
+  line-height: 0.95 !important;
+  letter-spacing: -0.035em !important;
+  text-wrap: balance;
+  animation: subir 0.5s 0.15s ease-out both;
+}
+
+.numero {
+  margin-top: 14px;
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.2);
+  font-weight: 800;
+  font-size: 0.95rem;
+  animation: subir 0.5s 0.25s ease-out both;
+}
+
+.conteudo {
+  width: 100%;
+  max-width: var(--coluna);
+  margin: -56px auto 0;
+  padding: 0 20px 130px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card {
+  background: var(--papel);
+  border-radius: var(--r-g);
+  box-shadow: var(--sombra-alta);
+  padding: 28px 20px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.texto {
+  color: var(--tinta-2);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+/* --- Etapas --- */
+
+.etapas {
+  list-style: none;
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  position: relative;
+}
+
+/* Trilho que liga os pontos */
+.etapas::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 12.5%;
+  right: 12.5%;
+  height: 2px;
+  background: var(--linha);
+}
+
+.etapas li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--tinta-3);
+  text-align: center;
+}
+
+.ponto {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--papel);
+  border: 2px solid var(--linha);
+  position: relative;
+}
+
+.etapas .feita { color: var(--tinta-2); }
+.etapas .feita .ponto { background: var(--laranja); border-color: var(--laranja); }
+
+.etapas .atual { color: var(--tinta); font-weight: 800; }
+.etapas .atual .ponto {
+  background: var(--laranja);
+  border-color: var(--laranja);
+  box-shadow: 0 0 0 5px var(--laranja-tint-2);
+  animation: pulsar 1.8s ease-in-out infinite;
+}
+
+.whats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--verde);
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* --- Ações --- */
+
+.acoes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.botao {
+  width: 100%;
+  padding: 16px;
+  border-radius: var(--r-pill);
+  background: var(--laranja);
+  color: #fff;
+  font-weight: 800;
+  font-size: 1rem;
+  text-align: center;
+  box-shadow: var(--sombra-laranja);
+}
+.botao:active { transform: scale(0.985); }
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tinta-2);
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@keyframes carimbo {
+  from { transform: scale(0.3) rotate(-20deg); opacity: 0; }
+  to { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+@keyframes subir {
+  from { transform: translateY(14px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes pulsar {
+  0%, 100% { box-shadow: 0 0 0 5px var(--laranja-tint-2); }
+  50% { box-shadow: 0 0 0 9px var(--laranja-tint); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .selo, .titulo, .numero, .etapas .atual .ponto { animation: none; }
+}

@@ -70,6 +70,12 @@ function Retorno() {
             clearCart();
           }
           setEstado('pago');
+
+          // Mesma tela grande de "Pedido realizado" do pagamento em dinheiro.
+          // replace: o "voltar" do celular não pode cair aqui e verificar de novo.
+          const destino = new URLSearchParams({ id: orderNsu });
+          if (receiptUrl) destino.set('comprovante', receiptUrl);
+          router.replace(`/pedido/confirmado?${destino}`);
           return;
         }
 
@@ -105,7 +111,7 @@ function Retorno() {
       cancelado = true;
       controller.abort();
     };
-  }, [orderNsu, transactionNsu, slug, rodada, clearCart]);
+  }, [orderNsu, transactionNsu, slug, rodada, clearCart, receiptUrl, router]);
 
   if (estado === 'pago') {
     return (

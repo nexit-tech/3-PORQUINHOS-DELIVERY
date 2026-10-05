@@ -38,6 +38,8 @@ const CONFIG_BACKUP = path.join(BACKUP_DIR, 'next.config.ts');
 const HIDDEN_PATHS = [
   { label: 'Rotas de API', from: path.join(ROOT, 'src', 'app', 'api'), to: path.join(BACKUP_DIR, 'api') },
   { label: 'Middleware', from: path.join(ROOT, 'src', 'middleware.ts'), to: path.join(BACKUP_DIR, 'middleware.ts') },
+  // Liga o WhatsApp no boot do servidor; o desktop não tem servidor Next
+  { label: 'Instrumentation', from: path.join(ROOT, 'src', 'instrumentation.ts'), to: path.join(BACKUP_DIR, 'instrumentation.ts') },
 ];
 
 const ELECTRON_CONFIG = `import type { NextConfig } from "next";

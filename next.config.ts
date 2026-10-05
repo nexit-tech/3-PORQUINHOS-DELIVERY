@@ -4,6 +4,10 @@ const nextConfig: NextConfig = {
   // 🔥 MUDANÇA PRINCIPAL: De 'export' para 'standalone'
   // Isso permite que APIs e Cron Jobs funcionem no Railway
   output: 'standalone',
+
+  // O Baileys (WhatsApp) é ESM puro e carrega módulos nativos/wasm: tem que
+  // ser lido do node_modules em tempo de execução, não empacotado pelo webpack.
+  serverExternalPackages: ['baileys'],
   
   // ❌ REMOVIDO: distDir: 'out' (não é usado no modo standalone)
 
