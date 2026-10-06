@@ -133,6 +133,118 @@ export const FAQ_PADRAO: PerguntaResposta[] = [
     'Tem pizza menor?',
     'No momento trabalhamos somente com:\n🍕 Pizza salgada: 35 cm, 8 fatias\n🍫 Pizza doce: 25 cm, 4 fatias'
   ),
+
+  // --- Pedido ---
+  pr('como-pedir', 'Como faço para pedir?', 'Você pode fazer seu pedido pelo nosso cardápio digital ou aqui mesmo comigo. [mande o link do site]'),
+  pr('pedir-whatsapp', 'Posso fazer meu pedido pelo WhatsApp?', 'Sim! 😊 Podemos te ajudar pelo WhatsApp.'),
+  pr('retirada', 'Posso retirar a pizza na pizzaria?', 'Sim! Temos a opção de retirada em São Cristóvão.'),
+  pr('sabor-doce', 'Posso escolher o sabor da pizza doce?', 'Sim! Temos opções de pizzas doces disponíveis no cardápio. [mostre os sabores com ver_opcoes]'),
+  pr(
+    'trocar-ingrediente',
+    'Posso trocar algum ingrediente da pizza?',
+    'Algumas alterações são possíveis. Me diga qual ingrediente você gostaria de trocar que verifico para você. [anote o pedido de troca na observação do item; se não souber se dá, chame um atendente]'
+  ),
+  pr('tirar-ingrediente', 'Posso tirar algum ingrediente?', 'Sim, podemos retirar ingredientes. 😊 [anote na observação do item, ex: "sem cebola"]'),
+  pr(
+    'acrescentar',
+    'Posso acrescentar ingredientes?',
+    'Algumas opções podem ser acrescentadas. Me diga o que deseja adicionar. [use as opções de "Turbinar Pizza" do produto; o que não estiver lá, não prometa]'
+  ),
+
+  // --- Pagamento ---
+  pr('pix', 'Aceita Pix?', 'Sim! Aceitamos Pix. 💚 [o Pix é pelo link de pagamento online]'),
+  pr(
+    'pagar-entrega',
+    'Posso pagar na entrega?',
+    'Sim! Na entrega aceitamos dinheiro. 💵 Pix e cartão são pelo link de pagamento online, antes de sair.'
+  ),
+  pr(
+    'cartao-entrega',
+    'Posso pagar com cartão na entrega?',
+    'O cartão é pelo link de pagamento online que eu te mando aqui. 💳 Na entrega, só dinheiro.'
+  ),
+  pr(
+    'pagar-antes',
+    'Preciso pagar antes de receber?',
+    'Não necessariamente. Temos opções de pagamento online e pagamento em dinheiro na entrega.'
+  ),
+
+  // --- Entrega ---
+  pr(
+    'entrega-endereco',
+    'Vocês entregam no meu endereço?',
+    'Me envie seu bairro para verificarmos a disponibilidade da entrega. [confira com consultar_bairro]'
+  ),
+  pr(
+    'custo-entrega',
+    'Quanto custa a entrega?',
+    'O valor depende da região. Me informe seu bairro que verifico para você. [confira com consultar_bairro e diga a taxa]'
+  ),
+  pr(
+    'entrega-bairro',
+    'Vocês entregam no bairro X?',
+    '[confira o bairro com consultar_bairro e responda na hora se entrega e quanto custa]'
+  ),
+  pr(
+    'acompanhar',
+    'Posso acompanhar a entrega?',
+    'Sim! Você recebe aqui no WhatsApp cada etapa: quando o pedido é aceito, quando sai para entrega e quando é finalizado. 😊'
+  ),
+
+  // --- Produto ---
+  pr('fatias', 'Quantos pedaços vêm na pizza?', 'As pizzas salgadas têm 8 fatias e as doces têm 4 fatias.'),
+  pr(
+    'serve-quantos',
+    'A pizza serve quantas pessoas?',
+    'A pizza salgada de 35 cm tem 8 fatias e pode variar conforme a fome e o perfil das pessoas. 😋'
+  ),
+  pr('leite', 'A massa contém leite?', 'Sim. Nossa massa gourmet é preparada com ovos e leite.'),
+  pr('ovos', 'A massa contém ovos?', 'Sim. Nossa massa gourmet é preparada com ovos e leite.'),
+  pr('qualidade', 'Vocês usam produtos de boa qualidade?', 'Sim! Trabalhamos com ingredientes selecionados e valorizamos produtos de qualidade.'),
+  pr('sem-lactose', 'Vocês fazem pizza sem lactose?', 'No momento não trabalhamos com uma opção específica sem lactose.'),
+  pr(
+    'vegetariana',
+    'Vocês fazem pizza vegetariana?',
+    'Temos opções no cardápio que não levam carne. Posso te mostrar as opções disponíveis. [mostre os sabores sem carne do cardápio]'
+  ),
+
+  // --- Funcionamento ---
+  // Sem horário escrito aqui de propósito: o bot lê a grade real (Configurações
+  // → Horários). Horário fixo no texto ficaria errado no dia em que mudar.
+  pr('abrem', 'Que horas vocês abrem?', '[responda com o horário de hoje, da seção Horários]'),
+  pr('aberto-hoje', 'Vocês estão funcionando hoje?', '[diga se hoje abre e em que horário, da seção Horários]'),
+  pr(
+    'antes-abrir',
+    'Posso fazer o pedido antes de vocês abrirem?',
+    'O atendimento começa no horário de abertura. [diga o horário de hoje; com a loja fechada não dá para fechar pedido]'
+  ),
+
+  // --- Atendimento humano e problemas ---
+  pr(
+    'falar-pessoa',
+    'Quero falar com uma pessoa.',
+    'Claro! Vou encaminhar seu atendimento para um de nossos atendentes. 😊 [use chamar_atendente]'
+  ),
+  pr(
+    'problema-pedido',
+    'Tenho um problema com meu pedido.',
+    'Sinto muito! 😔 Vou encaminhar você para um atendente para verificarmos o que aconteceu. [use chamar_atendente]'
+  ),
+  pr(
+    'atrasado',
+    'Meu pedido está atrasado.',
+    'Vou verificar o status do seu pedido e te ajudar. [use meus_pedidos e diga o status; se passou da previsão ou o cliente estiver chateado, use chamar_atendente]'
+  ),
+  pr(
+    'veio-errado',
+    'Meu pedido veio errado.',
+    'Sinto muito pelo ocorrido! 😔 Vou encaminhar para um atendente verificar e resolver para você. [use chamar_atendente]'
+  ),
+  pr(
+    'cancelar',
+    'Quero cancelar meu pedido.',
+    'Vou encaminhar seu atendimento para verificarmos a possibilidade de cancelamento. [use chamar_atendente]'
+  ),
 ];
 
 export function normalizarConfig(valor: unknown): ConfigIA {
