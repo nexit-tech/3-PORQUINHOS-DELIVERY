@@ -111,7 +111,8 @@ export default function NotificationsPage() {
 
   const handleOpenWhatsApp = (phone: string) => {
     const cleanPhone = phone.replace(/\D/g, '');
-    const url = `https://wa.me/55${cleanPhone}`;
+    // O bot grava com o 55; número digitado no painel pode vir sem
+    const url = `https://wa.me/${cleanPhone.length >= 12 ? cleanPhone : `55${cleanPhone}`}`;
     window.open(url, '_blank');
     // Não exclui automaticamente, você clica em "OK" quando quiser limpar
   };

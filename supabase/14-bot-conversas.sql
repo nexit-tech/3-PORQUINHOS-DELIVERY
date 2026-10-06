@@ -11,8 +11,8 @@
 -- e os preços são lidos de novo do banco a cada resposta, então nada velho
 -- fica preso no histórico.
 --
--- RLS ligada. Quem escreve é o servidor (service_role). O admin logado pode
--- LER, para um dia o painel mostrar as conversas; o visitante não vê nada.
+-- RLS ligada. Quem escreve é o servidor (service_role). O admin logado lê
+-- e apaga pela página Atendente IA; o visitante não vê nada.
 -- =====================================================================
 
 CREATE TABLE IF NOT EXISTS bot_conversas (
@@ -30,10 +30,12 @@ ALTER TABLE bot_conversas ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON bot_conversas FROM anon;
 
 DROP POLICY IF EXISTS bot_conversas_admin_le ON bot_conversas;
-CREATE POLICY bot_conversas_admin_le
-  ON bot_conversas FOR SELECT
+DROP POLICY IF EXISTS bot_conversas_admin ON bot_conversas;
+CREATE POLICY bot_conversas_admin
+  ON bot_conversas FOR ALL
   TO authenticated
-  USING (true);
+  USING (true)
+  WITH CHECK (true);
 
 COMMENT ON TABLE bot_conversas IS
   'Histórico e carrinho do atendente de WhatsApp, por telefone. Escrita só pelo servidor.';

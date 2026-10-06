@@ -207,7 +207,13 @@ function publicarStatus(forcar = false) {
 
   setBotSetting(
     STATUS_KEY,
-    { estado: conexao.estado, numero: conexao.numero, at: new Date().toISOString() },
+    {
+      estado: conexao.estado,
+      numero: conexao.numero,
+      // A página Atendente IA mostra se falta a chave da OpenAI
+      ia: Boolean(process.env.OPENAI_API_KEY),
+      at: new Date().toISOString(),
+    },
     getSupabaseAdmin()
   ).catch((e) => console.error('Erro ao publicar status do WhatsApp:', e));
 }
@@ -388,20 +394,31 @@ export class WhatsappDesconectado extends Error {
   }
 }
 
-export async function enviarTexto(telefone: string, texto: string) {
+type Conteudo = { text: string } | { image: { url: string }; caption?: string };
+
+async function enviar(telefone: string, conteudo: Conteudo) {
   const sock = conexao.sock;
   if (!sock || conexao.estado !== 'conectado') throw new WhatsappDesconectado();
 
   for (const numero of candidatos(telefone)) {
     const [resultado] = (await sock.onWhatsApp(numero)) ?? [];
     if (resultado?.exists) {
-      const enviada = await sock.sendMessage(resultado.jid, { text: texto });
+      const enviada = await sock.sendMessage(resultado.jid, conteudo);
       lembrarEnvio(enviada?.key?.id);
       return { enviado: true as const, jid: resultado.jid };
     }
   }
 
   return { enviado: false as const, motivo: 'Número não tem WhatsApp' };
+}
+
+export function enviarTexto(telefone: string, texto: string) {
+  return enviar(telefone, { text: texto });
+}
+
+/** Foto por URL pública (o Baileys baixa e manda como imagem de verdade). */
+export function enviarImagem(telefone: string, url: string, legenda?: string) {
+  return enviar(telefone, { image: { url }, caption: legenda || undefined });
 }
 
 export function whatsappConectado() {

@@ -6,8 +6,10 @@
 // Substitui o caminho antigo Evolution → /api/webhook → n8n.
 import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
 import { BOT_SETTING_KEYS, getBotFlag, getBotSetting } from '@/services/botSettings';
-import { enviarTexto } from '@/lib/whatsapp/conexao';
+import { enviarImagem, enviarTexto } from '@/lib/whatsapp/conexao';
+import { isStoreOpen, type DayHours } from '@/lib/storeHours';
 import { botConfigurado, responder } from './agente';
+import { carregarIA } from './configServidor';
 
 // Frases que indicam pedido de atendimento humano.
 // A lista antiga tinha "ajuda", "pessoa" e "alguém" soltos, então
@@ -21,11 +23,18 @@ const HUMAN_TRIGGERS: RegExp[] = [
 ];
 
 /**
- * Espera esse tempo de silêncio antes de responder. Cliente de WhatsApp
- * manda "oi" / "quero uma pizza" / "de calabresa" em três mensagens; sem
- * esperar, o bot responderia três vezes, atropelando.
+ * O bot espera alguns segundos de silêncio antes de responder (configurável
+ * no painel). Cliente de WhatsApp manda "oi" / "quero uma pizza" / "de
+ * calabresa" em três mensagens; sem esperar, o bot responderia três vezes.
  */
-const ESPERA_MS = 8_000;
+async function esperaMs() {
+  return (await carregarIA()).config.esperaSegundos * 1000;
+}
+
+async function lojaAberta() {
+  const { data } = await getSupabaseAdmin().from('store_settings').select('day_of_week, is_open, open_time, close_time');
+  return isStoreOpen((data ?? []) as DayHours[]);
+}
 
 /** Quando alguém da loja responde pelo celular, o bot sai da conversa por este tempo. */
 const HORAS_PAUSA_HUMANO = 3;
@@ -130,17 +139,22 @@ export async function receberMensagem(phone: string, texto: string, nome: string
     return;
   }
 
+  // Loja fechada e o painel mandou ficar quieto fora do horário
+  const ia = await carregarIA();
+  if (!ia.config.responderFechado && !(await lojaAberta())) return;
+
+  const espera = await esperaMs();
   const atual = pendentes.get(phone);
   if (atual) {
     clearTimeout(atual.timer);
     atual.mensagens.push(texto);
     atual.nome = nome ?? atual.nome;
-    atual.timer = setTimeout(() => processar(phone), ESPERA_MS);
+    atual.timer = setTimeout(() => processar(phone), espera);
   } else {
     pendentes.set(phone, {
       mensagens: [texto],
       nome,
-      timer: setTimeout(() => processar(phone), ESPERA_MS),
+      timer: setTimeout(() => processar(phone), espera),
     });
   }
 }
@@ -164,9 +178,19 @@ async function atender(phone: string, texto: string, nome: string | null) {
   // Pode ter sido pausado enquanto esperava (atendente assumiu)
   if (await estaPausado(phone)) return;
 
-  const { texto: resposta } = await responder(phone, texto, nome);
-  if (!resposta) return;
+  const { texto: resposta, fotos } = await responder(phone, texto, nome);
 
-  const envio = await enviarTexto(phone, resposta);
-  if (!envio.enviado) console.warn(`🤖 Não consegui responder ${phone}: ${envio.motivo}`);
+  if (resposta) {
+    const envio = await enviarTexto(phone, resposta);
+    if (!envio.enviado) {
+      console.warn(`🤖 Não consegui responder ${phone}: ${envio.motivo}`);
+      return;
+    }
+  }
+
+  for (const foto of fotos) {
+    await enviarImagem(phone, foto.url, foto.legenda).catch((e) =>
+      console.error(`🤖 Não consegui mandar a foto para ${phone}:`, e)
+    );
+  }
 }

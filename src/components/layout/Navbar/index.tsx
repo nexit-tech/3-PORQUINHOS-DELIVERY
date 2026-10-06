@@ -10,7 +10,8 @@ import {
   LogOut,
   DollarSign,
   Bell,
-  Ticket
+  Ticket,
+  Bot
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { isElectron } from '@/lib/isElectron';
@@ -126,6 +127,14 @@ export default function Navbar() {
             )}
           </div>
           <span>Notificações</span>
+        </Link>
+
+        <Link
+          href="/ia"
+          className={`${styles.link} ${isActive('/ia') ? styles.active : ''}`}
+        >
+          <Bot size={20} />
+          <span>Atendente IA</span>
         </Link>
 
         <Link

@@ -5,6 +5,7 @@ import { conectarWhatsapp, definirReceptor, ligarPublicacaoDeStatus } from './co
 import { ligarNotificador } from './notificador';
 import { humanoAssumiu, receberMensagem } from '@/lib/bot/atendimento';
 import { botConfigurado, transcrever } from '@/lib/bot/agente';
+import { carregarIA } from '@/lib/bot/configServidor';
 
 /**
  * Ligado por padrão só em produção. No `npm run dev`, o servidor local usa o
@@ -23,7 +24,12 @@ function ligarAtendente() {
     async mensagem({ phone, nome, texto, audio, outraMidia }) {
       let conteudo = texto;
 
-      if (!conteudo && audio && botConfigurado()) {
+      const ouvir = audio && botConfigurado() && (await carregarIA()).config.ouvirAudio;
+      if (!conteudo && audio && !ouvir) {
+        conteudo = '[o cliente mandou um áudio; a loja desligou a escuta de áudio — peça para escrever]';
+      }
+
+      if (!conteudo && audio && ouvir) {
         try {
           const transcrito = await transcrever(audio);
           if (transcrito) conteudo = `[mensagem de voz] ${transcrito}`;

@@ -20,14 +20,19 @@ import { normalizarMinutos, previsaoDeEntrega, TEMPO_ENTREGA_KEY } from '@/lib/t
 import { STORE_DEFAULT_CEP } from '@/config/store';
 import { acharBairro, acharProduto, moeda, type Loja } from './loja';
 import type { Conversa, ItemCarrinho } from './conversa';
+import type { IA } from './configServidor';
 
 export interface Contexto {
   loja: Loja;
   conversa: Conversa;
   /** Só dígitos, com DDI. Vem do WhatsApp, não da conversa. */
   phone: string;
+  /** Configuração do painel (Atendente IA). */
+  ia: IA;
   /** Ligado por chamar_atendente: depois desta resposta o bot se cala. */
   pausar?: boolean;
+  /** Fotos que o bot decidiu mandar; saem depois do texto da resposta. */
+  fotos: { url: string; legenda: string }[];
 }
 
 type Ferramenta = OpenAI.Chat.Completions.ChatCompletionTool;
@@ -110,6 +115,15 @@ export const FERRAMENTAS: Ferramenta[] = [
       cupom: { type: 'string', description: 'Código do cupom, ou vazio' },
     },
     ['cliente_confirmou', 'nome', 'tipo_entrega', 'bairro', 'rua', 'numero', 'complemento', 'pagamento', 'troco_para', 'cupom']
+  ),
+  fn(
+    'enviar_foto',
+    'Manda uma das fotos cadastradas pela loja (cardápio, sabores etc.). Ela chega logo depois da sua resposta em texto.',
+    {
+      foto: { type: 'string', description: 'Código da foto, ex: F2' },
+      legenda: { type: 'string', description: 'Texto curto embaixo da foto, ou vazio' },
+    },
+    ['foto', 'legenda']
   ),
   fn('meus_pedidos', 'Mostra os pedidos em andamento DESTE cliente (status e total).'),
   fn(
@@ -387,6 +401,17 @@ const HANDLERS: Record<string, Handler> = {
     }
   },
 
+  async enviar_foto({ foto, legenda }, ctx) {
+    const ativas = ctx.ia.midias.filter((m) => m.ativo);
+    const n = Number(String(foto || '').replace(/\D/g, '')) - 1;
+    const midia = ativas[n];
+    if (!midia) return { erro: `Foto ${foto} não existe.` };
+    if (ctx.fotos.some((f) => f.url === midia.url)) return { ok: true, aviso: 'Essa foto já vai nesta resposta.' };
+    if (ctx.fotos.length >= 5) return { erro: 'Máximo de 5 fotos por resposta.' };
+    ctx.fotos.push({ url: midia.url, legenda: String(legenda || '').slice(0, 300) });
+    return { ok: true, foto: midia.titulo };
+  },
+
   async meus_pedidos(_, { phone }) {
     const { data, error } = await getSupabaseAdmin().rpc('get_orders_by_phone', {
       p_phone: phone,
@@ -442,9 +467,25 @@ const HANDLERS: Record<string, Handler> = {
   },
 };
 
+/** Ferramentas que valem com a configuração atual do painel. */
+export function ferramentasPara(ia: IA): Ferramenta[] {
+  const temFotos = ia.midias.some((m) => m.ativo);
+  return FERRAMENTAS.filter((f) => {
+    const nome = f.type === 'function' ? f.function.name : '';
+    if (nome === 'enviar_foto') return temFotos;
+    // Pedido pela conversa desligado: o bot ainda ajuda a escolher, mas
+    // fechar é pelo site
+    if (!ia.config.fecharPedido) {
+      return !['adicionar_item', 'remover_item', 'ver_carrinho', 'esvaziar_carrinho', 'validar_cupom', 'finalizar_pedido'].includes(nome);
+    }
+    return true;
+  });
+}
+
 export async function executarFerramenta(nome: string, argsJson: string, ctx: Contexto): Promise<string> {
   const handler = HANDLERS[nome];
-  if (!handler) return JSON.stringify({ erro: `Ferramenta ${nome} não existe` });
+  const liberada = ferramentasPara(ctx.ia).some((f) => f.type === 'function' && f.function.name === nome);
+  if (!handler || !liberada) return JSON.stringify({ erro: `Ferramenta ${nome} não está disponível` });
 
   try {
     const args = argsJson ? JSON.parse(argsJson) : {};

@@ -22,7 +22,7 @@ mas não carrega dado nenhum.
 
 | Área | Rotas | Quem usa |
 |---|---|---|
-| Painel | `/`, `/products`, `/finance`, `/settings`, `/notifications`, `/coupons` | Loja (protegido por login) |
+| Painel | `/`, `/ia`, `/products`, `/finance`, `/settings`, `/notifications`, `/coupons` | Loja (protegido por login) |
 | Cliente | `/pedido/*` | Público |
 | API | `/api/whatsapp`, `/api/loja/*`, `/api/cron/*` | Painel, loja e agendador |
 | Pagamento | `/api/pagamento/{status,criar-link,verificar,infinitepay}` | Navegador e InfinitePay |
@@ -210,8 +210,22 @@ Toda mensagem que chega no WhatsApp conectado vai para o atendente de
 - Espera 8s de silêncio antes de responder, para juntar "oi" / "quero pizza" / "de
   calabresa" numa resposta só. Mensagem de voz é transcrita.
 - **Sai da conversa sozinho**: quando o cliente pede atendente (24h), quando o próprio bot
-  chama (24h) ou quando alguém da loja responde pelo celular (3h). Despausar e pausar à mão:
-  Configurações → Controle de Bot. Desligar geral: o mesmo painel.
+  chama (24h) ou quando alguém da loja responde pelo celular (3h).
+
+**Tudo se configura na página Atendente IA (`/ia`)**, no menu do painel (funciona também no
+desktop, porque só fala com o banco):
+
+| Aba | O que tem | Onde fica |
+|---|---|---|
+| Topo | Liga/desliga geral, status do WhatsApp e da chave da OpenAI | `is_bot_active`, `whatsapp_status:principal` |
+| Conversas | Histórico por cliente, pausar (1h/3h/24h/até retomar), retomar, apagar histórico, pausar número à mão | `bot_conversas`, `bot_paused_numbers` |
+| Conhecimento | "Sobre a loja" e perguntas e respostas (vem com o FAQ da loja), com fotos anexáveis | `ia_config.sobreLoja`, `ia_faq` |
+| Fotos | Upload de imagens (bucket `produtos/atendente/`) com "quando mandar" | `ia_midias` |
+| Comportamento | Nome, jeito de falar, regras extras, fechar pedido sim/não, responder fechado, ouvir áudio, espera, mensagem de pausa | `ia_config`, `pause_message` |
+
+O bot relê essa configuração a cada resposta (cache de 15s). As regras de segurança do
+prompt ficam acima das "regras extras": o dono não consegue, sem querer, mandar o bot
+mostrar dado de outro cliente.
 - Loja fechada: avisa quando abre e tira dúvidas, mas não fecha pedido.
 
 O caminho antigo (Evolution → `/api/webhook` → n8n) foi desligado. A rota responde 200 e

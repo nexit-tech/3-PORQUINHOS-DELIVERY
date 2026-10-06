@@ -2,21 +2,22 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import SettingsCard from '@/components/admin/SettingsCard';
 import Modal from '@/components/common/Modal';
 import OpeningHours from '@/components/admin/OpeningHours';
 import DeliveryFees from '@/components/admin/DeliveryFees';
 import WhatsappConnect from '@/components/admin/WhatsappConnect';
-import BotManagement from '@/components/admin/BotManagement';
 import DeliveryTime from '@/components/admin/DeliveryTime';
 import { Clock, Bike, Printer, MessageCircle, Bot, Timer } from 'lucide-react';
 import styles from './page.module.css';
 import { PrinterSettings } from '@/components/admin/PrinterSettings';
 
-type SettingType = 'HOURS' | 'FEES' | 'PRINTER' | 'WHATSAPP' | 'BOT' | 'DELIVERY_TIME' | null;
+type SettingType = 'HOURS' | 'FEES' | 'PRINTER' | 'WHATSAPP' | 'DELIVERY_TIME' | null;
 
 export default function SettingsPage() {
   const [activeSetting, setActiveSetting] = useState<SettingType>(null);
+  const router = useRouter();
 
   const renderModalContent = () => {
     switch (activeSetting) {
@@ -24,7 +25,6 @@ export default function SettingsPage() {
       case 'FEES': return <DeliveryFees />;
       case 'WHATSAPP': return <WhatsappConnect />;
       case 'PRINTER': return <PrinterSettings />;
-      case 'BOT': return <BotManagement />;
       case 'DELIVERY_TIME': return <DeliveryTime />;
     }
   };
@@ -35,7 +35,6 @@ export default function SettingsPage() {
       case 'FEES': return 'Taxas de Entrega';
       case 'WHATSAPP': return 'Conexão WhatsApp';
       case 'PRINTER': return 'Impressoras';
-      case 'BOT': return 'Controle de Bot';
       case 'DELIVERY_TIME': return 'Tempo de Entrega';
       default: return '';
     }
@@ -57,12 +56,12 @@ export default function SettingsPage() {
           onClick={() => setActiveSetting('WHATSAPP')}
         />
 
-        <SettingsCard 
-          title="Controle de Bot" 
-          description="Pause o bot para números específicos e veja solicitações de atendimento."
+        <SettingsCard
+          title="Atendente IA"
+          description="Liga/desliga, conversas, perguntas e respostas, fotos e jeito de falar do bot."
           icon={Bot}
           statusColor="blue"
-          onClick={() => setActiveSetting('BOT')}
+          onClick={() => router.push('/ia')}
         />
 
         <SettingsCard 

@@ -1,0 +1,36 @@
+.lista { display: flex; flex-direction: column; gap: 10px; }
+
+.item { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; }
+.inativo { opacity: 0.55; }
+
+.linha { display: flex; gap: 8px; align-items: center; }
+.pergunta { font-weight: 700; }
+
+.busca {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-light);
+}
+.busca input { border: none; outline: none; background: none; padding: 9px 0; font-family: inherit; font-size: 0.88rem; width: 140px; color: var(--text-main); }
+
+.fotos {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-light);
+}
+
+.fotoChip {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text-main);
+}
+.fotoChipOn { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }

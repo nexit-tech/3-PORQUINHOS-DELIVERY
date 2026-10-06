@@ -70,6 +70,7 @@ export const config = {
     '/finance/:path*',
     '/settings/:path*',
     '/notifications/:path*',
+    '/ia/:path*',
     // Conecta e desconecta o WhatsApp da loja. A antiga /api/evolution, que
     // mandava mensagem para qualquer número, ficou aberta para a internet
     // inteira por um tempo; esta nasce trancada.
