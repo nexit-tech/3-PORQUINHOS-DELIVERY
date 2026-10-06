@@ -1,7 +1,7 @@
 // src/lib/whatsapp/servidor.ts
 // Ponto único para ligar o WhatsApp do servidor: a conexão, o envio dos
 // status de pedido e o atendente (bot) andam juntos.
-import { conectarWhatsapp, definirReceptor } from './conexao';
+import { conectarWhatsapp, definirReceptor, ligarPublicacaoDeStatus } from './conexao';
 import { ligarNotificador } from './notificador';
 import { humanoAssumiu, receberMensagem } from '@/lib/bot/atendimento';
 import { botConfigurado, transcrever } from '@/lib/bot/agente';
@@ -44,6 +44,7 @@ function ligarAtendente() {
 }
 
 export async function ligarWhatsapp(opcoes?: { soComSessao?: boolean }) {
+  ligarPublicacaoDeStatus();
   ligarNotificador();
   ligarAtendente();
   return conectarWhatsapp(opcoes);

@@ -13,6 +13,8 @@
 import type { WAMessage, WASocket } from 'baileys';
 import QRCode from 'qrcode';
 import { apagarSessao, carregarSessao } from './authState';
+import { getSupabaseAdmin } from '@/lib/supabaseAdmin';
+import { setBotSetting } from '@/services/botSettings';
 
 export type EstadoWhatsapp = 'desligado' | 'conectando' | 'qrcode' | 'conectado';
 
@@ -189,6 +191,36 @@ async function tratarMensagens(baileys: typeof import('baileys'), sock: WASocket
   }
 }
 
+/**
+ * O status também vai para o banco (bot_settings), porque o app desktop não
+ * tem como perguntar ao servidor: ele só fala com o Supabase. O `at` serve
+ * de batimento — status velho no banco quer dizer servidor fora do ar.
+ */
+export const STATUS_KEY = `whatsapp_status:${SESSAO}`;
+const BATIMENTO_MS = 60_000;
+let ultimoPublicado = '';
+
+function publicarStatus(forcar = false) {
+  const chave = `${conexao.estado}|${conexao.numero ?? ''}`;
+  if (!forcar && chave === ultimoPublicado) return;
+  ultimoPublicado = chave;
+
+  setBotSetting(
+    STATUS_KEY,
+    { estado: conexao.estado, numero: conexao.numero, at: new Date().toISOString() },
+    getSupabaseAdmin()
+  ).catch((e) => console.error('Erro ao publicar status do WhatsApp:', e));
+}
+
+const gStatus = globalThis as unknown as { __whatsappBatimento?: NodeJS.Timeout };
+
+/** Começa a publicar o status (e o batimento). Idempotente. */
+export function ligarPublicacaoDeStatus() {
+  if (gStatus.__whatsappBatimento) return;
+  publicarStatus(true);
+  gStatus.__whatsappBatimento = setInterval(() => publicarStatus(true), BATIMENTO_MS);
+}
+
 export function statusWhatsapp() {
   return { estado: conexao.estado, qr: conexao.qr, numero: conexao.numero };
 }
@@ -229,6 +261,7 @@ async function abrir(soComSessao: boolean) {
 
   conexao.saindo = false;
   conexao.estado = 'conectando';
+  publicarStatus();
 
   const sock = makeWASocket({
     auth: state,
@@ -255,6 +288,7 @@ async function abrir(soComSessao: boolean) {
     if (qr) {
       conexao.estado = 'qrcode';
       conexao.qr = await QRCode.toDataURL(qr, { margin: 1, width: 320 });
+      publicarStatus();
     }
 
     if (connection === 'open') {
@@ -263,6 +297,7 @@ async function abrir(soComSessao: boolean) {
       conexao.tentativas = 0;
       conexao.numero = sock.user?.id?.split(':')[0]?.split('@')[0] ?? null;
       console.log(`✅ WhatsApp conectado (${conexao.numero})`);
+      publicarStatus();
       return;
     }
 
@@ -274,6 +309,7 @@ async function abrir(soComSessao: boolean) {
     conexao.sock = null;
     conexao.qr = null;
     conexao.estado = 'desligado';
+    publicarStatus();
 
     if (conexao.saindo) return;
 
@@ -282,6 +318,7 @@ async function abrir(soComSessao: boolean) {
     if (codigo === DisconnectReason.loggedOut) {
       console.warn('📵 WhatsApp desconectado pelo celular. Precisa ler o QR Code de novo.');
       conexao.numero = null;
+      publicarStatus();
       await apagarSessao(SESSAO).catch((e) => console.error('Erro ao apagar sessão:', e));
       return;
     }
@@ -322,6 +359,7 @@ export async function desconectarWhatsapp() {
   conexao.estado = 'desligado';
   conexao.qr = null;
   conexao.numero = null;
+  publicarStatus();
   await apagarSessao(SESSAO);
 }
 

@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import styles from './styles.module.css';
-import { QrCode, Wifi, WifiOff, Loader2, Smartphone, ScanLine, MonitorSmartphone } from 'lucide-react';
+import { QrCode, Wifi, WifiOff, Loader2, Smartphone, ScanLine, ExternalLink, ServerCrash } from 'lucide-react';
 import { isElectron } from '@/lib/isElectron';
+import { getBotSetting } from '@/services/botSettings';
 
 // A conexão vive no servidor (src/lib/whatsapp). Esta tela só pede para
 // conectar, mostra o QR Code que o servidor gerou e acompanha o estado.
-type Estado = 'loading' | 'desligado' | 'conectando' | 'qrcode' | 'conectado' | 'indisponivel';
+type Estado = 'loading' | 'desligado' | 'conectando' | 'qrcode' | 'conectado' | 'indisponivel' | 'sem_servidor';
 
 interface Status {
   estado: Estado;
@@ -28,6 +29,23 @@ async function chamar(metodo: 'GET' | 'POST', action?: string): Promise<Status> 
   return dados;
 }
 
+/**
+ * O desktop não fala com o servidor, só com o Supabase. O servidor grava o
+ * status em bot_settings (ver STATUS_KEY em lib/whatsapp/conexao.ts) e
+ * renova a cada minuto; status mais velho que isto = servidor fora do ar.
+ */
+const STATUS_KEY = 'whatsapp_status:principal';
+const STATUS_VELHO_MS = 3 * 60_000;
+
+async function statusPeloBanco(): Promise<Status> {
+  const salvo = await getBotSetting<{ estado?: Estado; numero?: string | null; at?: string }>(STATUS_KEY);
+  const velho = !salvo?.at || Date.now() - new Date(salvo.at).getTime() > STATUS_VELHO_MS;
+  if (velho) return { estado: 'sem_servidor', qr: null, numero: null };
+  return { estado: salvo!.estado ?? 'desligado', qr: null, numero: salvo!.numero ?? null };
+}
+
+const SITE = (process.env.NEXT_PUBLIC_APP_URL || 'https://delivery.tresporquinhos.com').replace(/\/+$/, '');
+
 const formatarNumero = (n: string | null) =>
   n?.replace(/^55(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3') ?? '';
 
@@ -40,7 +58,7 @@ export default function WhatsappConnect() {
 
   const atualizar = useCallback(async () => {
     try {
-      setStatus(await chamar('GET'));
+      setStatus(isElectron() ? await statusPeloBanco() : await chamar('GET'));
     } catch (e: any) {
       setErro(e.message);
       setStatus({ estado: 'desligado', qr: null, numero: null });
@@ -48,21 +66,20 @@ export default function WhatsappConnect() {
   }, []);
 
   useEffect(() => {
-    if (isElectron()) {
-      setDesktop(true);
-      return;
-    }
+    setDesktop(isElectron());
     atualizar();
   }, [atualizar]);
 
   // Enquanto espera a leitura do QR, acompanha de perto: o QR troca a cada
   // ~20s e, lido, a tela tem que virar "conectado" sem precisar de F5.
+  // No desktop acompanha sempre: a conexão é feita em outro lugar (navegador)
+  // e esta tela tem que refletir quando ela acontecer.
   const aguardando = status.estado === 'qrcode' || status.estado === 'conectando';
   useEffect(() => {
-    if (!aguardando) return;
-    const intervalo = setInterval(atualizar, 2500);
+    if (!aguardando && !desktop) return;
+    const intervalo = setInterval(atualizar, desktop ? 5000 : 2500);
     return () => clearInterval(intervalo);
-  }, [aguardando, atualizar]);
+  }, [aguardando, desktop, atualizar]);
 
   const handleConectar = async () => {
     setLoading(true);
@@ -116,11 +133,47 @@ export default function WhatsappConnect() {
       <div className={styles.content}>
         {desktop && (
           <div className={styles.stateContainer}>
-            <div className={styles.placeholderIcon}><MonitorSmartphone size={40} /></div>
-            <p className={styles.stateText}>
-              No app do computador não dá para conectar.<br />
-              Abra o painel pelo navegador, em Configurações → Conectar WhatsApp.
-            </p>
+            {status.estado === 'loading' ? (
+              <Loader2 className={styles.spin} size={32} />
+            ) : status.estado === 'conectado' ? (
+              <>
+                <div className={styles.successIcon}><Wifi size={32} /></div>
+                <h4>Tudo pronto!</h4>
+                <p className={styles.stateText}>
+                  Conectado{status.numero ? ` ao ${formatarNumero(status.numero)}` : ''}.<br />
+                  Os clientes recebem o andamento do pedido no WhatsApp.
+                </p>
+              </>
+            ) : status.estado === 'sem_servidor' ? (
+              <>
+                <div className={styles.placeholderIcon}><ServerCrash size={40} /></div>
+                <p className={styles.stateText}>
+                  O servidor da loja não deu sinal nos últimos minutos.<br />
+                  Abra o painel no navegador para conferir.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className={styles.placeholderIcon}><QrCode size={40} /></div>
+                <p className={styles.stateText}>
+                  {status.estado === 'qrcode'
+                    ? 'Tem um QR Code esperando leitura no navegador.'
+                    : 'Nenhum WhatsApp conectado.'}
+                  <br />
+                  O QR Code é gerado e lido pelo painel no navegador.
+                </p>
+              </>
+            )}
+
+            {status.estado !== 'loading' && (
+              <button
+                onClick={() => window.open(`${SITE}/settings`, '_blank')}
+                className={status.estado === 'conectado' ? styles.cancelBtn : styles.primaryBtn}
+              >
+                <ExternalLink size={18} />
+                {status.estado === 'conectado' ? 'Gerenciar no navegador' : 'Abrir no navegador para conectar'}
+              </button>
+            )}
           </div>
         )}
 

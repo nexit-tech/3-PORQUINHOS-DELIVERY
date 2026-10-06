@@ -1,6 +1,6 @@
 // ⚠️ CARREGA .ENV DA RAIZ DO APP (Electron)
 const path = require('path');
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 
 // 🔥 SISTEMA DE LOGS
 const fs = require('fs');
@@ -69,6 +69,22 @@ function createWindow() {
       autoHideMenuBar: true,
       show: false, // 🔥 NÃO MOSTRA ATÉ CARREGAR
       backgroundColor: '#ffffff' // 🔥 FUNDO BRANCO
+    });
+
+    // Link para fora do app (wa.me, painel no navegador, comprovante) abre no
+    // navegador/WhatsApp do computador. Antes abria uma janela do próprio
+    // app, que caía no WhatsApp Web sem login e parecia defeito.
+    const ehDoApp = (url) => url.startsWith(serverUrl);
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+      // about:blank é a janela de impressão do modo navegador
+      if (ehDoApp(url) || url === 'about:blank') return { action: 'allow' };
+      if (/^(https?|mailto|whatsapp):/i.test(url)) shell.openExternal(url);
+      return { action: 'deny' };
+    });
+    mainWindow.webContents.on('will-navigate', (event, url) => {
+      if (ehDoApp(url)) return;
+      event.preventDefault();
+      if (/^(https?|mailto|whatsapp):/i.test(url)) shell.openExternal(url);
     });
 
     log(`Carregando URL: ${serverUrl}`);
