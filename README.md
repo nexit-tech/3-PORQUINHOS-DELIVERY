@@ -104,7 +104,7 @@ do código que já está em produção.
 | `WHATSAPP_SESSION` | opcional | Nome da sessão em `whatsapp_auth` (padrão `principal`). Use outro nome para testar local |
 | `OPENAI_API_KEY` | p/ o bot | Atendente do WhatsApp (ChatGPT). Vazia = o bot não responde ninguém |
 | `OPENAI_MODEL` | opcional | Modelo do atendente (padrão `gpt-4.1-mini`) |
-| `OPENAI_TRANSCRIBE_MODEL` | opcional | Transcrição das mensagens de voz (padrão `whisper-1`) |
+| `OPENAI_TRANSCRIBE_MODEL` | opcional | Transcrição das mensagens de voz (padrão `gpt-4o-mini-transcribe`) |
 | `NEXT_PUBLIC_STORE_*` | opcional | Nome, telefone e site da loja no cupom e nas mensagens |
 
 ---
