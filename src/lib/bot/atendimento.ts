@@ -10,6 +10,7 @@ import { enviarImagem, enviarTexto } from '@/lib/whatsapp/conexao';
 import { isStoreOpen, type DayHours } from '@/lib/storeHours';
 import { botConfigurado, responder } from './agente';
 import { carregarIA } from './configServidor';
+import { liberadoNoTeste } from './config';
 
 // Frases que indicam pedido de atendimento humano.
 // A lista antiga tinha "ajuda", "pessoa" e "alguém" soltos, então
@@ -120,6 +121,12 @@ export async function receberMensagem(phone: string, texto: string, nome: string
   }
 
   if (!(await getBotFlag(BOT_SETTING_KEYS.BOT_ACTIVE, true, db))) return;
+
+  // Modo teste: quem não está na lista é tratado como se o bot estivesse
+  // desligado — nem o "quero atendente" dispara nada
+  const ia = await carregarIA();
+  if (!liberadoNoTeste(ia.teste, phone)) return;
+
   if (await estaPausado(phone)) return;
 
   if (HUMAN_TRIGGERS.some((p) => p.test(texto))) {
@@ -140,7 +147,6 @@ export async function receberMensagem(phone: string, texto: string, nome: string
   }
 
   // Loja fechada e o painel mandou ficar quieto fora do horário
-  const ia = await carregarIA();
   if (!ia.config.responderFechado && !(await lojaAberta())) return;
 
   const espera = await esperaMs();

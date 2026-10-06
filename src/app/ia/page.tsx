@@ -1,9 +1,24 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Bot, MessageSquare, BookOpen, Image as ImageIcon, SlidersHorizontal, Power, Wifi, WifiOff, Sparkles } from 'lucide-react';
+import {
+  Bot,
+  MessageSquare,
+  BookOpen,
+  Image as ImageIcon,
+  SlidersHorizontal,
+  Power,
+  Wifi,
+  WifiOff,
+  Sparkles,
+  FlaskConical,
+  Users,
+  X,
+  Plus,
+} from 'lucide-react';
 import toast from 'react-hot-toast';
-import { BOT_SETTING_KEYS, getBotFlag, getBotSetting, setBotFlag } from '@/services/botSettings';
+import { BOT_SETTING_KEYS, getBotFlag, getBotSetting, setBotFlag, setBotSetting } from '@/services/botSettings';
+import { IA_KEYS, normalizarTeste, telefoneComDdi, type ModoTeste } from '@/lib/bot/config';
 import Conversas from './Conversas';
 import Conhecimento from './Conhecimento';
 import Fotos from './Fotos';
@@ -11,12 +26,19 @@ import Comportamento from './Comportamento';
 import styles from './page.module.css';
 
 type Aba = 'conversas' | 'conhecimento' | 'fotos' | 'comportamento';
+type Modo = 'desligado' | 'teste' | 'todos';
 
 const ABAS: { id: Aba; label: string; icon: typeof Bot }[] = [
   { id: 'conversas', label: 'Conversas', icon: MessageSquare },
   { id: 'conhecimento', label: 'Conhecimento', icon: BookOpen },
   { id: 'fotos', label: 'Fotos', icon: ImageIcon },
   { id: 'comportamento', label: 'Comportamento', icon: SlidersHorizontal },
+];
+
+const MODOS: { id: Modo; label: string; icon: typeof Bot }[] = [
+  { id: 'desligado', label: 'Desligado', icon: Power },
+  { id: 'teste', label: 'Teste', icon: FlaskConical },
+  { id: 'todos', label: 'Ligado para todos', icon: Users },
 ];
 
 interface StatusServidor {
@@ -37,16 +59,20 @@ const formatarNumero = (n?: string | null) =>
 export default function AtendentePage() {
   const [aba, setAba] = useState<Aba>('conversas');
   const [ligado, setLigado] = useState<boolean | null>(null);
+  const [teste, setTeste] = useState<ModoTeste | null>(null);
   const [status, setStatus] = useState<StatusServidor | null>(null);
+  const [novoNumero, setNovoNumero] = useState('');
 
   const carregarStatus = useCallback(async () => {
     try {
-      const [ativo, s] = await Promise.all([
+      const [ativo, s, t] = await Promise.all([
         getBotFlag(BOT_SETTING_KEYS.BOT_ACTIVE, true),
         getBotSetting<StatusServidor>('whatsapp_status:principal'),
+        getBotSetting(IA_KEYS.TESTE),
       ]);
       setLigado(ativo);
       setStatus(s);
+      setTeste(normalizarTeste(t));
     } catch (erro) {
       console.error('Erro ao ler status do atendente:', erro);
     }
@@ -58,23 +84,67 @@ export default function AtendentePage() {
     return () => clearInterval(intervalo);
   }, [carregarStatus]);
 
-  const alternar = async () => {
-    if (ligado === null) return;
-    const novo = !ligado;
-    const pergunta = novo
-      ? 'Ligar o atendente? Ele volta a responder os clientes no WhatsApp.'
-      : 'Desligar o atendente? Ele para de responder TODOS os clientes (os avisos de andamento do pedido continuam).';
-    if (!confirm(pergunta)) return;
+  const modo: Modo | null =
+    ligado === null || teste === null ? null : !ligado ? 'desligado' : teste.ativo ? 'teste' : 'todos';
 
-    setLigado(novo);
+  const mudarModo = async (novo: Modo) => {
+    if (!teste || novo === modo) return;
+    if (novo === 'todos' && !confirm('Ligar para TODOS? O atendente passa a responder qualquer cliente que mandar mensagem.')) return;
+    if (novo === 'desligado' && !confirm('Desligar o atendente? Ele para de responder (os avisos de andamento do pedido continuam).')) return;
+
+    const antes = { ligado, teste };
+    const novoTeste = { ...teste, ativo: novo === 'teste' };
+    setLigado(novo !== 'desligado');
+    setTeste(novoTeste);
+
     try {
-      await setBotFlag(BOT_SETTING_KEYS.BOT_ACTIVE, novo);
-      toast.success(novo ? 'Atendente ligado' : 'Atendente desligado');
+      await Promise.all([
+        setBotFlag(BOT_SETTING_KEYS.BOT_ACTIVE, novo !== 'desligado'),
+        setBotSetting(IA_KEYS.TESTE, novoTeste),
+      ]);
+      toast.success(
+        novo === 'desligado'
+          ? 'Atendente desligado'
+          : novo === 'teste'
+            ? 'Modo teste: só os números da lista'
+            : 'Atendente ligado para todos'
+      );
     } catch (erro) {
       console.error(erro);
-      setLigado(!novo);
+      setLigado(antes.ligado);
+      setTeste(antes.teste);
       toast.error('Não consegui salvar. Tente de novo.');
     }
+  };
+
+  const salvarNumeros = async (numeros: string[]) => {
+    if (!teste) return;
+    const novoTeste = { ...teste, numeros };
+    setTeste(novoTeste);
+    try {
+      await setBotSetting(IA_KEYS.TESTE, novoTeste);
+    } catch (erro) {
+      console.error(erro);
+      toast.error('Não consegui salvar a lista');
+      carregarStatus();
+    }
+  };
+
+  const adicionarNumero = () => {
+    if (!teste) return;
+    const digitos = novoNumero.replace(/\D/g, '');
+    if (digitos.length < 10) {
+      toast.error('Digite o celular com DDD');
+      return;
+    }
+    const numero = telefoneComDdi(digitos);
+    if (teste.numeros.includes(numero)) {
+      toast('Esse número já está na lista');
+      return;
+    }
+    salvarNumeros([...teste.numeros, numero]);
+    setNovoNumero('');
+    toast.success('Número adicionado ao teste');
   };
 
   // Servidor renova o status a cada minuto; mais velho que 3 min = fora do ar
@@ -93,15 +163,21 @@ export default function AtendentePage() {
           </div>
         </div>
 
-        <button
-          className={`${styles.botaoLiga} ${ligado ? styles.ligado : styles.desligado}`}
-          onClick={alternar}
-          disabled={ligado === null}
-          aria-pressed={Boolean(ligado)}
-        >
-          <Power size={18} />
-          {ligado === null ? '...' : ligado ? 'Atendente LIGADO' : 'Atendente DESLIGADO'}
-        </button>
+        <div className={styles.modos} role="radiogroup" aria-label="Modo do atendente">
+          {MODOS.map(({ id, label, icon: Icone }) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={modo === id}
+              disabled={modo === null}
+              className={`${styles.modo} ${modo === id ? styles[`modo_${id}`] : ''}`}
+              onClick={() => mudarModo(id)}
+            >
+              <Icone size={16} /> {label}
+            </button>
+          ))}
+        </div>
       </header>
 
       <div className={styles.chips}>
@@ -120,6 +196,57 @@ export default function AtendentePage() {
           </span>
         )}
       </div>
+
+      {modo === 'teste' && teste && (
+        <div className={styles.teste}>
+          <div className={styles.testeTexto}>
+            <FlaskConical size={18} />
+            <div>
+              <strong>Modo teste</strong>
+              <span>
+                O atendente só responde os celulares abaixo. Todo o resto é ignorado, como se ele estivesse desligado.
+                Quando estiver tudo certo, mude para “Ligado para todos”.
+              </span>
+            </div>
+          </div>
+
+          <div className={styles.testeNumeros}>
+            {teste.numeros.length === 0 && (
+              <span className={styles.testeVazio}>Nenhum número ainda: o atendente não responde ninguém.</span>
+            )}
+            {teste.numeros.map((n) => (
+              <span key={n} className={styles.numeroChip}>
+                {formatarNumero(n)}
+                <button
+                  type="button"
+                  aria-label={`Tirar ${formatarNumero(n)} do teste`}
+                  onClick={() => salvarNumeros(teste.numeros.filter((x) => x !== n))}
+                >
+                  <X size={13} />
+                </button>
+              </span>
+            ))}
+            <form
+              className={styles.testeAdicionar}
+              onSubmit={(e) => {
+                e.preventDefault();
+                adicionarNumero();
+              }}
+            >
+              <input
+                className={styles.input}
+                placeholder="(22) 99999-9999"
+                value={novoNumero}
+                onChange={(e) => setNovoNumero(e.target.value)}
+                aria-label="Celular para o teste"
+              />
+              <button type="submit" className={styles.botao}>
+                <Plus size={15} /> Adicionar
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       <nav className={styles.abas} role="tablist">
         {ABAS.map(({ id, label, icon: Icone }) => (

@@ -8,7 +8,9 @@ import {
   normalizarConfig,
   normalizarFaq,
   normalizarMidias,
+  normalizarTeste,
   type ConfigIA,
+  type ModoTeste,
   type Midia,
   type PerguntaResposta,
 } from './config';
@@ -17,6 +19,7 @@ export interface IA {
   config: ConfigIA;
   faq: PerguntaResposta[];
   midias: Midia[];
+  teste: ModoTeste;
 }
 
 const VALIDADE_MS = 15_000;
@@ -28,7 +31,7 @@ export async function carregarIA(): Promise<IA> {
   const { data, error } = await getSupabaseAdmin()
     .from('bot_settings')
     .select('key, value')
-    .in('key', [IA_KEYS.CONFIG, IA_KEYS.FAQ, IA_KEYS.MIDIAS]);
+    .in('key', [IA_KEYS.CONFIG, IA_KEYS.FAQ, IA_KEYS.MIDIAS, IA_KEYS.TESTE]);
 
   if (error) throw error;
 
@@ -37,6 +40,7 @@ export async function carregarIA(): Promise<IA> {
     config: normalizarConfig(valor(IA_KEYS.CONFIG)),
     faq: normalizarFaq(valor(IA_KEYS.FAQ)),
     midias: normalizarMidias(valor(IA_KEYS.MIDIAS)),
+    teste: normalizarTeste(valor(IA_KEYS.TESTE)),
   };
 
   cache = { em: Date.now(), ia };

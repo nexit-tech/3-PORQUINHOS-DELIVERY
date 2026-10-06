@@ -46,6 +46,67 @@
 .ligado { background: #ecfdf5; border-color: #10b981; color: #047857; }
 .desligado { background: #fef2f2; border-color: #ef4444; color: #b91c1c; }
 
+/* Seletor de modo: Desligado / Teste / Ligado para todos */
+.modos {
+  display: flex;
+  padding: 4px;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+}
+.modo {
+  display: flex; align-items: center; gap: 6px;
+  padding: 9px 14px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-light);
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.modo:hover:not(:disabled) { color: var(--text-main); }
+.modo_desligado { background: #fef2f2; color: #b91c1c; }
+.modo_teste { background: #eff6ff; color: #1d4ed8; }
+.modo_todos { background: #ecfdf5; color: #047857; }
+
+.teste {
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  border: 1px solid #bfdbfe;
+  background: #f8fbff;
+  border-radius: var(--border-radius);
+}
+.testeTexto { display: flex; gap: 10px; color: #1d4ed8; }
+.testeTexto strong { display: block; font-size: 0.92rem; }
+.testeTexto span { font-size: 0.82rem; color: var(--text-light); }
+.testeNumeros { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.testeVazio { font-size: 0.82rem; color: #b45309; font-weight: 600; }
+.numeroChip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 6px 6px 12px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #bfdbfe;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.numeroChip button {
+  display: grid; place-items: center;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: #eff6ff;
+  color: #1d4ed8;
+  cursor: pointer;
+}
+.testeAdicionar { display: flex; gap: 6px; }
+.testeAdicionar .input { width: 170px; }
+
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
 .chip {
   display: inline-flex; align-items: center; gap: 6px;

@@ -217,7 +217,7 @@ desktop, porque só fala com o banco):
 
 | Aba | O que tem | Onde fica |
 |---|---|---|
-| Topo | Liga/desliga geral, status do WhatsApp e da chave da OpenAI | `is_bot_active`, `whatsapp_status:principal` |
+| Topo | Modo: Desligado / Teste (só os celulares da lista) / Ligado para todos; status do WhatsApp e da OpenAI. Sem configuração, começa em Teste com a lista vazia = não responde ninguém | `is_bot_active`, `ia_teste`, `whatsapp_status:principal` |
 | Conversas | Histórico por cliente, pausar (1h/3h/24h/até retomar), retomar, apagar histórico, pausar número à mão | `bot_conversas`, `bot_paused_numbers` |
 | Conhecimento | "Sobre a loja" e perguntas e respostas (vem com o FAQ da loja), com fotos anexáveis | `ia_config.sobreLoja`, `ia_faq` |
 | Fotos | Upload de imagens (bucket `produtos/atendente/`) com "quando mandar" | `ia_midias` |

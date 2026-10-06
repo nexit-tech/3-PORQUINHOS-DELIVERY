@@ -11,7 +11,46 @@ export const IA_KEYS = {
   CONFIG: 'ia_config',
   FAQ: 'ia_faq',
   MIDIAS: 'ia_midias',
+  TESTE: 'ia_teste',
 } as const;
+
+/**
+ * Modo teste: o bot só responde os números da lista. Serve para a loja
+ * conversar com ele de verdade antes de soltar para os clientes.
+ */
+export interface ModoTeste {
+  ativo: boolean;
+  /** Só dígitos, com DDI (5522999998888). */
+  numeros: string[];
+}
+
+/** Só dígitos, com DDI: é assim que o WhatsApp entrega o remetente. */
+export const telefoneComDdi = (phone: string) => {
+  const d = String(phone || '').replace(/\D/g, '');
+  return d.length >= 12 ? d : `55${d}`;
+};
+
+/**
+ * Nunca configurado = TESTE LIGADO e lista vazia: o bot não responde ninguém
+ * até a loja colocar os números. Ligar para todos é decisão explícita.
+ */
+export function normalizarTeste(valor: unknown): ModoTeste {
+  const v = (valor && typeof valor === 'object' ? valor : null) as Partial<ModoTeste> | null;
+  if (!v) return { ativo: true, numeros: [] };
+  const numeros = Array.isArray(v.numeros)
+    ? [...new Set(v.numeros.map((n) => telefoneComDdi(String(n))).filter((n) => n.length >= 12))]
+    : [];
+  return { ativo: v.ativo !== false, numeros };
+}
+
+/** O bot responde este número com o modo de teste atual? */
+export function liberadoNoTeste(teste: ModoTeste, phone: string): boolean {
+  if (!teste.ativo) return true;
+  const alvo = telefoneComDdi(phone);
+  // Celular antigo pode estar no WhatsApp sem o 9: compara dos dois jeitos
+  const sem9 = (n: string) => (n.length === 13 ? n.slice(0, 4) + n.slice(5) : n);
+  return teste.numeros.some((n) => n === alvo || sem9(n) === sem9(alvo));
+}
 
 export interface ConfigIA {
   /** Como o atendente se apresenta, se perguntarem. */
