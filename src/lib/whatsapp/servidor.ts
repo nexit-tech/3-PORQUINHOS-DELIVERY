@@ -3,7 +3,7 @@
 // status de pedido e o atendente (bot) andam juntos.
 import { conectarWhatsapp, definirReceptor, ligarPublicacaoDeStatus } from './conexao';
 import { ligarNotificador } from './notificador';
-import { humanoAssumiu, receberMensagem } from '@/lib/bot/atendimento';
+import { humanoAssumiu, receberArquivo, receberMensagem } from '@/lib/bot/atendimento';
 import { botConfigurado, transcrever } from '@/lib/bot/agente';
 import { carregarIA } from '@/lib/bot/configServidor';
 
@@ -21,7 +21,10 @@ export function whatsappHabilitado(): boolean {
 
 function ligarAtendente() {
   definirReceptor({
-    async mensagem({ phone, nome, texto, audio, outraMidia }) {
+    async mensagem({ phone, nome, texto, audio, arquivo, outraMidia }) {
+      // Foto ou PDF pode ser comprovante de Pix: quem decide é o atendimento
+      if (arquivo) return receberArquivo(phone, arquivo, texto, nome);
+
       let conteudo = texto;
 
       const ouvir = audio && botConfigurado() && (await carregarIA()).config.ouvirAudio;

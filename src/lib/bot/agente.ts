@@ -9,15 +9,16 @@ import { carregarLoja, textoCardapio, textoHorarios, moeda } from './loja';
 import { carregarConversa, salvarConversa } from './conversa';
 import { executarFerramenta, ferramentasPara, type Contexto } from './ferramentas';
 import { carregarIA } from './configServidor';
+import { pixPronto } from './config';
 import { isPaymentEnabled } from '@/lib/infinitepay';
 
-const MODELO = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
+export const MODELO = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
 
 /** Rodadas de ferramenta por mensagem. Montar um combo leva umas 4. */
 const MAX_PASSOS = 10;
 
 let cliente: OpenAI | null = null;
-function openai(): OpenAI {
+export function openai(): OpenAI {
   if (!process.env.OPENAI_API_KEY) throw new Error('OPENAI_API_KEY não configurada');
   return (cliente ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 45_000 }));
 }
@@ -55,9 +56,12 @@ function instrucoes(ctx: Contexto, nomeWhatsapp: string | null): string {
   };
   const faq = ia.faq.filter((p) => p.ativo && p.pergunta.trim());
 
-  const pagamento = isPaymentEnabled()
-    ? '*dinheiro* na entrega/retirada (pergunte se precisa de troco e para quanto) ou *Pix/cartão pelo link* que você manda aqui.'
-    : 'só *dinheiro* na entrega/retirada (pergunte se precisa de troco e para quanto). Pagamento online está indisponível.';
+  const formas = [
+    '*dinheiro* na entrega/retirada (pergunte se precisa de troco e para quanto)',
+    pixPronto(ia.pix) ? '*Pix na chave da loja* (você manda a chave, o cliente paga e manda o comprovante aqui)' : null,
+    isPaymentEnabled() ? '*Pix ou cartão pelo link de pagamento* que você manda aqui' : null,
+  ].filter(Boolean);
+  const pagamento = `${formas.join('; ')}.`;
 
   const fluxoPedido = config.fecharPedido
     ? `# Fluxo de um pedido
@@ -114,6 +118,7 @@ Se a seção "Agora" (no fim) disser que a loja está FECHADA: diga quando abre 
 
 # Depois do pedido
 - O cliente recebe aviso automático por aqui quando o pedido é aceito, sai para entrega e é finalizado.
+- Comprovante de Pix: quando o cliente manda a foto/PDF, o sistema confere sozinho e responde. Você não confirma pagamento nenhum por conta própria — nunca diga que um Pix foi recebido.
 - "Cadê meu pedido?" → meus_pedidos. Se estiver muito atrasado ou o cliente estiver chateado, chamar_atendente.
 - Cancelar pedido já feito: você não cancela; chamar_atendente.
 

@@ -21,6 +21,8 @@ import { STORE_DEFAULT_CEP } from '@/config/store';
 import { acharBairro, acharProduto, moeda, type Loja } from './loja';
 import type { Conversa, ItemCarrinho } from './conversa';
 import type { IA } from './configServidor';
+import { pixPronto } from './config';
+import { FORMA_PIX } from './pix';
 
 export interface Contexto {
   loja: Loja;
@@ -105,8 +107,9 @@ export const FERRAMENTAS: Ferramenta[] = [
       complemento: { type: 'string', description: 'Apartamento, bloco, ponto de referência. Pode ser vazio' },
       pagamento: {
         type: 'string',
-        enum: ['dinheiro', 'online'],
-        description: 'dinheiro = paga na entrega/retirada. online = Pix ou cartão por link.',
+        enum: ['dinheiro', 'pix', 'online'],
+        description:
+          'dinheiro = paga na entrega/retirada. pix = Pix direto na chave da loja (cliente manda o comprovante aqui). online = Pix ou cartão pelo link de pagamento.',
       },
       troco_para: {
         type: ['number', 'null'],
@@ -300,15 +303,19 @@ const HANDLERS: Record<string, Handler> = {
       endereco = `${rua}, ${numero}${complemento ? ` - ${complemento}` : ''} - ${b.nome.trim()}`;
     }
 
+    const pixChave = args.pagamento === 'pix';
     const online = args.pagamento === 'online';
     if (online && !isPaymentEnabled()) {
-      return { erro: 'Pagamento online não está disponível. Ofereça dinheiro na entrega.' };
+      return { erro: 'O link de pagamento não está disponível. Ofereça dinheiro na entrega' + (pixPronto(ctx.ia.pix) ? ' ou Pix na chave.' : '.') };
+    }
+    if (pixChave && !pixPronto(ctx.ia.pix)) {
+      return { erro: 'Pix na chave não está configurado. Ofereça as outras formas de pagamento.' };
     }
 
     // O texto é lido pelo printReceipt e pela trava da migration 12, que só
     // aceita pagar na entrega se começar com "Dinheiro". Mesmo formato do site.
-    let formaPagamento = 'Pago online';
-    if (!online) {
+    let formaPagamento = pixChave ? FORMA_PIX : 'Pago online';
+    if (!online && !pixChave) {
       const troco = Number(args.troco_para);
       formaPagamento =
         args.troco_para && Number.isFinite(troco) && troco > 0
@@ -336,7 +343,9 @@ const HANDLERS: Record<string, Handler> = {
       p_neighborhood: bairro,
       p_items: itens,
       p_coupon_code: String(args.cupom || '').trim() || null,
-      p_payment_flow: online ? 'online' : 'on_delivery',
+      // Pix na chave também nasce aguardando pagamento: só vai para a cozinha
+      // quando o comprovante for aprovado (src/lib/bot/pix.ts)
+      p_payment_flow: online || pixChave ? 'online' : 'on_delivery',
     });
 
     if (error) return { erro: mensagemDoBanco(error) };
@@ -347,7 +356,7 @@ const HANDLERS: Record<string, Handler> = {
     // Troco menor que o total: o banco aceita, mas o entregador sairia sem
     // dinheiro suficiente. Avisa para o bot corrigir com o cliente.
     const avisoTroco =
-      !online && Number(args.troco_para) > 0 && Number(args.troco_para) < Number(pedido?.total ?? 0)
+      !online && !pixChave && Number(args.troco_para) > 0 && Number(args.troco_para) < Number(pedido?.total ?? 0)
         ? 'O troco informado é menor que o total. Confirme com o cliente o valor da nota.'
         : undefined;
 
@@ -355,6 +364,23 @@ const HANDLERS: Record<string, Handler> = {
 
     const minutos = normalizarMinutos(await getBotSetting(TEMPO_ENTREGA_KEY, db).catch(() => null));
     const previsao = previsaoDeEntrega(pedido?.created_at ?? new Date(), minutos);
+
+    if (pixChave) {
+      conversa.carrinho = [];
+      const pix = ctx.ia.pix;
+      return {
+        ok: true,
+        pedido: `#${pedidoId}`,
+        total,
+        chave_pix: pix.chave,
+        tipo_chave: pix.tipoChave,
+        recebedor: pix.nomesRecebedor[0],
+        banco: pix.banco || undefined,
+        proximo_passo:
+          'Mande a chave Pix (sozinha numa linha, fácil de copiar), o nome de quem recebe e o valor EXATO. Peça para o cliente mandar o comprovante aqui (foto ou PDF). ' +
+          'O pedido só vai para a cozinha quando o comprovante for aprovado, e expira se não pagar em uns 45 minutos.',
+      };
+    }
 
     if (!online) {
       conversa.carrinho = [];

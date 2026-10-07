@@ -78,7 +78,9 @@ export interface MensagemRecebida {
   texto: string | null;
   /** Áudio (mensagem de voz), para transcrever. */
   audio: Buffer | null;
-  /** Foto, figurinha, documento... que o bot não lê. */
+  /** Foto ou PDF (comprovante de Pix, por exemplo). */
+  arquivo: { buffer: Buffer; mime: string } | null;
+  /** Figurinha, vídeo, contato... que o bot não lê. */
   outraMidia: boolean;
 }
 
@@ -109,6 +111,8 @@ function lembrarEnvio(id: string | null | undefined) {
     if (primeira) enviadasPeloServidor.delete(primeira);
   }
 }
+
+const MAX_ARQUIVO = 10 * 1024 * 1024;
 
 /** Mensagem mais velha que isto é replay de reconexão, não conversa. */
 const IDADE_MAXIMA_S = 5 * 60;
@@ -182,11 +186,25 @@ async function tratarMensagens(baileys: typeof import('baileys'), sock: WASocket
       }
     }
 
-    const texto = textoDe(msg);
-    const outraMidia = !texto && !m.audioMessage;
+    // Foto ou PDF: comprovante de Pix chega assim. Limite de tamanho para
+    // ninguém derrubar o servidor mandando um arquivo enorme.
+    let arquivo: MensagemRecebida['arquivo'] = null;
+    const doc = m.documentMessage ?? m.documentWithCaptionMessage?.message?.documentMessage;
+    const midia = m.imageMessage ?? (doc && /^(image\/|application\/pdf)/.test(doc.mimetype || '') ? doc : null);
+    if (midia && Number(midia.fileLength || 0) <= MAX_ARQUIVO) {
+      try {
+        const buffer = (await baileys.downloadMediaMessage(msg, 'buffer', {})) as Buffer;
+        arquivo = { buffer, mime: midia.mimetype || 'image/jpeg' };
+      } catch (erro) {
+        console.error('[whatsapp] Não consegui baixar o arquivo:', erro);
+      }
+    }
+
+    const texto = textoDe(msg) || doc?.caption?.trim() || null;
+    const outraMidia = !texto && !m.audioMessage && !arquivo;
 
     await receptor
-      .mensagem({ phone, nome: msg.pushName || null, texto, audio, outraMidia })
+      .mensagem({ phone, nome: msg.pushName || null, texto, audio, arquivo, outraMidia })
       .catch((e) => console.error('Erro ao tratar mensagem recebida:', e));
   }
 }

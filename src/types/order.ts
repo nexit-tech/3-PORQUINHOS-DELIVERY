@@ -29,6 +29,8 @@ export interface Order {
   /** ON_DELIVERY = paga na entrega. PAID = já pago online. */
   paymentStatus?: PaymentStatus;
   paymentReceiptUrl?: string | null;
+  /** 'infinitepay' (link) ou 'pix_manual' (Pix na chave, comprovante conferido pela IA) */
+  paymentProvider?: string | null;
   createdAt: string;
   /** created_at cru (ISO). É de onde o cronômetro de entrega conta. */
   placedAt?: string;

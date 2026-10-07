@@ -202,7 +202,7 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
               fontSize: '0.68rem', padding: '3px 8px', borderRadius: 20,
               textTransform: 'uppercase', letterSpacing: '0.03em',
             }}>
-              ✓ Pago online
+              {order.paymentProvider === 'pix_manual' ? '✓ Pix conferido pela IA' : '✓ Pago online'}
             </span>
           ) : (
             <span style={{
@@ -214,6 +214,27 @@ export default function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
             </span>
           )}
         </div>
+
+        {/* Pix na chave: o comprovante fica num bucket privado, abre por link assinado */}
+        {order.paymentProvider === 'pix_manual' && order.paymentReceiptUrl && (
+          <button
+            type="button"
+            onClick={async (e) => {
+              e.stopPropagation();
+              const { data, error } = await supabase.storage
+                .from('comprovantes')
+                .createSignedUrl(order.paymentReceiptUrl!, 300);
+              if (error || !data?.signedUrl) return toast.error('Não consegui abrir o comprovante');
+              window.open(data.signedUrl, '_blank');
+            }}
+            style={{
+              marginTop: -8, marginBottom: 14, background: 'none', border: 'none', padding: 0,
+              color: '#166534', fontWeight: 700, fontSize: '0.78rem', textDecoration: 'underline', cursor: 'pointer',
+            }}
+          >
+            Ver comprovante do Pix
+          </button>
+        )}
 
       <div className={styles.actions}>
         {order.status === 'PENDING' && (

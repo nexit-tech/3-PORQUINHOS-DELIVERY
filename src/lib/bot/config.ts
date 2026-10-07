@@ -327,3 +327,40 @@ export function normalizarMidias(valor: unknown): Midia[] {
       ativo: m.ativo !== false,
     }));
 }
+
+// ---------------------------------------------------------------------
+// Pix na chave da loja
+// ---------------------------------------------------------------------
+
+export type TipoChave = 'cpf' | 'cnpj' | 'telefone' | 'email' | 'aleatoria';
+
+export interface PixConfig {
+  ativo: boolean;
+  tipoChave: TipoChave;
+  chave: string;
+  /**
+   * Nomes que aparecem como recebedor no comprovante (titular da conta,
+   * razão social, nome fantasia). Um basta bater.
+   */
+  nomesRecebedor: string[];
+  banco: string;
+}
+
+export const PIX_KEY = 'ia_pix';
+
+export function normalizarPix(valor: unknown): PixConfig {
+  const v = (valor && typeof valor === 'object' ? valor : {}) as Partial<PixConfig>;
+  const tipos: TipoChave[] = ['cpf', 'cnpj', 'telefone', 'email', 'aleatoria'];
+  return {
+    ativo: v.ativo === true,
+    tipoChave: tipos.includes(v.tipoChave as TipoChave) ? (v.tipoChave as TipoChave) : 'cpf',
+    chave: typeof v.chave === 'string' ? v.chave.trim() : '',
+    nomesRecebedor: Array.isArray(v.nomesRecebedor)
+      ? v.nomesRecebedor.map((n) => String(n).trim()).filter(Boolean)
+      : [],
+    banco: typeof v.banco === 'string' ? v.banco.trim() : '',
+  };
+}
+
+/** Pronto para usar: ligado e com chave e recebedor preenchidos. */
+export const pixPronto = (p: PixConfig) => p.ativo && p.chave.length > 3 && p.nomesRecebedor.length > 0;

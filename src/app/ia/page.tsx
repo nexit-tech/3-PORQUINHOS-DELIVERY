@@ -15,6 +15,7 @@ import {
   Users,
   X,
   Plus,
+  QrCode,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { BOT_SETTING_KEYS, getBotFlag, getBotSetting, setBotFlag, setBotSetting } from '@/services/botSettings';
@@ -23,15 +24,17 @@ import Conversas from './Conversas';
 import Conhecimento from './Conhecimento';
 import Fotos from './Fotos';
 import Comportamento from './Comportamento';
+import Pix from './Pix';
 import styles from './page.module.css';
 
-type Aba = 'conversas' | 'conhecimento' | 'fotos' | 'comportamento';
+type Aba = 'conversas' | 'conhecimento' | 'fotos' | 'pix' | 'comportamento';
 type Modo = 'desligado' | 'teste' | 'todos';
 
 const ABAS: { id: Aba; label: string; icon: typeof Bot }[] = [
   { id: 'conversas', label: 'Conversas', icon: MessageSquare },
   { id: 'conhecimento', label: 'Conhecimento', icon: BookOpen },
   { id: 'fotos', label: 'Fotos', icon: ImageIcon },
+  { id: 'pix', label: 'Pix', icon: QrCode },
   { id: 'comportamento', label: 'Comportamento', icon: SlidersHorizontal },
 ];
 
@@ -267,6 +270,7 @@ export default function AtendentePage() {
         {aba === 'conversas' && <Conversas />}
         {aba === 'conhecimento' && <Conhecimento />}
         {aba === 'fotos' && <Fotos />}
+        {aba === 'pix' && <Pix />}
         {aba === 'comportamento' && <Comportamento />}
       </section>
     </div>

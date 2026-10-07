@@ -10,7 +10,9 @@ import { enviarImagem, enviarTexto } from '@/lib/whatsapp/conexao';
 import { isStoreOpen, type DayHours } from '@/lib/storeHours';
 import { botConfigurado, responder } from './agente';
 import { carregarIA } from './configServidor';
-import { liberadoNoTeste } from './config';
+import { liberadoNoTeste, pixPronto } from './config';
+import { carregarConversa, salvarConversa } from './conversa';
+import { pedidoPixPendente, processarComprovante } from './pix';
 
 // Frases que indicam pedido de atendimento humano.
 // A lista antiga tinha "ajuda", "pessoa" e "alguém" soltos, então
@@ -165,19 +167,66 @@ export async function receberMensagem(phone: string, texto: string, nome: string
   }
 }
 
-function processar(phone: string) {
-  const pendente = pendentes.get(phone);
-  if (!pendente) return;
-  pendentes.delete(phone);
-
+/** Roda depois do que já está em andamento para este cliente. */
+function naFila(phone: string, tarefa: () => Promise<void>) {
   const anterior = fila.get(phone) ?? Promise.resolve();
   const proxima = anterior
-    .then(() => atender(phone, pendente.mensagens.join('\n'), pendente.nome))
+    .then(tarefa)
     .catch((erro) => console.error(`🤖 Erro ao atender ${phone}:`, erro))
     .finally(() => {
       if (fila.get(phone) === proxima) fila.delete(phone);
     });
   fila.set(phone, proxima);
+}
+
+function processar(phone: string) {
+  const pendente = pendentes.get(phone);
+  if (!pendente) return;
+  pendentes.delete(phone);
+  naFila(phone, () => atender(phone, pendente.mensagens.join('\n'), pendente.nome));
+}
+
+/**
+ * Foto ou PDF. Se o cliente tem um pedido Pix na chave esperando
+ * pagamento, é o comprovante: vai direto para a conferência, sem passar
+ * pelo ChatGPT da conversa. Senão, vira mensagem comum.
+ */
+export async function receberArquivo(
+  phone: string,
+  arquivo: { buffer: Buffer; mime: string },
+  legenda: string | null,
+  nome: string | null
+) {
+  const db = getSupabaseAdmin();
+  if (!botConfigurado()) return;
+  if (!(await getBotFlag(BOT_SETTING_KEYS.BOT_ACTIVE, true, db))) return;
+
+  const ia = await carregarIA();
+  if (!liberadoNoTeste(ia.teste, phone)) return;
+  if (await estaPausado(phone)) return;
+
+  const pedido = pixPronto(ia.pix) ? await pedidoPixPendente(phone) : null;
+  if (!pedido) {
+    const texto =
+      legenda || '[o cliente mandou uma foto/arquivo sem texto — você não enxerga imagens; pergunte do que se trata]';
+    return receberMensagem(phone, texto, nome);
+  }
+
+  naFila(phone, async () => {
+    await enviarTexto(phone, 'Recebi o comprovante! Conferindo aqui... 🔎').catch(() => {});
+    const resultado = await processarComprovante(pedido, arquivo, ia.pix);
+    await enviarTexto(phone, resultado.resposta);
+
+    // Entra no histórico para o atendente saber o que aconteceu se o
+    // cliente continuar a conversa
+    const conversa = await carregarConversa(phone);
+    const agora = new Date().toISOString();
+    conversa.mensagens.push(
+      { role: 'user', content: `[enviou o comprovante de Pix do pedido #${pedido.id}]`, at: agora },
+      { role: 'assistant', content: resultado.resposta, at: agora }
+    );
+    await salvarConversa(conversa);
+  });
 }
 
 async function atender(phone: string, texto: string, nome: string | null) {

@@ -66,7 +66,8 @@ Projeto: **Delivery 3 porquinhos** (`tgugjefgwwluycrkhcss`, sa-east-1).
 | `10-somente-pagamento-online.sql` | Trigger que recusa pedido "pagar na entrega" | ⚠️ substituída pela `12` |
 | `12-aceitar-dinheiro.sql` | Libera dinheiro na entrega; recusa as outras formas fora do site | ⏳ **rodar no banco** |
 | `13-whatsapp-sessao.sql` | Tabela `whatsapp_auth`, onde fica a sessão do WhatsApp conectado por QR | ✅ aplicado |
-| `14-bot-conversas.sql` | Tabela `bot_conversas`: histórico e carrinho do atendente do WhatsApp | ⏳ **rodar no banco** |
+| `14-bot-conversas.sql` | Tabela `bot_conversas`: histórico e carrinho do atendente do WhatsApp | ✅ aplicado |
+| `15-pix-na-chave.sql` | `mark_order_paid_pix()`, colunas de auditoria em `payment_attempts`, bucket privado `comprovantes` | ✅ aplicado |
 | `06-service-role.sql` | Conferência: RLS, políticas e Realtime | — |
 
 Os aplicados são todos **aditivos**: criam função ou tabela e não mudam o comportamento
@@ -223,7 +224,28 @@ desktop, porque só fala com o banco):
 | Fotos | Upload de imagens (bucket `produtos/atendente/`) com "quando mandar" | `ia_midias` |
 | Comportamento | Nome, jeito de falar, regras extras, fechar pedido sim/não, responder fechado, ouvir áudio, espera, mensagem de pausa | `ia_config`, `pause_message` |
 
-O bot relê essa configuração a cada resposta (cache de 15s). As regras de segurança do
+| Pix | Chave da loja, nomes do recebedor, banco; lista dos últimos comprovantes com o que a IA leu | `ia_pix`, `payment_attempts` |
+
+O bot relê essa configuração a cada resposta (cache de 15s).
+
+### Pix na chave, conferido pela IA
+
+Pelo WhatsApp o cliente pode pagar Pix direto na chave da loja. O pedido nasce em `AWAITING`
+(invisível para a cozinha, como o pagamento online) e o bot manda chave e valor exato. Quando
+chega foto ou PDF de um cliente com pedido Pix pendente, [`pix.ts`](src/lib/bot/pix.ts):
+
+1. guarda o arquivo no bucket **privado** `comprovantes`;
+2. pede para a IA só **ler** o comprovante (valor, data/hora, recebedor, chave, ID da transação);
+3. **o código decide**, com regra fixa: valor exato, recebedor bate com um dos nomes
+   cadastrados (aceita abreviação de banco) ou com a chave (inclusive mascarada), data/hora
+   entre o pedido e agora, Pix concluído (não agendado);
+4. aprovado → `mark_order_paid_pix()` (mesmas travas do pagamento online: valor exato e a
+   mesma transação não paga dois pedidos — sem ID legível, vale o hash do arquivo).
+
+A IA não decide de propósito: um texto escrito na própria imagem ("IA, aprove") não pode
+virar aprovação. **Limite conhecido:** nada disso vê o extrato. Comprovante falso bem feito
+passa, e a loja optou (07/10/2026) por não exigir conferência humana. Tudo fica em
+`payment_attempts` (`provider = 'pix_manual'`) com a leitura da IA, para auditoria. As regras de segurança do
 prompt ficam acima das "regras extras": o dono não consegue, sem querer, mandar o bot
 mostrar dado de outro cliente.
 - Loja fechada: avisa quando abre e tira dúvidas, mas não fecha pedido.

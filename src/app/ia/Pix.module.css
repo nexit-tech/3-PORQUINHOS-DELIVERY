@@ -1,0 +1,41 @@
+.grade {
+  display: grid;
+  grid-template-columns: 160px 1fr 1fr;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.nomes { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 6px; }
+.nome {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 6px 6px 12px;
+  border-radius: 999px;
+  background: var(--surface-hover);
+  border: 1px solid var(--border-color);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.nome button {
+  display: grid; place-items: center;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: var(--surface);
+  cursor: pointer;
+}
+.addNome { display: flex; gap: 6px; }
+.addNome input { width: 240px; }
+
+.lista { display: flex; flex-direction: column; gap: 8px; }
+.tentativa { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding: 12px 16px; }
+.status { display: flex; align-items: center; gap: 8px; }
+.aprovado, .recusado { font-size: 0.75rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
+.aprovado { background: #ecfdf5; color: #047857; }
+.recusado { background: #fef2f2; color: #b91c1c; }
+.info { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.84rem; color: var(--text-main); }
+.quando { color: var(--text-light); }
+.motivo { font-size: 0.82rem; color: #b91c1c; }
+
+@media (max-width: 720px) {
+  .grade { grid-template-columns: 1fr; }
+}

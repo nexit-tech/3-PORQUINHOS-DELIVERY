@@ -21,6 +21,7 @@ function mapOrder(raw: any): Order {
     couponCode: raw.coupon_code || null,
     paymentStatus: raw.payment_status || 'ON_DELIVERY',
     paymentReceiptUrl: raw.payment_receipt_url || null,
+    paymentProvider: raw.payment_provider || null,
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
     items: (raw.items || []).map((item: any) => ({
