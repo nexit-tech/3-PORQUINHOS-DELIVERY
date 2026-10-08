@@ -43,6 +43,9 @@ export function botConfigurado(): boolean {
  * A OpenAI dá desconto no começo repetido do prompt (cache); com a hora
  * logo no topo, nenhuma chamada aproveitaria.
  */
+/** Chave comparável: sem espaço, pontuação nem maiúscula. */
+const normalizarChave = (t: string) => String(t || '').toLowerCase().replace(/[^a-z0-9@]/g, '');
+
 function instrucoes(ctx: Contexto, nomeWhatsapp: string | null): string {
   const { loja, conversa, ia } = ctx;
   const { config } = ia;
@@ -54,10 +57,18 @@ function instrucoes(ctx: Contexto, nomeWhatsapp: string | null): string {
     const i = fotos.findIndex((m) => m.id === id);
     return i >= 0 ? `F${i + 1}` : null;
   };
-  const faq = ia.faq.filter((p) => p.ativo && p.pergunta.trim());
+  // Com o Pix na chave ligado, a chave só sai pelo finalizar_pedido (que cria
+  // o pedido e devolve o valor). Resposta do FAQ com a chave faria o bot
+  // entregá-la antes do pedido existir — e o comprovante chegaria sem pedido
+  // para conferir. Foi o que aconteceu em 07/10/2026.
+  const chavePix = pixPronto(ia.pix) ? normalizarChave(ia.pix.chave) : null;
+  const faq = ia.faq.filter(
+    (p) => p.ativo && p.pergunta.trim() && !(chavePix && normalizarChave(p.resposta).includes(chavePix))
+  );
 
   const formas = [
     '*dinheiro* na entrega/retirada (pergunte se precisa de troco e para quanto)',
+    config.cartaoNaEntrega ? '*cartão na entrega/retirada* (maquininha; pagamento "cartao_entrega")' : null,
     pixPronto(ia.pix) ? '*Pix na chave da loja* (você manda a chave, o cliente paga e manda o comprovante aqui)' : null,
     isPaymentEnabled() ? '*Pix ou cartão pelo link de pagamento* que você manda aqui' : null,
   ].filter(Boolean);
@@ -119,6 +130,10 @@ Se a seção "Agora" (no fim) disser que a loja está FECHADA: diga quando abre 
 # Depois do pedido
 - O cliente recebe aviso automático por aqui quando o pedido é aceito, sai para entrega e é finalizado.
 - Comprovante de Pix: quando o cliente manda a foto/PDF, o sistema confere sozinho e responde. Você não confirma pagamento nenhum por conta própria — nunca diga que um Pix foi recebido.
+- Pix na chave: NUNCA mande a chave Pix por conta própria. Ela só sai depois de finalizar_pedido com pagamento "pix", que cria o pedido e devolve a chave e o valor exato. Se o cliente pedir a chave antes, conduza: resumo → confirmação → finalizar_pedido.
+- Se o cliente mandar um comprovante ANTES de o pedido ser fechado, o sistema guarda e confere sozinho assim que você fechar o pedido com pagamento "pix".${
+    config.cartaoNaEntrega ? '' : '\n- Cartão na entrega/maquininha NÃO existe nesta loja: cartão só pelo link de pagamento.'
+  }
 - "Cadê meu pedido?" → meus_pedidos. Se estiver muito atrasado ou o cliente estiver chateado, chamar_atendente.
 - Cancelar pedido já feito: você não cancela; chamar_atendente.
 
@@ -157,6 +172,8 @@ export interface Resposta {
   pausar: boolean;
   /** Fotos para mandar depois do texto. */
   fotos: { url: string; legenda: string }[];
+  /** Pedido Pix na chave criado nesta resposta (para conferir comprovante já recebido). */
+  pedidoPix?: { id: number; total: number; created_at: string };
 }
 
 /**
@@ -218,5 +235,5 @@ export async function responder(phone: string, texto: string, nomeWhatsapp: stri
   conversa.mensagens.push({ role: 'assistant', content: resposta, at: new Date().toISOString() });
   await salvarConversa(conversa);
 
-  return { texto: resposta, pausar: Boolean(ctx.pausar), fotos: ctx.fotos };
+  return { texto: resposta, pausar: Boolean(ctx.pausar), fotos: ctx.fotos, pedidoPix: ctx.pedidoPix };
 }

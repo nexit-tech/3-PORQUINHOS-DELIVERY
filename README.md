@@ -68,6 +68,7 @@ Projeto: **Delivery 3 porquinhos** (`tgugjefgwwluycrkhcss`, sa-east-1).
 | `13-whatsapp-sessao.sql` | Tabela `whatsapp_auth`, onde fica a sessão do WhatsApp conectado por QR | ✅ aplicado |
 | `14-bot-conversas.sql` | Tabela `bot_conversas`: histórico e carrinho do atendente do WhatsApp | ✅ aplicado |
 | `15-pix-na-chave.sql` | `mark_order_paid_pix()`, colunas de auditoria em `payment_attempts`, bucket privado `comprovantes` | ✅ aplicado |
+| `16-cartao-na-entrega.sql` | A trava da `12` passa a aceitar cartão na entrega (maquininha), além de dinheiro | ✅ aplicado |
 | `06-service-role.sql` | Conferência: RLS, políticas e Realtime | — |
 
 Os aplicados são todos **aditivos**: criam função ou tabela e não mudam o comportamento
@@ -241,6 +242,12 @@ chega foto ou PDF de um cliente com pedido Pix pendente, [`pix.ts`](src/lib/bot/
    entre o pedido e agora, Pix concluído (não agendado);
 4. aprovado → `mark_order_paid_pix()` (mesmas travas do pagamento online: valor exato e a
    mesma transação não paga dois pedidos — sem ID legível, vale o hash do arquivo).
+
+**Cliente que paga antes de fechar o pedido** (o mais comum): o comprovante é lido na hora; se
+for Pix, fica guardado em memória por até 2h e é conferido sozinho assim que o bot fechar o
+pedido com pagamento Pix. Nesse caso a janela de data/hora conta da chegada do comprovante.
+Com a aba Pix ligada, respostas do FAQ que contêm a chave são ignoradas: a chave só sai pelo
+fechamento do pedido, junto com o valor exato.
 
 A IA não decide de propósito: um texto escrito na própria imagem ("IA, aprove") não pode
 virar aprovação. **Limite conhecido:** nada disso vê o extrato. Comprovante falso bem feito

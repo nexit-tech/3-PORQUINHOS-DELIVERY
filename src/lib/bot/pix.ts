@@ -191,7 +191,18 @@ export interface Veredito {
   motivos: string[];
 }
 
-export function conferir(leitura: Leitura, pedido: PedidoPix, pix: PixConfig, agora = new Date()): Veredito {
+/**
+ * `recebidoEm`: quando o comprovante chegou no WhatsApp. Se o cliente pagou
+ * ANTES de fechar o pedido, o Pix é mais velho que o pedido — aí a janela de
+ * data/hora conta a partir da chegada do comprovante, não do pedido.
+ */
+export function conferir(
+  leitura: Leitura,
+  pedido: PedidoPix,
+  pix: PixConfig,
+  agora = new Date(),
+  recebidoEm?: Date
+): Veredito {
   const motivos: string[] = [];
 
   if (!leitura.eh_comprovante_pix) {
@@ -220,7 +231,9 @@ export function conferir(leitura: Leitura, pedido: PedidoPix, pix: PixConfig, ag
   if (quando === null) motivos.push('não consegui ler a data e a hora');
   else {
     const pedidoEm = minutosLocais(new Date(pedido.created_at));
-    if (quando < pedidoEm - FOLGA_MIN) motivos.push('o Pix é de antes do pedido');
+    // Pago antes de fechar: aceita Pix de até 2h antes de o comprovante chegar
+    const desde = recebidoEm ? Math.min(pedidoEm, minutosLocais(recebidoEm) - 120) : pedidoEm - FOLGA_MIN;
+    if (quando < desde) motivos.push('o Pix é de antes do pedido');
     if (quando > minutosLocais(agora) + FOLGA_MIN) motivos.push('a data/hora do comprovante está no futuro');
   }
 
@@ -241,7 +254,9 @@ export interface ResultadoPix {
 export async function processarComprovante(
   pedido: PedidoPix,
   arquivo: { buffer: Buffer; mime: string },
-  pix: PixConfig
+  pix: PixConfig,
+  /** Comprovante que chegou antes do pedido: já foi lido, e a janela de hora muda. */
+  anterior?: { leitura: Leitura; recebidoEm: Date }
 ): Promise<ResultadoPix> {
   const db = getSupabaseAdmin();
   const hash = createHash('sha256').update(arquivo.buffer).digest('hex');
@@ -255,8 +270,8 @@ export async function processarComprovante(
   if (erroUpload) console.error('Pix: não consegui guardar o comprovante:', erroUpload);
   const receipt = erroUpload ? null : caminho;
 
-  const leitura = await lerComprovante(arquivo);
-  const veredito = conferir(leitura, pedido, pix);
+  const leitura = anterior?.leitura ?? (await lerComprovante(arquivo));
+  const veredito = conferir(leitura, pedido, pix, new Date(), anterior?.recebidoEm);
   const detalhe = { leitura, motivos: veredito.motivos, hash };
 
   console.log(`🧾 Pedido #${pedido.id}: comprovante ${veredito.aprovado ? 'APROVADO' : 'recusado'}`, JSON.stringify(detalhe));

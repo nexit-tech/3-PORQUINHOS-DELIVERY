@@ -120,6 +120,12 @@ export default function Comportamento() {
           onChange={(v) => set('fecharPedido', v)}
         />
         <Interruptor
+          titulo="Cartão na entrega (maquininha)"
+          descricao="Ligado: o entregador leva maquininha e o atendente aceita cartão na entrega ou na retirada. Desligado: na entrega, só dinheiro."
+          ligado={config.cartaoNaEntrega}
+          onChange={(v) => set('cartaoNaEntrega', v)}
+        />
+        <Interruptor
           titulo="Responder com a loja fechada"
           descricao="Ligado: avisa quando a loja abre e tira dúvidas (sem fechar pedido). Desligado: não responde nada fora do horário."
           ligado={config.responderFechado}

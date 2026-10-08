@@ -12,7 +12,9 @@ import { botConfigurado, responder } from './agente';
 import { carregarIA } from './configServidor';
 import { liberadoNoTeste, pixPronto } from './config';
 import { carregarConversa, salvarConversa } from './conversa';
-import { pedidoPixPendente, processarComprovante } from './pix';
+import { lerComprovante, pedidoPixPendente, processarComprovante, type Leitura, type PedidoPix } from './pix';
+import type { PixConfig } from './config';
+import { moeda } from './loja';
 
 // Frases que indicam pedido de atendimento humano.
 // A lista antiga tinha "ajuda", "pessoa" e "alguém" soltos, então
@@ -206,34 +208,72 @@ export async function receberArquivo(
   if (await estaPausado(phone)) return;
 
   const pedido = pixPronto(ia.pix) ? await pedidoPixPendente(phone) : null;
-  if (!pedido) {
-    const texto =
-      legenda || '[o cliente mandou uma foto/arquivo sem texto — você não enxerga imagens; pergunte do que se trata]';
-    return receberMensagem(phone, texto, nome);
+
+  if (pedido) {
+    naFila(phone, () => conferirEResponder(phone, pedido, arquivo, ia.pix));
+    return;
   }
 
-  naFila(phone, async () => {
-    await enviarTexto(phone, 'Recebi o comprovante! Conferindo aqui... 🔎').catch(() => {});
-    const resultado = await processarComprovante(pedido, arquivo, ia.pix);
-    await enviarTexto(phone, resultado.resposta);
+  // Sem pedido Pix esperando. Cliente costuma pagar ANTES de fechar o
+  // pedido: lê agora para saber se é comprovante e guarda para conferir
+  // quando o pedido for fechado. Imagem que não é comprovante segue como
+  // mensagem comum.
+  let texto = legenda || '[o cliente mandou uma foto/arquivo sem texto — você não enxerga imagens; pergunte do que se trata]';
+  if (pixPronto(ia.pix)) {
+    try {
+      const leitura = await lerComprovante(arquivo);
+      if (leitura.eh_comprovante_pix) {
+        comprovantesGuardados.set(phone, { arquivo, leitura, recebidoEm: new Date() });
+        texto =
+          `${legenda ? `${legenda}\n` : ''}[o cliente mandou um comprovante de Pix de ${leitura.valor != null ? moeda(leitura.valor) : 'valor ilegível'}` +
+          `${leitura.nome_recebedor ? ` para ${leitura.nome_recebedor}` : ''}. Ainda NÃO existe pedido fechado, então nada foi pago no sistema. ` +
+          'O comprovante fica guardado e é conferido sozinho assim que você fechar o pedido com finalizar_pedido e pagamento "pix". ' +
+          'Se o carrinho está pronto, mostre o resumo e peça a confirmação; se falta algo (itens, endereço, nome), pergunte.]';
+      }
+    } catch (erro) {
+      console.error('Pix: não consegui ler a imagem recebida:', erro);
+    }
+  }
+  return receberMensagem(phone, texto, nome);
+}
 
-    // Entra no histórico para o atendente saber o que aconteceu se o
-    // cliente continuar a conversa
-    const conversa = await carregarConversa(phone);
-    const agora = new Date().toISOString();
-    conversa.mensagens.push(
-      { role: 'user', content: `[enviou o comprovante de Pix do pedido #${pedido.id}]`, at: agora },
-      { role: 'assistant', content: resultado.resposta, at: agora }
-    );
-    await salvarConversa(conversa);
-  });
+/**
+ * Comprovante que chegou antes do pedido. Some depois de 2h: um Pix velho
+ * não deve aprovar um pedido novo de outro dia.
+ */
+const comprovantesGuardados = ((globalThis as any).__botComprovantes ??= new Map()) as Map<
+  string,
+  { arquivo: { buffer: Buffer; mime: string }; leitura: Leitura; recebidoEm: Date }
+>;
+const VALIDADE_COMPROVANTE_MS = 2 * 3_600_000;
+
+async function conferirEResponder(
+  phone: string,
+  pedido: PedidoPix,
+  arquivo: { buffer: Buffer; mime: string },
+  pix: PixConfig,
+  anterior?: { leitura: Leitura; recebidoEm: Date }
+) {
+  await enviarTexto(phone, 'Recebi o comprovante! Conferindo aqui... 🔎').catch(() => {});
+  const resultado = await processarComprovante(pedido, arquivo, pix, anterior);
+  await enviarTexto(phone, resultado.resposta);
+
+  // Entra no histórico para o atendente saber o que aconteceu se o
+  // cliente continuar a conversa
+  const conversa = await carregarConversa(phone);
+  const agora = new Date().toISOString();
+  conversa.mensagens.push(
+    { role: 'user', content: `[enviou o comprovante de Pix do pedido #${pedido.id}]`, at: agora },
+    { role: 'assistant', content: resultado.resposta, at: agora }
+  );
+  await salvarConversa(conversa);
 }
 
 async function atender(phone: string, texto: string, nome: string | null) {
   // Pode ter sido pausado enquanto esperava (atendente assumiu)
   if (await estaPausado(phone)) return;
 
-  const { texto: resposta, fotos } = await responder(phone, texto, nome);
+  const { texto: resposta, fotos, pedidoPix } = await responder(phone, texto, nome);
 
   if (resposta) {
     const envio = await enviarTexto(phone, resposta);
@@ -247,5 +287,21 @@ async function atender(phone: string, texto: string, nome: string | null) {
     await enviarImagem(phone, foto.url, foto.legenda).catch((e) =>
       console.error(`🤖 Não consegui mandar a foto para ${phone}:`, e)
     );
+  }
+
+  // Acabou de fechar pedido Pix e o comprovante já tinha chegado: confere agora
+  const guardado = comprovantesGuardados.get(phone);
+  if (pedidoPix && guardado) {
+    comprovantesGuardados.delete(phone);
+    if (Date.now() - guardado.recebidoEm.getTime() <= VALIDADE_COMPROVANTE_MS) {
+      const ia = await carregarIA();
+      await conferirEResponder(
+        phone,
+        { ...pedidoPix, payment_status: 'AWAITING' },
+        guardado.arquivo,
+        ia.pix,
+        { leitura: guardado.leitura, recebidoEm: guardado.recebidoEm }
+      );
+    }
   }
 }

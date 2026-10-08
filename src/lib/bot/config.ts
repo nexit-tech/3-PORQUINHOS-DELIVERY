@@ -69,6 +69,8 @@ export interface ConfigIA {
   esperaSegundos: number;
   /** Respostas por áudio são transcritas. */
   ouvirAudio: boolean;
+  /** O entregador leva maquininha: aceita cartão na entrega/retirada. */
+  cartaoNaEntrega: boolean;
 }
 
 export interface PerguntaResposta {
@@ -104,6 +106,7 @@ export const CONFIG_PADRAO: ConfigIA = {
   responderFechado: true,
   esperaSegundos: 8,
   ouvirAudio: true,
+  cartaoNaEntrega: false,
 };
 
 let seq = 0;
@@ -298,6 +301,7 @@ export function normalizarConfig(valor: unknown): ConfigIA {
     responderFechado: typeof v.responderFechado === 'boolean' ? v.responderFechado : CONFIG_PADRAO.responderFechado,
     esperaSegundos: Number.isFinite(espera) && espera >= 0 && espera <= 60 ? espera : CONFIG_PADRAO.esperaSegundos,
     ouvirAudio: typeof v.ouvirAudio === 'boolean' ? v.ouvirAudio : CONFIG_PADRAO.ouvirAudio,
+    cartaoNaEntrega: typeof v.cartaoNaEntrega === 'boolean' ? v.cartaoNaEntrega : CONFIG_PADRAO.cartaoNaEntrega,
   };
 }
 

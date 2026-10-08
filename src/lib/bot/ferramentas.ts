@@ -35,6 +35,11 @@ export interface Contexto {
   pausar?: boolean;
   /** Fotos que o bot decidiu mandar; saem depois do texto da resposta. */
   fotos: { url: string; legenda: string }[];
+  /**
+   * Pedido Pix na chave criado nesta resposta. Se o cliente já tinha mandado
+   * o comprovante antes de fechar, o atendimento confere logo em seguida.
+   */
+  pedidoPix?: { id: number; total: number; created_at: string };
 }
 
 type Ferramenta = OpenAI.Chat.Completions.ChatCompletionTool;
@@ -107,9 +112,9 @@ export const FERRAMENTAS: Ferramenta[] = [
       complemento: { type: 'string', description: 'Apartamento, bloco, ponto de referência. Pode ser vazio' },
       pagamento: {
         type: 'string',
-        enum: ['dinheiro', 'pix', 'online'],
+        enum: ['dinheiro', 'cartao_entrega', 'pix', 'online'],
         description:
-          'dinheiro = paga na entrega/retirada. pix = Pix direto na chave da loja (cliente manda o comprovante aqui). online = Pix ou cartão pelo link de pagamento.',
+          'dinheiro = paga em dinheiro na entrega/retirada. cartao_entrega = cartão na maquininha do entregador ou do balcão. pix = Pix direto na chave da loja (cliente manda o comprovante aqui). online = Pix ou cartão pelo link de pagamento.',
       },
       troco_para: {
         type: ['number', 'null'],
@@ -305,6 +310,10 @@ const HANDLERS: Record<string, Handler> = {
 
     const pixChave = args.pagamento === 'pix';
     const online = args.pagamento === 'online';
+    const cartao = args.pagamento === 'cartao_entrega';
+    if (cartao && !ctx.ia.config.cartaoNaEntrega) {
+      return { erro: 'A loja não aceita cartão na entrega. Ofereça dinheiro, Pix ou o link de pagamento.' };
+    }
     if (online && !isPaymentEnabled()) {
       return { erro: 'O link de pagamento não está disponível. Ofereça dinheiro na entrega' + (pixPronto(ctx.ia.pix) ? ' ou Pix na chave.' : '.') };
     }
@@ -312,10 +321,10 @@ const HANDLERS: Record<string, Handler> = {
       return { erro: 'Pix na chave não está configurado. Ofereça as outras formas de pagamento.' };
     }
 
-    // O texto é lido pelo printReceipt e pela trava da migration 12, que só
-    // aceita pagar na entrega se começar com "Dinheiro". Mesmo formato do site.
-    let formaPagamento = pixChave ? FORMA_PIX : 'Pago online';
-    if (!online && !pixChave) {
+    // O texto é lido pelo printReceipt e pela trava das migrations 12/16,
+    // que só aceitam pagar na entrega se começar com "Dinheiro" ou "Cartão".
+    let formaPagamento = pixChave ? FORMA_PIX : cartao ? 'Cartão na entrega (maquininha)' : 'Pago online';
+    if (!online && !pixChave && !cartao) {
       const troco = Number(args.troco_para);
       formaPagamento =
         args.troco_para && Number.isFinite(troco) && troco > 0
@@ -356,7 +365,7 @@ const HANDLERS: Record<string, Handler> = {
     // Troco menor que o total: o banco aceita, mas o entregador sairia sem
     // dinheiro suficiente. Avisa para o bot corrigir com o cliente.
     const avisoTroco =
-      !online && !pixChave && Number(args.troco_para) > 0 && Number(args.troco_para) < Number(pedido?.total ?? 0)
+      !online && !pixChave && !cartao && Number(args.troco_para) > 0 && Number(args.troco_para) < Number(pedido?.total ?? 0)
         ? 'O troco informado é menor que o total. Confirme com o cliente o valor da nota.'
         : undefined;
 
@@ -368,6 +377,7 @@ const HANDLERS: Record<string, Handler> = {
     if (pixChave) {
       conversa.carrinho = [];
       const pix = ctx.ia.pix;
+      ctx.pedidoPix = { id: Number(pedidoId), total: Number(pedido?.total ?? 0), created_at: pedido?.created_at ?? new Date().toISOString() };
       return {
         ok: true,
         pedido: `#${pedidoId}`,
